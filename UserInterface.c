@@ -46,15 +46,14 @@ void Go()        {Wsl("Going, going, ...., gone.");}
 void Quit()      {QuitRequested = 1;}
 void None()      {/* empty command */}
 
-void Registers() {
-  u8 registers[32] = {0};
-  DwReadRegisters(registers);
+void RegistersCommand() {
+  DwReadRegisters(Registers, 0, 30);  // r30 and r31 are read at connection time
 
   for (int row=0; row<4; row++) {
     for (int column=0; column<8; column++) {
       if (column == 2  &&  row < 2) {Wc(' ');}
       Ws("r"); Wd(row+column*4,1); Wc(' ');
-      Wx(registers[row+column*4],2); Ws("   ");
+      Wx(Registers[row+column*4],2); Ws("   ");
     }
     Wl();
   }
@@ -80,9 +79,9 @@ void Registers() {
   Ws("  ");
   Ws("P ");  Wx(PC,4);                                 Ws("   ");
   Ws("S ");  Wx(io[1],2); Wx(io[0],2);                 Ws("   ");
-  Ws("X ");  Wx(registers[27],2); Wx(registers[26],2); Ws("   ");
-  Ws("Y ");  Wx(registers[29],2); Wx(registers[28],2); Ws("   ");
-  Ws("Z ");  Wx(registers[31],2); Wx(registers[30],2); Ws("   ");
+  Ws("X ");  Wx(Registers[27],2); Wx(Registers[26],2); Ws("   ");
+  Ws("Y ");  Wx(Registers[29],2); Wx(Registers[28],2); Ws("   ");
+  Ws("Z ");  Wx(Registers[31],2); Wx(Registers[30],2); Ws("   ");
   Wl();
 
 
@@ -90,11 +89,18 @@ void Registers() {
   //Ws("PORTB:   "); WritePORTB();
 }
 
+
+void TraceCommand() {
+  DwTrace();
+}
+
+
 struct {char *name; void (*handler)();} commands[] = {
   {"g", Go},
   {"p", SetPC},
   {"q", Quit},
-  {"r", Registers},
+  {"r", RegistersCommand},
+  {"t", TraceCommand},
   {"",  None}
 };
 

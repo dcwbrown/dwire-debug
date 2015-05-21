@@ -29,11 +29,12 @@ void DwWrite(const u8 *bytes, int len) {
 u8 hi(int w) {return (w>>8)&0xff;}
 u8 lo(int w) {return (w   )&0xff;}
 
-#define ByteArrayAndLength(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
+#define ArrayAddressAndLength(array) array, sizeof(array)
+#define ByteArrayAddressAndLength(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 
 void DwWriteWord(int word) {
-  DwWrite(ByteArrayAndLength(hi(word), lo(word)));
+  DwWrite(ByteArrayAddressAndLength(hi(word), lo(word)));
 }
 
 
@@ -51,9 +52,6 @@ int SramSize   = 0;
 int EepromSize = 0;
 int FlashSize  = 0;  // In bytes
 
-int PC = 0;
-
-
 
 void DwBreak() {SerialBreak(400); DwExpect((u8[]){0,0x55}, 2);}
 
@@ -66,27 +64,22 @@ void SetSizes(int signature) {
   }
 }
 
-void DwConnect() {
-  DwWrite(ByteArrayAndLength(0xF0)); PC = DwReadWord()-1;
-  DwWrite(ByteArrayAndLength(0xF3)); SetSizes(DwReadWord());
-}
-
-
-void DwReadRegisters(u8 *registers) {
+void DwReadRegisters(u8 *registers, int first, int limit) {
   //wsl("Load Registers.");
   // Load Registers (destroys PC and BP)
-  DwWrite(ByteArrayAndLength(
-    0x66,                   // Access registers/memory mode
-    0xD0, 0,0, 0xD1, 0,32,  // Set PC=0, BP=32 (i.e. address all registers)
-    0xC2, 1, 0x20           // Start register read
+  DwWrite(ByteArrayAddressAndLength(
+    0x66,            // Access registers/memory mode
+    0xD0, 0, first,  // Set PC = first
+    0xD1, 0, limit,  // Set BP = limit
+    0xC2, 1, 0x20    // Start register read
   ));
-  SerialRead(registers, 32);
+  SerialRead(registers, limit-first);
 }
 
 
 void DwReadAddr(int addr, u8 *buf, int len) {
   // Avoid reading address 0x22 - it is the DebugWire port and will hang if read.
-  DwWrite(ByteArrayAndLength(
+  DwWrite(ByteArrayAddressAndLength(
     0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
     0xD0, 0,0, 0xD1, hi(len*2), lo(len*2),  // Set PC=0, BP=2*length
@@ -94,6 +87,47 @@ void DwReadAddr(int addr, u8 *buf, int len) {
   ));
   SerialRead(buf, len);
 }
+
+
+int PC = 0;
+u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest only on demand
+
+
+void DwReconnect() {
+  DwWrite(ByteArrayAddressAndLength(0xF0)); PC = DwReadWord()-1;
+  DwReadRegisters(&Registers[30], 30, 32);  // Save r30 & r31
+}
+
+void DwConnect() {
+  DwReconnect();
+  DwWrite(ByteArrayAddressAndLength(0xF3)); SetSizes(DwReadWord());
+}
+
+void DwGo() { // Restore saved registers and restart execution
+
+}
+
+int BP = -1;
+
+void DwTrace() { // Execute one instruction
+  DwWrite(ByteArrayAddressAndLength(
+    0x66,                          // Register or memory access mode
+    0xD0, 0, 30,                   // Set up to set registers starting from r30
+    0xD1, 0, 32,                   // Register limit is 32 (i.e. stop at r31)
+    0xC2, 5, 0x20,                 // Select reigster write mode and start
+    Registers[30], Registers[31],  // Saved value of r30 and r31
+    0x60, 0xD0, hi(PC), lo(PC),    // Address to restart execution at
+    0x31                           // Continue execution
+  ));
+
+  //SerialDump();
+
+  Wsl("1");
+  DwExpect(ByteArrayAddressAndLength(0, 0x55));
+  Wsl("2");
+  DwReconnect();
+}
+
 
 //  // Load IO space up to DWDR (0x22) (Destroys PC, BP and r30/r31)
 //  //wsl("Load first IO space.");
