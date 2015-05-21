@@ -20,9 +20,10 @@ to add all the mingw64-i686 packages.
 
 ###### Stand-alone
 
-I became frustrated at having to install MS Visual studio and AVR studio, both
-large packages. It's a lot to download, time-consuming to install, there are a
-number of dependencies to install, and it is Windows only.
+I became frustrated that debugging an ATtiny45 required me to install MS Visual
+studio and AVR studio, both large packages. It's a lot to download,
+time-consuming to install, there are a number of dependencies to install, and
+it is Windows only.
 
 I wanted a simple debugger like we used to use on minicomputers (DEC's DDT), or
 CP/M (SID) or MSDOS (DEBUG).
@@ -31,10 +32,10 @@ CP/M (SID) or MSDOS (DEBUG).
 
 The debugger does not work with special hardware, instead it uses a standard USB
 UART and a schottky diode. I used an £8.26 Foxnovo FT232R based UART from
-amazon.co.uk. This board has with jumper selectable 3.3V/5V operation and
-provides power rails, making it easy to program and debug an ATtiny out of
-circuit, but any UART that works with your OS and at the same voltage as your
-circuit should work.
+amazon.co.uk. This board has jumper selectable 3.3V/5V operation and provides
+power rails, making it easy to program and debug an ATtiny out of circuit, but
+any UART that works with your OS and at the same voltage as your circuit should
+work.
 
 Connect the diode's cathode (the end marked with a line) to the UART txd line,
 and connect the diode's anode to the rxd line and to the DebugeWire pin (pin 1
