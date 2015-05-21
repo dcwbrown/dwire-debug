@@ -11,7 +11,6 @@ endif
 .PHONY: all
 .PHONY: clean
 .PHONY: run
-.PHONY: check-config
 
 #all: clean run
 all: run
@@ -29,7 +28,3 @@ endif
 
 clean:
 	-rm -f *.o *.map *.list $(BINARY)
-
-check-config:
-ifdef WINDIR
-endif
