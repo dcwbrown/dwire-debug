@@ -41,6 +41,8 @@ Connect the diode's cathode (the end marked with a line) to the UART txd line,
 and connect the diode's anode to the rxd line and to the DebugeWire pin (pin 1
 on an ATtiny45).
 
+![Simple out of circuit hardware](https://github.com/dcwbrown/dwire-debug/blob/master/simple-hardware.jpg)
+
 ###### ATtiny configuration
 
 The ATtiny must have DebugWIRE (DWEN) enabled. DWEN is not enabled in chips
