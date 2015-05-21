@@ -7,15 +7,6 @@
 
 /// DebugWire port access
 
-void DwExpectByte(u8 byte) {
-  u8 actual;
-  SerialRead(&actual, sizeof(actual));
-  if (actual != byte) {
-    Ws("Read "); Wx(actual,2); Ws(" expected "); Wx(byte,2); Wl(); Fail("");
-  }
-}
-
-
 void DwExpect(const u8 *bytes, int len) {
   u8 actual[len];
   SerialRead(actual, len);
@@ -43,6 +34,7 @@ u8 lo(int w) {return (w   )&0xff;}
 void DwWriteWord(int word) {
   DwWrite(ByteArrayAddressAndLength(hi(word), lo(word)));
 }
+
 
 int DwReadByte() {u8 byte   = 0;   SerialRead(&byte, 1); return byte;}
 int DwReadWord() {u8 buf[2] = {0}; SerialRead(buf, 2);   return (buf[0] << 8) | buf[1];}
@@ -106,7 +98,7 @@ u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest onl
 
 void DwReconnect() {
   DwWrite(ByteArrayAddressAndLength(0xF0)); PC = DwReadWord()-1;
-  //DwReadRegisters(&Registers[30], 30, 32);  // Save r30 & r31
+  DwReadRegisters(&Registers[30], 30, 32);  // Save r30 & r31
 }
 
 void DwConnect() {

@@ -105,10 +105,12 @@ void Wx(unsigned int i, int w);
 
 /// Stack backtrace report on Linux
 
-#ifndef windows
+#ifdef windows
+void StackTrace() {}
+#else
 #include <execinfo.h>
-void BackTrace() {
-  Wsl("Backtrace:"); 
+void StackTrace() {
+  Wsl("Backtrace:");
   void  *functions[32];
   int    size    = backtrace(functions, countof(functions));
   Wd(size,1); Wsl(" callers:");
@@ -129,7 +131,7 @@ void BackTrace() {
 
 /// Simple error handling.
 
-void Fail(const char *message) {Wsl(message); BackTrace(); longjmp(FailPoint,1);}
+void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1);}
 
 #define S(x) #x
 #define S_(x) S(x)
