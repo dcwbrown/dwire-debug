@@ -7,13 +7,21 @@
 
 /// DebugWire port access
 
+void DwExpectByte(u8 byte) {
+  u8 actual;
+  SerialRead(&actual, sizeof(actual));
+  if (actual != byte) {
+    Ws("Read "); Wx(actual,2); Ws(" expected "); Wx(byte,2); Wl(); Fail("");
+  }
+}
+
 
 void DwExpect(const u8 *bytes, int len) {
   u8 actual[len];
   SerialRead(actual, len);
   for (int i=0; i<len; i++) {
     if (actual[i] != bytes[i]) {
-      Ws("WriteDebug, byte "); Wd(i,1); Ws(" of "); Wd(len,1);
+      Ws("WriteDebug, byte "); Wd(i+1,1); Ws(" of "); Wd(len,1);
       Ws(": Read "); Wx(actual[i],2); Ws(" expected "); Wx(bytes[i],2); Wl(); Fail("");
     }
   }
@@ -29,7 +37,6 @@ void DwWrite(const u8 *bytes, int len) {
 u8 hi(int w) {return (w>>8)&0xff;}
 u8 lo(int w) {return (w   )&0xff;}
 
-#define ArrayAddressAndLength(array) array, sizeof(array)
 #define ByteArrayAddressAndLength(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 
@@ -37,12 +44,8 @@ void DwWriteWord(int word) {
   DwWrite(ByteArrayAddressAndLength(hi(word), lo(word)));
 }
 
-
-int DwReadWord() {
-  u8 buf[2] = {0};
-  SerialRead(buf, 2);
-  return (buf[0] << 8) | buf[1];
-}
+int DwReadByte() {u8 byte   = 0;   SerialRead(&byte, 1); return byte;}
+int DwReadWord() {u8 buf[2] = {0}; SerialRead(buf, 2);   return (buf[0] << 8) | buf[1];}
 
 
 
@@ -53,7 +56,15 @@ int EepromSize = 0;
 int FlashSize  = 0;  // In bytes
 
 
-void DwBreak() {SerialBreak(400); DwExpect((u8[]){0,0x55}, 2);}
+void DwSync() { // Used after reset/go/break
+  Assert(DwReadByte() == 0);
+  u8 byte = DwReadByte();
+  while (byte == 0xFF) {byte = DwReadByte();}
+  Assert(byte == 0x55);
+}
+
+void DwBreak() {SerialBreak(400); DwSync();}
+
 
 void SetSizes(int signature) {
   switch (signature) {
@@ -95,12 +106,18 @@ u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest onl
 
 void DwReconnect() {
   DwWrite(ByteArrayAddressAndLength(0xF0)); PC = DwReadWord()-1;
-  DwReadRegisters(&Registers[30], 30, 32);  // Save r30 & r31
+  //DwReadRegisters(&Registers[30], 30, 32);  // Save r30 & r31
 }
 
 void DwConnect() {
   DwReconnect();
   DwWrite(ByteArrayAddressAndLength(0xF3)); SetSizes(DwReadWord());
+}
+
+void DwReset() {
+  DwBreak();
+  DwWrite(ByteArrayAddressAndLength(7)); DwSync();
+  DwReconnect();
 }
 
 void DwGo() { // Restore saved registers and restart execution
@@ -122,10 +139,7 @@ void DwTrace() { // Execute one instruction
 
   //SerialDump();
 
-  Wsl("1");
-  DwExpect(ByteArrayAddressAndLength(0, 0x55));
-  Wsl("2");
-  DwReconnect();
+  DwSync(); DwReconnect();
 }
 
 

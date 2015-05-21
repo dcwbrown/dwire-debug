@@ -6,7 +6,6 @@
 //        appropriate handler procedures.
 
 
-#define countof(array) (sizeof(array)/(sizeof(array)[0]))
 #define AdrAndLim(buffer) buffer,sizeof(buffer)
 
 
@@ -101,6 +100,11 @@ struct {char *name; void (*handler)();} commands[] = {
   {"q", Quit},
   {"r", RegistersCommand},
   {"t", TraceCommand},
+
+  {"reset",       DwReset},
+  {"serialdump",  SerialDump},
+
+
   {"",  None}
 };
 

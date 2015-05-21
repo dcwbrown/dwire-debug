@@ -41,7 +41,7 @@ FileHandle SerialPort = 0;
     config.c_cflag = CS8 | BOTHER;
     config.c_ispeed    =  baudrate;
     config.c_ospeed    =  baudrate;
-    config.c_cc[VMIN]  =  255;         // Nonblocking read of up to 255 bytes
+    config.c_cc[VMIN]  =  200;         // Nonblocking read of up to 255 bytes
     config.c_cc[VTIME] =  5;           // 0.5 seconds timeout
     if (ioctl(SerialPort, TCSETS2, &config)) {Fail("Couldn't set serial port configuration.");}
   }

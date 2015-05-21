@@ -17,6 +17,14 @@
 
 
 
+#define countof(array) (sizeof(array)/(sizeof(array)[0]))
+#define ArrayAddressAndLength(array) array, sizeof(array)
+
+
+
+
+
+
 #include <setjmp.h>
 static jmp_buf FailPoint;
 
@@ -95,9 +103,33 @@ void Wx(unsigned int i, int w);
 
 
 
+/// Stack backtrace report on Linux
+
+#ifndef windows
+#include <execinfo.h>
+void BackTrace() {
+  Wsl("Backtrace:"); 
+  void  *functions[32];
+  int    size    = backtrace(functions, countof(functions));
+  Wd(size,1); Wsl(" callers:");
+  char **strings = backtrace_symbols(functions, size);
+  for (int i=0; i<size; i++) {Wsl(strings[i]);}
+
+  //free(strings);
+}
+
+#endif
+
+/// Stack backtrace report on Linux.
+
+
+
+
+
+
 /// Simple error handling.
 
-void Fail(const char *message) {Wsl(message); longjmp(FailPoint,1);}
+void Fail(const char *message) {Wsl(message); BackTrace(); longjmp(FailPoint,1);}
 
 #define S(x) #x
 #define S_(x) S(x)
