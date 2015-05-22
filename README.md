@@ -3,6 +3,10 @@
 Simple stand-alone debugger for ATtiny 45 and other DebugWIRE chips connected
 directly to an FT232R or similar on Linux or Windows.
 
+This project would not have been possible without the careful investigation
+and documentation of the DebugWire protocol by RikusW at
+http://www.ruemohr.org/docs/debugwire.html.
+
 ###### License
 
 This program is free software: you can redistribute it and/or modify it under
