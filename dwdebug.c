@@ -10,6 +10,8 @@ typedef unsigned char u8;
 #include "SerialPort.c"
 #include "DwPort.c"
 #include "Disassemble.c"
+#include "DwDebugInput.c"
+#include "RegistersCommand.c"
 #include "UserInterface.c"
 
 int Program(int argCount, char **argVector) {
