@@ -80,13 +80,23 @@ void DwReadRegisters(u8 *registers, int first, int limit) {
 }
 
 
-void DwReadAddr(int addr, u8 *buf, int len) {
+void DwReadAddr(int addr, int len, u8 *buf) {
   // Avoid reading address 0x22 - it is the DebugWire port and will hang if read.
   DwWrite(ByteArrayAddressAndLength(
     0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
     0xD0, 0,0, 0xD1, hi(len*2), lo(len*2),  // Set PC=0, BP=2*length
     0xC2, 0, 0x20                           // Start the read
+  ));
+  SerialRead(buf, len);
+}
+
+void DwReadFlash(int addr, int len, u8 *buf) {
+  DwWrite(ByteArrayAddressAndLength(
+    0xD0, 0,0x1e, 0xD1, 0,0x20,            // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
+    0xC2, 5, 0x20, lo(addr),hi(addr),      // Write addr to Z
+    0xD0, 0,0, 0xD1, hi(2*len),lo(2*len),  // Set PC=0, BP=2*len
+    0xC2, 2, 0x20                          // Read length bytes from flash starting at first
   ));
   SerialRead(buf, len);
 }

@@ -21,6 +21,12 @@ void Wc(char c) {
   OutputBuffer[OutputPosition++] = c;
 }
 
+
+void Wt(int tab) {
+  tab = min(max(tab, OutputPosition+1), countof(OutputBuffer));
+  while (OutputPosition < tab) {OutputBuffer[OutputPosition++] = ' ';}
+}
+
 void Ws(const char *s) {
   while (*s) {Wc(*s); s++;}
 }

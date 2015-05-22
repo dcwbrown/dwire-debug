@@ -58,7 +58,7 @@ void RegistersCommand() {
   }
 
   u8 io[] = {0};  // SPL, SPH, SREG
-  DwReadAddr(0x5D, io, sizeof(io));
+  DwReadAddr(0x5D, sizeof(io), io);
 
 
   Ws("SREG   ");
@@ -93,6 +93,18 @@ void TraceCommand() {
   DwTrace();
 }
 
+void FailCommand() {Fail("FailCommand ...");}
+
+void HelpCommand() {
+  Wsl("dwdebug commands:\n"
+  "p  Set PC\n"
+  "q  Quit\n"
+  "r  Display registers\n"
+  "t  Trace instruction(s)");
+}
+
+void EmptyCommand() {Sb(); if (!Eoln()) {HelpCommand();}}
+
 
 struct {char *name; void (*handler)();} commands[] = {
   {"g", Go},
@@ -100,26 +112,31 @@ struct {char *name; void (*handler)();} commands[] = {
   {"q", Quit},
   {"r", RegistersCommand},
   {"t", TraceCommand},
+  {"h", HelpCommand},
 
   {"reset",       DwReset},
   {"serialdump",  SerialDump},
+  {"help",        HelpCommand},  // testing
 
 
-  {"",  None}
+  {"",  EmptyCommand}
 };
-
-
-int Compare(const char *a, const char *b) {
-  while (*a  &&  *b  &&  *a == *b) {a++; b++;}
-  return *a - *b;
-}
 
 
 void HandleCommand(const char *cmd) {
   for (int i=0; i<countof(commands); i++) {
-    if (Compare(cmd, commands[i].name) == 0) {commands[i].handler(); return;}
+    if (!strcmp(cmd, commands[i].name)) {commands[i].handler(); return;}
   }
   Ws("Unrecognised command: '"); Ws(cmd); Wsl("'.");
+}
+
+void Prompt() {
+  u8 buf[4];  // Enough for a 2 word instruction
+  Wx(PC, 4); Ws(": ");  // Word address, e.g. as used in pc and bp setting instructions
+  DwReadFlash(PC<<1, 4, buf);
+  DisassembleInstruction(PC, buf);
+  Wt(40);
+  Ws("> "); Flush();
 }
 
 void UI() {
@@ -132,7 +149,7 @@ void UI() {
 
     if (QuitRequested) return;
 
-    if (IsUser(Input)) {Wx(PC,4); Ws("> "); Flush();}
+    if (IsUser(Input)) {Prompt();}
 
     Sb();
     if (Eof()) {if (IsUser(Input)) {Wl();} QuitRequested = 1;}

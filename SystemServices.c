@@ -10,6 +10,8 @@
   #include <stdio.h>
   #include <fcntl.h>
   #include <unistd.h>
+  #include <stdlib.h>
+  #include <string.h>
 #endif
 
 
@@ -20,6 +22,8 @@
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
 #define ArrayAddressAndLength(array) array, sizeof(array)
 
+int min(int a, int b) {return a<b ? a : b;}
+int max(int a, int b) {return a>b ? a : b;}
 
 
 
@@ -111,13 +115,15 @@ void StackTrace() {}
 #include <execinfo.h>
 void StackTrace() {
   Wsl("Backtrace:");
+  char  *p = 0;
   void  *functions[32];
-  int    size    = backtrace(functions, countof(functions));
-  Wd(size,1); Wsl(" callers:");
-  char **strings = backtrace_symbols(functions, size);
-  for (int i=0; i<size; i++) {Wsl(strings[i]);}
-
-  //free(strings);
+  int    count = backtrace(functions, countof(functions));
+  char **strings = backtrace_symbols(functions, count);
+  for (int i=1; i<count; i++) { // Skip first reference which is in StackTrace.
+    if (!strncmp(strings[i], "./dwdebug(", 10)) {strings[i] += 10; if ((p=strchr(strings[i], ')'))) {*p = 0;}}
+    Ws("  "); Wsl(strings[i]);
+  }
+  free(strings);
 }
 
 #endif
@@ -152,10 +158,10 @@ void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1)
 
 /// Main entry point wrapper
 
-int Main(int argCount, char **argVector);
+int Program(int argCount, char **argVector);
 
-extern void EntryPoint() asm("EntryPoint"); // Specify exact name in object file
-void EntryPoint() {
+//extern void EntryPoint() asm("EntryPoint"); // Specify exact name in object file
+int main(int argCount, char **argVector) {
   #ifdef windows
     Input  = GetStdHandle(STD_INPUT_HANDLE);
     Output = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -167,5 +173,5 @@ void EntryPoint() {
   #endif
 
   if (setjmp(FailPoint)) {Exit(3);}
-  Exit(Main(0,0));
+  Exit(Program(0,0));
 }
