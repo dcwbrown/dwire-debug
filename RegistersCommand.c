@@ -20,11 +20,9 @@ void DisplayAllRegisters() {
   DwReadAddr(0x5D, sizeof(io), io);
 
   Ws("SREG ");
-
   for (int i=0; i<8; i++) {
     Wc((io[2] & (1<<(7-i))) ? "ITHSVNZC"[i] : "ithsvnzc"[i]); Wc(' ');
   }
-
   Ws("   ");
   Ws("PC ");  Wx(PC,4);                                 Ws("  ");
   Ws("SP ");  Wx(io[1],2); Wx(io[0],2);                 Ws("   ");
@@ -40,18 +38,29 @@ void DisplayAllRegisters() {
 void RegistersCommand() {
   Sb();
   if (IsNumeric(NextCh())) {
+
+    // Command addresses an individual register
     int reg = ReadNumber(); Sb();
     Assert(reg >=0  &&  reg <= 31);
+
     if (IsDwDebugNumeric(NextCh())) {
+
+      // Change register value
       u8 newvalue = ReadNumber();
       Assert(newvalue >= 0  &&  newvalue <= 0xff);
       if (reg<30) {DwWriteRegisters(&newvalue, reg, 1);} else {Registers[reg] = newvalue;}
+
     } else {
+
+      // Display register value
       u8 value = 0;
       if (reg<30) {DwReadRegisters(&value, reg, 1);} else {value = Registers[reg];}
       Wc('R'); Wd(reg,1); Ws(" = "); Wx(value,2); Wl();
+
     }
+
   } else {
-    DisplayAllRegisters();
+    if (!Eoln()) {Wsl("Unrecognised parameters on registers command.");}
+    else         {DisplayAllRegisters();}
   }
 }
