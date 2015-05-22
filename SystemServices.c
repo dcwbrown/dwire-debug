@@ -6,6 +6,8 @@
 
 #ifdef windows
   #include <windows.h>
+  #undef min
+  #undef max
 #else
   #include <stdio.h>
   #include <fcntl.h>
