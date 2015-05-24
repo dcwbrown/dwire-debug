@@ -25,7 +25,7 @@ void HelpCommand() {
   "t  Trace instruction(s)");
 }
 
-void EmptyCommand() {Sb(); if (!Eoln()) {HelpCommand();}}
+void EmptyCommand() {Sb(); if (!DwEoln()) {HelpCommand();}}
 
 
 struct {char *name; void (*handler)();} commands[] = {
@@ -71,12 +71,13 @@ void UI() {
 
     if (QuitRequested) return;
 
-    if (IsUser(Input)) {Prompt();}
+    if (BufferTotalContent() == 0  &&  IsUser(Input)) {Prompt();}
 
-    Sb();
-    if (Eof()) {if (IsUser(Input)) {Wl();} QuitRequested = 1;}
+    Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
+
+    if (Eof()) {if (IsUser(Input)) {Wl();} break;}
     else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
-    Sl();
+    SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
   }
 }

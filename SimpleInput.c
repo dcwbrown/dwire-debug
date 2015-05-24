@@ -34,7 +34,7 @@ char InputBuffer[256] = {0};
 int  IIn              = 0;
 int  IOut             = 0;
 int  IEof             = 0;    // Input file has reached EOF (though there may still be data in the buffer)
-int  IEoln            = 0;    // Last input file read ended in an eoln character 
+int  IEoln            = 0;    // Last input file read ended in an eoln character
 
 enum {ILimit = sizeof(InputBuffer)};
 
@@ -57,12 +57,29 @@ void ContiguousFill() {
 
 int BufferTotalContent() {return (IIn + ILimit - IOut) % ILimit;}
 
-void Fill() {while (!IEof  &&  (!IEoln | (IIn==IOut))  &&  BufferTotalContent() < ILimit/2) {ContiguousFill();}}
+void Fill() {
+  // Note - if the last read ended in a newline, we don't read any more data
+  // until this buffer is completely empty. This enables clients to display
+  // a prompt before we read the next line.
+  while (!IEof  &&  (!IEoln | (IIn==IOut))  &&  BufferTotalContent() < ILimit/2) {
+    ContiguousFill();
+  }
+}
 
 int Available() {Fill(); return BufferTotalContent();}
 
 char NextCh() {return InputBuffer[IOut];}
 void SkipCh() {IOut = (IOut + 1) % ILimit;}
+
+void DumpInputState() {
+  Ws("InputState: BufferTotalContent "); Wd(BufferTotalContent(),1);
+  Ws(", IEof "); Wd(IEof,1);
+  Ws(", IEoln "); Wd(IEoln,1);
+  if (BufferTotalContent()) {
+    Ws(", NextCh() '"); Wc(NextCh()); Wc('\'');
+  }
+  Wl();
+}
 
 /// Circular input buffer end.
 

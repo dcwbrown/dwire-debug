@@ -60,7 +60,7 @@ void RegistersCommand() {
     }
 
   } else {
-    if (!Eoln()) {Wsl("Unrecognised parameters on registers command.");}
-    else         {DisplayAllRegisters();}
+    if (!DwEoln()) {Wsl("Unrecognised parameters on registers command.");}
+    else           {DisplayAllRegisters();}
   }
 }

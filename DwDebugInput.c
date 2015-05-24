@@ -1,6 +1,9 @@
 /// DwDebugInput.c
 
 int IsDwDebugNumeric(char c) {return IsNumeric(c) || c=='$' || c=='#';}
+int IsDwEoln(char c)         {return IsEolnChar(c) || c == ';';}
+int NotDwEoln(char c)        {return NotEoln(c)  &&  c != ';';}
+int DwEoln()                 {return Eoln()  ||  NextCh() == ';';}
 
 int ReadNumber() {  // Recognise Leading '$' or trailing 'h' as hex, or '#' or 'd' for decimal.
   int  decimal = 0;
