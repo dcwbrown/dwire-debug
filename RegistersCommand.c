@@ -37,16 +37,16 @@ void DisplayAllRegisters() {
 
 void RegistersCommand() {
   Sb();
-  if (IsNumeric(NextCh())) {
+  if (IsDwDebugNumeric(NextCh())) {
 
     // Command addresses an individual register
-    int reg = ReadNumber(); Sb();
+    int reg = ReadNumber(0); Sb();
     Assert(reg >=0  &&  reg <= 31);
 
     if (IsDwDebugNumeric(NextCh())) {
 
       // Change register value
-      u8 newvalue = ReadNumber();
+      u8 newvalue = ReadNumber(1);
       Assert(newvalue >= 0  &&  newvalue <= 0xff);
       if (reg<30) {DwWriteRegisters(&newvalue, reg, 1);} else {Registers[reg] = newvalue;}
 

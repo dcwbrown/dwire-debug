@@ -11,7 +11,7 @@
 
 int QuitRequested = 0;
 
-void PCommand()      {PC = ReadNumber();}
+void PCommand()      {PC = ReadNumber(1);}
 void Go()            {Wsl("Going, going, ...., gone.");}
 void QuitCommand()   {QuitRequested = 1;}
 void TraceCommand()  {DwTrace();}
@@ -33,6 +33,7 @@ struct {char *name; void (*handler)();} commands[] = {
   {"p", PCommand},
   {"q", QuitCommand},
   {"r", RegistersCommand},
+  {"s", StackCommand},
   {"t", TraceCommand},
   {"h", HelpCommand},
 

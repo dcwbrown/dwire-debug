@@ -12,6 +12,7 @@ typedef unsigned char u8;
 #include "Disassemble.c"
 #include "DwDebugInput.c"
 #include "RegistersCommand.c"
+#include "StackCommand.c"
 #include "UserInterface.c"
 
 int Program(int argCount, char **argVector) {
