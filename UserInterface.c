@@ -29,14 +29,16 @@ void EmptyCommand() {Sb(); if (!DwEoln()) {HelpCommand();}}
 
 
 struct {char *name; void (*handler)();} commands[] = {
-  {"g", Go},
-  {"p", PCommand},
-  {"q", QuitCommand},
-  {"r", RegistersCommand},
-  {"s", StackCommand},
-  {"t", TraceCommand},
-  {"u", UnassembleCommand},
-  {"h", HelpCommand},
+  {"d",  DumpDataBytesCommand},
+  {"dw", DumpDataWordsCommand},
+  {"g",  Go},
+  {"p",  PCommand},
+  {"q",  QuitCommand},
+  {"r",  RegistersCommand},
+  {"s",  StackCommand},
+  {"t",  TraceCommand},
+  {"u",  UnassembleCommand},
+  {"h",  HelpCommand},
 
   {"reset",       DwReset},
   {"serialdump",  SerialDump},
@@ -72,18 +74,8 @@ void UI() {
 
     if (QuitRequested) return;
 
-    // Prompted IsUser BufferEmpty
-    //     0      0       0         none  
-    //     0      0       1         none  
-    //     0      1       0         none
-    //     0      1       1         prompt(); Ws("> "); Flush();
-    //     1      0       0         Wl();  
-    //     1      0       1         Wl();
-    //     1      1       0         Wl();
-    //     1      1       1         Ws("> "); Flush();  
-
     if (BufferTotalContent() == 0  &&  IsUser(Input)) {
-      if (!Prompted) {Prompt();} 
+      if (!Prompted) {Prompt();}
       Wt(40); Ws("> "); Flush();
     } else {
       if (Prompted) {Wl();}
