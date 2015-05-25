@@ -21,7 +21,7 @@ void UnassembleCommand() {
 
   while (1) {
     Wx(Uaddr, 4); Ws(": ");
-    Uaddr += DisassembleInstruction(PC, &buf[Uaddr*2-firstByte]);
+    Uaddr += DisassembleInstruction(Uaddr, &buf[Uaddr*2-firstByte]);
     count--;
     if (count <= 0  ||  Uaddr >= FlashSize/2) {Prompted=1; return;}
     Wl();
