@@ -4,7 +4,7 @@
 
 
 void UnassembleCommand() {
-  Sb(); if (IsDwDebugNumeric(NextCh())) {Uaddr = ReadNumber(1);}
+  Sb(); if (IsDwDebugNumeric(NextCh())) {Uaddr = ReadNumber(1); Wl();}
   int count = 8; // Default instruction count to display
   Sb();  if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}
   if (!DwEoln()) {Wsl("Unrecognised parameters on unassemble command.");}
@@ -19,10 +19,11 @@ void UnassembleCommand() {
   DwReadFlash(firstByte, length, buf);
   buf[length] = 0; buf[length+1] = 0;
 
-  while (count  &&  Uaddr < FlashSize/2) {
+  while (1) {
     Wx(Uaddr, 4); Ws(": ");
     Uaddr += DisassembleInstruction(PC, &buf[Uaddr*2-firstByte]);
-    Wl();
     count--;
+    if (count <= 0  ||  Uaddr >= FlashSize/2) {Prompted=1; return;}
+    Wl();
   }
 }

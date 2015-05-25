@@ -60,7 +60,6 @@ void Prompt() {
   DwReadFlash(PC<<1, 4, buf);
   Uaddr = PC + DisassembleInstruction(PC, buf);
   Wt(40);
-  Ws("> "); Flush();
 }
 
 void UI() {
@@ -73,7 +72,23 @@ void UI() {
 
     if (QuitRequested) return;
 
-    if (BufferTotalContent() == 0  &&  IsUser(Input)) {Prompt();}
+    // Prompted IsUser BufferEmpty
+    //     0      0       0         none  
+    //     0      0       1         none  
+    //     0      1       0         none
+    //     0      1       1         prompt(); Ws("> "); Flush();
+    //     1      0       0         Wl();  
+    //     1      0       1         Wl();
+    //     1      1       0         Wl();
+    //     1      1       1         Ws("> "); Flush();  
+
+    if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+      if (!Prompted) {Prompt();} 
+      Wt(40); Ws("> "); Flush();
+    } else {
+      if (Prompted) {Wl();}
+    }
+    Prompted = 0;
 
     Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
 
