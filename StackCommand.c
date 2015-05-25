@@ -15,12 +15,11 @@ void StackCommand () {
 
   } else if (DwEoln()) {
     // Display stack content
-    int ramLimit = 32+IoregSize+SramSize;
 
     DwReadAddr(0x5D, 2, sp);
 
-    int addr = min(ramLimit, ((sp[1] << 8) | sp[0]) + 1);
-    int len  = min(ramLimit, addr+16) - addr;
+    int addr = min(DataLimit, ((sp[1] << 8) | sp[0]) + 1);
+    int len  = min(DataLimit, addr+16) - addr;
 
     Ws("SP = "); Wx(addr-1,4);
 

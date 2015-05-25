@@ -14,6 +14,8 @@ typedef unsigned char u8;
 #include "RegistersCommand.c"
 #include "StackCommand.c"
 #include "UnassembleCommand.c"
+#include "Dump.c"
+#include "DumpCommand.c"
 #include "UserInterface.c"
 
 int Program(int argCount, char **argVector) {

@@ -23,7 +23,7 @@ void Wc(char c) {
 
 
 void Wt(int tab) {
-  tab = min(max(tab, OutputPosition+1), countof(OutputBuffer));
+  tab = min(max(tab, OutputPosition), countof(OutputBuffer));
   while (OutputPosition < tab) {OutputBuffer[OutputPosition++] = ' ';}
 }
 

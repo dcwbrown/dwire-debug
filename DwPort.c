@@ -45,8 +45,10 @@ int DwReadWord() {u8 buf[2] = {0}; SerialRead(buf, 2);   return (buf[0] << 8) | 
 
 int IoregSize  = 0;
 int SramSize   = 0;
+int DataLimit  = 0;     // Max addressable data = 32 (registers) + IoregSize + SramSize.
 int EepromSize = 0;
-int FlashSize  = 0;  // In bytes
+int FlashSize  = 0;     // In bytes
+int DWDR       = 0x42;  // Data address of DebugWIRE port.
 
 
 void DwSync() { // Used after reset/go/break
@@ -66,6 +68,7 @@ void SetSizes(int signature) {
     case 0x930B: IoregSize = 64;  SramSize = 512;  EepromSize = 512;  FlashSize = 8192;  Wsl("ATtiny85");  break;
     default:     Ws("Unrecognised device signature: "); Wx(signature,4); Fail("");
   }
+  DataLimit = 32 + IoregSize + SramSize;
 }
 
 void DwReadRegisters(u8 *registers, int first, int count) {
@@ -95,7 +98,14 @@ void DwWriteRegisters(u8 *registers, int first, int count) {
 
 
 void DwReadAddr(int addr, int len, u8 *buf) {
-  // Avoid reading address 0x22 - it is the DebugWire port and will hang if read.
+  if (addr <= DWDR  &&  addr+len > DWDR) {
+    // Split the read accross DWDR as reading DWDR hangs (since it's in use)
+    if (addr < DWDR) {DwReadAddr(addr, DWDR-addr, buf);}
+    buf[DWDR-addr] = 0;
+    if (addr+len+1 > DWDR) {DwReadAddr(DWDR+1, len - (DWDR+1-addr), buf + (DWDR+1-addr));}
+    return;
+  }
+
   DwWrite(ByteArrayLiteral(
     0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
