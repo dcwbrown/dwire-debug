@@ -461,11 +461,11 @@ int Winstruction(int i, int code) {
 
 
 
-int DisassembleInstruction(int addr, u8 *buf) {
+int DisassembleInstruction(int addr, u8 *buf) { // Returns instruction length in words
   int code = (buf[1] << 8) | buf[0];
   Wx(code, 4); Ws("  ");     // Instruction code
-  if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 4;}
-  return 2;
+  if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 2;}
+  return 1;
 }
 
 //// Disassembly addresses are word offsets into flash

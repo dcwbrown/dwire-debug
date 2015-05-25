@@ -35,6 +35,7 @@ struct {char *name; void (*handler)();} commands[] = {
   {"r", RegistersCommand},
   {"s", StackCommand},
   {"t", TraceCommand},
+  {"u", UnassembleCommand},
   {"h", HelpCommand},
 
   {"reset",       DwReset},
@@ -57,7 +58,7 @@ void Prompt() {
   u8 buf[4];  // Enough for a 2 word instruction
   Wx(PC, 4); Ws(": ");  // Word address, e.g. as used in pc and bp setting instructions
   DwReadFlash(PC<<1, 4, buf);
-  DisassembleInstruction(PC, buf);
+  Uaddr = PC + DisassembleInstruction(PC, buf);
   Wt(40);
   Ws("> "); Flush();
 }

@@ -9,27 +9,40 @@ int ReadNumber(int defaultHex) {  // Recognise Leading '$' or trailing 'h' as he
   int  decimal = 0;
   int  hex     = 0;
   char c       = 0;
+  int  digits  = 0;
 
   Sb(); c = NextCh();
 
-  if      (c == '$') {decimal = -1; SkipCh();}
-  else if (c == '#') {hex     = -1; SkipCh();}
-  else if (c < '0'  ||  c > '9') {Fail("Expected digit");}
-
   while (1) {
     c = NextCh();
-    if      (c == 'h' ||  c == 'x')  {decimal = -1;}
-    else if (c == 't')               {hex = -1;}
-    else if (c >= '0'  &&  c <= '9') {decimal = decimal*10 + c-'0'; hex = hex * 16 + c - '0';}
-    else if (c >= 'a'  &&  c <= 'f') {decimal = -1; hex = hex * 16 + c - 'a' + 10;}
-    else if (c >= 'A'  &&  c <= 'F') {decimal = -1; hex = hex * 16 + c - 'F' + 10;}
+    if      (c == 'h' ||  c == 'x'  ||  c == '$')  {decimal = -1;}
+    else if (c == 't' ||  c == '#')                {hex = -1;}
+    else if (c >= '0'  &&  c <= '9')               {digits++; decimal = decimal*10 + c-'0'; hex = hex*16 + c-'0';}
+    else if (c >= 'a'  &&  c <= 'f')               {digits++; decimal = -1;                 hex = hex*16 + c-'a'+10;}
+    else if (c >= 'A'  &&  c <= 'F')               {digits++; decimal = -1;                 hex = hex*16 + c-'F'+10;}
     else {
+      if (!digits) {Fail("No digits in number.");}
       if (hex >= 0) {
         if (defaultHex  ||  decimal < 0) {return hex;}
       }
-      if (decimal >= 0)              {return decimal;}
+      if (decimal >= 0) {return decimal;}
       Fail("Hex digits in decimal number");
     }
     SkipCh();
   }
 }
+
+
+
+
+
+
+// Current dump instruction states
+
+int DBaddr = 0;
+int DWaddr = 0;
+int EBaddr = 0;
+int EWaddr = 0;
+int FBaddr = 0;
+int FWaddr = 0;
+int Uaddr  = 0;
