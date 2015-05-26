@@ -3,6 +3,10 @@
 #define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 
+int PC = 0;
+u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest only on demand
+
+
 
 
 
@@ -120,15 +124,8 @@ void DwWriteRegisters(u8 *registers, int first, int count) {
 }
 
 
-void DwReadAddr(int addr, int len, u8 *buf) {
-  if (addr <= DWDR  &&  addr+len > DWDR) {
-    // Split the read accross DWDR as reading DWDR hangs (since it's in use)
-    if (addr < DWDR) {DwReadAddr(addr, DWDR-addr, buf);}
-    buf[DWDR-addr] = 0;
-    if (addr+len+1 > DWDR) {DwReadAddr(DWDR+1, len - (DWDR+1-addr), buf + (DWDR+1-addr));}
-    return;
-  }
-
+void DwReadUnsafeAddr(int addr, int len, u8 *buf) {
+  // Do not read addresses 30, 31 or DWDR as these interfere with the read process
   DwWrite(ByteArrayLiteral(
     0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
@@ -138,9 +135,29 @@ void DwReadAddr(int addr, int len, u8 *buf) {
   SerialRead(buf, len);
 }
 
+void DwReadAddr(int addr, int len, u8 *buf) {
+  // Read range before r30
+  int len1 = min(len, 30-addr);
+  if (len1 > 0) {DwReadUnsafeAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
 
-void DwWriteAddr(int addr, int len, u8 *buf) {
-  // Avoid reading address 0x22 - it is the DebugWire port and will hang if read.
+  // Registers 30 and 31 are cached - use the cached values.
+  if (addr == 30  &&  len > 0) {buf[0] = Registers[30]; addr++; len--; buf++;}
+  if (addr == 31  &&  len > 0) {buf[0] = Registers[31]; addr++; len--; buf++;}
+
+  // Read range from 32 to DWDR
+  int len2 = min(len, DWDR-addr);
+  if (len2 > 0) {DwReadUnsafeAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
+
+  // Provide dummy 0 value for DWDR
+  if (addr == DWDR  &&  len > 0) {buf[0] = 0; addr++; len--; buf++;}
+
+  // Read anything beyond DWDR
+  if (len > 0) {DwReadUnsafeAddr(addr, len, buf);}
+}
+
+
+void DwWriteUnsafeAddr(int addr, int len, const u8 *buf) {
+  // Do not write addresses 30, 31 or DWDR as these interfere with the write process
   DwWrite(ByteArrayLiteral(
     0xD0, 0,0x1e, 0xD1, 0,0x20,                 // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),          // Write SRAM address of first IO register to Z
@@ -148,6 +165,26 @@ void DwWriteAddr(int addr, int len, u8 *buf) {
     0xC2, 4, 0x20                               // Start the write
   ));
   DwWrite(buf, len);
+}
+
+void DwWriteAddr(int addr, int len, const u8 *buf) {
+  // Write range before r30
+  int len1 = min(len, 30-addr);
+  if (len1 > 0) {DwWriteUnsafeAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
+
+  // Registers 30 and 31 are cached - update the cached values.
+  if (addr == 30  &&  len > 0) {Registers[30] = buf[0]; addr++; len--; buf++;}
+  if (addr == 31  &&  len > 0) {Registers[31] = buf[0]; addr++; len--; buf++;}
+
+  // Write range from 32 to DWDR
+  int len2 = min(len, DWDR-addr);
+  if (len2 > 0) {DwWriteUnsafeAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
+
+  // (Ignore anything for DWDR - as the DebugWIRE port it is in use and wouldn't retain a value anyway)
+  if (addr == DWDR  &&  len > 0) {addr++; len--; buf++;}
+
+  // Write anything beyond DWDR
+  if (len > 0) {DwWriteUnsafeAddr(addr, len, buf);}
 }
 
 
@@ -160,10 +197,6 @@ void DwReadFlash(int addr, int len, u8 *buf) {
   ));
   SerialRead(buf, len);
 }
-
-
-int PC = 0;
-u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest only on demand
 
 
 void DwReconnect() {
