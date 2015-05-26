@@ -43,7 +43,7 @@ int DwReadWord() {u8 buf[2] = {0}; SerialRead(buf, 2);   return (buf[0] << 8) | 
 
 
 
-int IoregSize  = 0;
+int IoregSize  = 0;     // I/O and extended I/O registers
 int SramSize   = 0;
 int DataLimit  = 0;     // Max addressable data = 32 (registers) + IoregSize + SramSize.
 int EepromSize = 0;
@@ -63,9 +63,32 @@ void DwBreak() {SerialBreak(400); DwSync();}
 
 void SetSizes(int signature) {
   switch (signature) {
-    case 0x9108: IoregSize = 64;  SramSize = 128;  EepromSize = 128;  FlashSize = 2048;  Wsl("ATtiny25");  break;
-    case 0x9206: IoregSize = 64;  SramSize = 256;  EepromSize = 256;  FlashSize = 4096;  Wsl("ATtiny45");  break;
-    case 0x930B: IoregSize = 64;  SramSize = 512;  EepromSize = 512;  FlashSize = 8192;  Wsl("ATtiny85");  break;
+
+    case 0x9108: IoregSize =  64;  SramSize =  128;  EepromSize =  128;  FlashSize =  2048;  Wsl("ATtiny25");    break;
+    case 0x910B: IoregSize =  64;  SramSize =  128;  EepromSize =  128;  FlashSize =  2048;  Wsl("ATtiny24");    break;
+
+    case 0x9205: IoregSize = 224;  SramSize =  512;  EepromSize =  256;  FlashSize =  4096;  Wsl("ATmega48A");   break;
+    case 0x9206: IoregSize =  64;  SramSize =  256;  EepromSize =  256;  FlashSize =  4096;  Wsl("ATtiny45");    break;
+    case 0x9207: IoregSize =  64;  SramSize =  256;  EepromSize =  256;  FlashSize =  4096;  Wsl("ATtiny44");    break;
+    case 0x920A: IoregSize = 224;  SramSize =  512;  EepromSize =  256;  FlashSize =  4096;  Wsl("ATmega48PA");  break;
+    case 0x9215: IoregSize = 224;  SramSize =  256;  EepromSize =  256;  FlashSize =  4096;  Wsl("ATtiny441");   break;
+
+    case 0x930A: IoregSize = 224;  SramSize = 1024;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATmega88A");   break;
+    case 0x930B: IoregSize =  64;  SramSize =  512;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATtiny85");    break;
+    case 0x930C: IoregSize =  64;  SramSize =  512;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATtiny84");    break;
+    case 0x930F: IoregSize = 224;  SramSize = 1024;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATmega88PA");  break;
+    case 0x9315: IoregSize = 224;  SramSize =  512;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATtiny841");   break;
+    case 0x9389: IoregSize = 224;  SramSize =  512;  EepromSize =  512;  FlashSize =  8192;  Wsl("ATmega8U2");   break;
+
+    case 0x9406: IoregSize = 224;  SramSize = 1024;  EepromSize =  512;  FlashSize = 16384;  Wsl("ATmega168A");  break;
+    case 0x940B: IoregSize = 224;  SramSize = 1024;  EepromSize =  512;  FlashSize = 16384;  Wsl("ATmega168PA"); break;
+    case 0x9489: IoregSize = 224;  SramSize =  512;  EepromSize =  512;  FlashSize = 16384;  Wsl("ATmega16U2");  break;
+
+    case 0x950F: IoregSize = 224;  SramSize = 2048;  EepromSize = 1024;  FlashSize = 32768;  Wsl("ATmega328P");  break;
+    case 0x9514: IoregSize = 224;  SramSize = 2048;  EepromSize = 1024;  FlashSize = 32768;  Wsl("ATmega328");   break;
+    case 0x958A: IoregSize = 224;  SramSize = 1024;  EepromSize = 1024;  FlashSize = 32768;  Wsl("ATmega32U2");  break;
+
+
     default:     Ws("Unrecognised device signature: "); Wx(signature,4); Fail("");
   }
   DataLimit = 32 + IoregSize + SramSize;
@@ -180,36 +203,6 @@ void DwTrace() { // Execute one instruction
 
   DwSync(); DwReconnect();
 }
-
-
-//  // Load IO space up to DWDR (0x22) (Destroys PC, BP and r30/r31)
-//  //wsl("Load first IO space.");
-//  u8 cmd2[] = {
-//    0xD0, 0,0x1e, 0xD1, 0,0x20,  // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-//    0xC2, 5, 0x20, 0x20,0,       // Write SRAM address of first IO register to Z
-//    0xD0, 0,0, 0xD1, 0,0x44,     // Set PC=0, BP=2*length
-//    0xC2, 0, 0x20                // Read length bytes from memory
-//  };
-//  DwWrite(cmd2, sizeof cmd2);
-//  SerialReadBytes(&DataMemory[0x20], 0x22);
-//  DataMemory[Dwdr] = 0; // Meaningless to read DWDR as it represents the debugwire interface
-//
-//
-//  // Load remaining IO space and data memeory (0x43 through 0x15F as SRAM offsets)
-//  //wsl("Load Remaining IO space.");
-//  u16 len = 0x60-0x43;
-//  u8 cmd3[] = {
-//    0xD0, 0,0x1e, 0xD1, 0,0x20,           // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-//    0xC2, 5, 0x20, 0x43,0,                // Write frst data memoery address to read to Z
-//    0xD0, 0,0, 0xD1, hi(2*len),lo(2*len), // Set PC=0, BP=2*length
-//    0xC2, 0, 0x20                         // Read length bytes from memory
-//  };
-//  DwWrite(cmd3, sizeof cmd3);
-//  SerialReadBytes(&DataMemory[0x43], len);
-//  //wsl("Load data memory complete.");
-//}
-
-
 
 
 
