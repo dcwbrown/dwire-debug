@@ -121,8 +121,9 @@ void StackTrace() {
   void  *functions[32];
   int    count = backtrace(functions, countof(functions));
   char **strings = backtrace_symbols(functions, count);
-  for (int i=1; i<count; i++) { // Skip first reference which is in StackTrace.
+  for (int i=2; i<count; i++) { // Skip 2 references: 'StackTrace' and 'Fail'.
     if (!strncmp(strings[i], "./dwdebug(", 10)) {strings[i] += 10; if ((p=strchr(strings[i], ')'))) {*p = 0;}}
+    if (!strncmp(strings[i], "main+", 5)) {break;}  // Stop when we reach our main prgram wrapper
     Ws("  "); Wsl(strings[i]);
   }
   free(strings);

@@ -38,7 +38,9 @@ FileHandle SerialPort = 0;
   #include <stropts.h>
   #include <asm/termios.h>
   void MakeSerialPort(char *portname, int baudrate) {
-    if ((SerialPort = open(portname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
+    char fullname[256] = "/dev/";
+    strncat(fullname, portname, 250); fullname[255] = 0;
+    if ((SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
     struct termios2 config = {0};
     config.c_cflag = CS8 | BOTHER;
     config.c_ispeed    =  baudrate;
