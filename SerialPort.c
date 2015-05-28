@@ -61,7 +61,7 @@ void SerialRead(u8 *buf, int len) {
   do {
     int lengthRead = Read(SerialPort, buf+totalRead, len-totalRead);
     if (lengthRead == 0) {
-      Ws("ReadPortBytes expected ");
+      Ws("SerialRead expected ");
       Wd(len,1); Ws(" bytes, received ");
       Wd(totalRead,1); Wsl(" bytes.");
       for (int i=0; i<lengthRead; i++) {Wx(buf[i],2); Ws("  ");}
@@ -69,6 +69,9 @@ void SerialRead(u8 *buf, int len) {
     }
     totalRead += lengthRead;
   } while(totalRead < len);
+  //Ws("Serial Read received "); Wd(len,1); Ws(" bytes: ");
+  //for (int i=0; i<len; i++) {Wx(buf[i],2); Wc(' ');}
+  //Wl();
 }
 
 void SerialBreak(int period) {
