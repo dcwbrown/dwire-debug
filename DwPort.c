@@ -11,12 +11,31 @@ u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest onl
 
 
 
+void ConnectSerialPort();
+
+void DwSerialWrite(const u8 *bytes, int length) {
+  if (!SerialPort) {ConnectSerialPort();}
+  SerialWrite(bytes, length);
+}
+#define SerialWrite "Don't use SerialWrite, use DwSerialWrite"
+
+void DwSerialRead(u8 *buf, int len) {
+  if (!SerialPort) {ConnectSerialPort();}
+  SerialRead(buf, len);
+}
+#define SerialRead "Don't use SerialRead, use DwSerialRead"
+
+
+
+
+
+
 
 /// DebugWire port access
 
 void DwExpect(const u8 *bytes, int len) {
   u8 actual[len];
-  SerialRead(actual, len);
+  DwSerialRead(actual, len);
   for (int i=0; i<len; i++) {
     if (actual[i] != bytes[i]) {
       Ws("WriteDebug, byte "); Wd(i+1,1); Ws(" of "); Wd(len,1);
@@ -27,7 +46,7 @@ void DwExpect(const u8 *bytes, int len) {
 
 
 void DwWrite(const u8 *bytes, int len) {
-  SerialWrite(bytes, len);
+  DwSerialWrite(bytes, len);
   DwExpect(bytes, len);
 }
 
@@ -41,8 +60,8 @@ void DwWriteWord(int word) {
 }
 
 
-int DwReadByte() {u8 byte   = 0;   SerialRead(&byte, 1); return byte;}
-int DwReadWord() {u8 buf[2] = {0}; SerialRead(buf, 2);   return (buf[0] << 8) | buf[1];}
+int DwReadByte() {u8 byte   = 0;   DwSerialRead(&byte, 1); return byte;}
+int DwReadWord() {u8 buf[2] = {0}; DwSerialRead(buf, 2);   return (buf[0] << 8) | buf[1];}
 
 
 
@@ -107,7 +126,7 @@ void DwReadRegisters(u8 *registers, int first, int count) {
     0xD1, 0, first+count, // Set BP = limit
     0xC2, 1, 0x20         // Start register read
   ));
-  SerialRead(registers, count);
+  DwSerialRead(registers, count);
 }
 
 
@@ -132,7 +151,7 @@ void DwReadUnsafeAddr(int addr, int len, u8 *buf) {
     0xD0, 0,0, 0xD1, hi(len*2), lo(len*2),  // Set PC=0, BP=2*length
     0xC2, 0, 0x20                           // Start the read
   ));
-  SerialRead(buf, len);
+  DwSerialRead(buf, len);
 }
 
 void DwReadAddr(int addr, int len, u8 *buf) {
@@ -195,7 +214,7 @@ void DwReadFlash(int addr, int len, u8 *buf) {
     0xD0, 0,0, 0xD1, hi(2*len),lo(2*len),  // Set PC=0, BP=2*len
     0xC2, 2, 0x20                          // Read length bytes from flash starting at first
   ));
-  SerialRead(buf, len);
+  DwSerialRead(buf, len);
 }
 
 
@@ -236,6 +255,7 @@ void DwTrace() { // Execute one instruction
 
   DwSync(); DwReconnect();
 }
+
 
 
 
@@ -374,7 +394,7 @@ u16 FlashWord(u16 addr) {
 //  SetRegisterPair(0x1e, first);  // Write start address to register pair R30/R31 (aka Z)
 //  // Read Flash starting at Z
 //  SetPC(0); SetBP(2*(limit-first)); SetMode(2); DwGo();
-//  for (int i=first; i<limit; i++) {wDumpByte(i, SerialRead());}
+//  for (int i=first; i<limit; i++) {wDumpByte(i, DwSerialRead());}
 //  wDumpEnd();
 //  RestoreControlRegisters();
 //}

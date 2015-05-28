@@ -32,6 +32,8 @@ FileHandle SerialPort = 0;
     WinOK(SetCommState(SerialPort, &dcb));
     WinOK(SetCommTimeouts(SerialPort, &(COMMTIMEOUTS){300,300,1,300,1}));
   }
+
+  void CloseSerialPort() {if (SerialPort) {CloseHandle(SerialPort); SerialPort = 0;}}
 #else
   #include <stropts.h>
   #include <asm/termios.h>
@@ -45,6 +47,8 @@ FileHandle SerialPort = 0;
     config.c_cc[VTIME] =  5;           // 0.5 seconds timeout
     if (ioctl(SerialPort, TCSETS2, &config)) {Fail("Couldn't set serial port configuration.");}
   }
+
+  void CloseSerialPort() {if (SerialPort) {close(SerialPort); SerialPort = 0;}}
 #endif
 
 
