@@ -43,6 +43,7 @@ struct {char *name; void (*handler)();} commands[] = {
   {"reset",       DwReset},
   {"serialdump",  SerialDump},
   {"help",        HelpCommand},  // testing
+  {"device",      DeviceCommand},
 
 
   {"",  EmptyCommand}
