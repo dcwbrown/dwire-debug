@@ -28,7 +28,16 @@ void HelpCommand() {
 void EmptyCommand() {Sb(); if (!DwEoln()) {HelpCommand();}}
 
 
-struct {char *name; void (*handler)();} commands[] = {
+struct CommandList {char *name; void (*handler)();};
+
+struct CommandList UnconnectedCommands[] = {
+  {"q",      QuitCommand},
+  {"h",      HelpCommand},
+  {"device", DeviceCommand},
+  {"",       EmptyCommand}
+};
+
+struct CommandList ConnectedCommands[] = {
   {"d",  DumpDataBytesCommand},
   {"dw", DumpDataWordsCommand},
   {"g",  Go},
@@ -45,16 +54,26 @@ struct {char *name; void (*handler)();} commands[] = {
   {"help",        HelpCommand},  // testing
   {"device",      DeviceCommand},
 
-
   {"",  EmptyCommand}
 };
 
 
-void HandleCommand(const char *cmd) {
+void HandleCommand(const char *cmd, struct CommandList *commands) {
   for (int i=0; i<countof(commands); i++) {
     if (!strcmp(cmd, commands[i].name)) {commands[i].handler(); return;}
   }
   Ws("Unrecognised command: '"); Ws(cmd); Wsl("'.");
+}
+
+void ParseAndHandleCommand(struct CommandList *commands) {
+  char command[20];
+
+  Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
+
+  if (Eof()) {if (IsUser(Input)) {Wl();}  QuitCommand();}
+  else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command, commands);}
+
+  SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
 }
 
 void Prompt() {
@@ -65,29 +84,67 @@ void Prompt() {
   Wt(40);
 }
 
-void UI() {
-  char command[10];
-
-  if (setjmp(FailPoint)) {  // Failures will restart the UI loop rather than exiting DwDebug.
-    Sl();
+void UnconnectedPrompt() {
+  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+    Wt(40); Ws("> "); Flush();
+  } else {
+    if (Prompted) {Wl();}
   }
-  while (1) {
+  Prompted = 0;
+}
 
+void ConnectedPrompt() {
+  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+    if (!Prompted) {Prompt();}
+    Wt(40); Ws("> "); Flush();
+  } else {
+    if (Prompted) {Wl();}
+  }
+  Prompted = 0;
+}
+
+void UI() {
+  enum {unconnected, connected, running} state = unconnected;
+
+  while (1) {
     if (QuitRequested) return;
 
-    if (BufferTotalContent() == 0  &&  IsUser(Input)) {
-      if (!Prompted) {Prompt();}
-      Wt(40); Ws("> "); Flush();
-    } else {
-      if (Prompted) {Wl();}
+    switch (state) {
+      case unconnected:
+        if (setjmp(FailPoint)) {Sl();}
+        UnconnectedPrompt();
+        ParseAndHandleCommand(UnconnectedCommands);
+      break;
+
+      case connected:
+        if (setjmp(FailPoint)) {Sl();}
+        ConnectedPrompt();
+        ParseAndHandleCommand(ConnectedCommands);
+      break;
+
+      case running:
+      break;
     }
-    Prompted = 0;
-
-    Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
-
-    if (Eof()) {if (IsUser(Input)) {Wl();} break;}
-    else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
-
-    SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
   }
+
+
+  //while (1) {
+  //
+  //  if (QuitRequested) return;
+  //
+  //  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+  //    if (!Prompted) {Prompt();}
+  //    Wt(40); Ws("> "); Flush();
+  //  } else {
+  //    if (Prompted) {Wl();}
+  //  }
+  //  Prompted = 0;
+  //
+  //  Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
+  //
+  //  if (Eof()) {if (IsUser(Input)) {Wl();} break;}
+  //  else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
+  //
+  //  SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
+  //}
 }
