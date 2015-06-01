@@ -16,67 +16,65 @@ void Go()            {Wsl("Going, going, ...., gone.");}
 void QuitCommand()   {QuitRequested = 1;}
 void TraceCommand()  {DwTrace();}
 void FailCommand()   {Fail("FailCommand ...");}
+void HelpCommand();
+void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
+
+
+struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
+  {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
+  {"dw",          "Dump data words",        1, DumpDataWordsCommand},
+  {"g",           "Go",                     1, Go},
+  {"p",           "PC set / query",         1, PCommand},
+  {"q",           "Quit ",                  0, QuitCommand},
+  {"r",           "Registers",              1, RegistersCommand},
+  {"s",           "Stack",                  1, StackCommand},
+  {"t",           "Trace",                  1, TraceCommand},
+  {"u",           "Unassemble",             1, UnassembleCommand},
+  {"h",           "Help",                   0, HelpCommand},
+  {"reset",       "Reset processor",        1, DwReset},
+  {"serialdump",  "(dwdebug debugging)",    1, SerialDump},
+  {"help",        "Help",                   0, HelpCommand},
+  {"device",      "Device connection port", 0, DeviceCommand},
+  {"",            0,                        0, EmptyCommand}
+};
+
+
+enum {unconnected, connected, running} State = unconnected;
+
 
 void HelpCommand() {
-  Wsl("dwdebug commands:\n"
-  "p  Set PC\n"
-  "q  Quit\n"
-  "r  Display registers\n"
-  "t  Trace instruction(s)");
+  Wsl("dwdebug commands:\n");
+  for (int i=0; Commands[i].help; i++) {
+    Ws("  "); Ws(Commands[i].name); Ws(" - "); Wsl(Commands[i].help);
+  }
 }
 
-void EmptyCommand() {Sb(); if (!DwEoln()) {HelpCommand();}}
 
-
-struct CommandList {char *name; void (*handler)();};
-
-struct CommandList UnconnectedCommands[] = {
-  {"q",      QuitCommand},
-  {"h",      HelpCommand},
-  {"device", DeviceCommand},
-  {"",       EmptyCommand}
-};
-
-struct CommandList ConnectedCommands[] = {
-  {"d",  DumpDataBytesCommand},
-  {"dw", DumpDataWordsCommand},
-  {"g",  Go},
-  {"p",  PCommand},
-  {"q",  QuitCommand},
-  {"r",  RegistersCommand},
-  {"s",  StackCommand},
-  {"t",  TraceCommand},
-  {"u",  UnassembleCommand},
-  {"h",  HelpCommand},
-
-  {"reset",       DwReset},
-  {"serialdump",  SerialDump},
-  {"help",        HelpCommand},  // testing
-  {"device",      DeviceCommand},
-
-  {"",  EmptyCommand}
-};
-
-
-void HandleCommand(const char *cmd, struct CommandList *commands) {
-  for (int i=0; i<countof(commands); i++) {
-    if (!strcmp(cmd, commands[i].name)) {commands[i].handler(); return;}
+void HandleCommand(const char *cmd) {
+  for (int i=0; i<countof(Commands); i++) {
+    if (!strcmp(cmd, Commands[i].name)) {
+      if (State == unconnected  &&  Commands[i].requiresConnection) {ConnectSerialPort();}
+      Commands[i].handler();
+      return;
+    }
   }
   Ws("Unrecognised command: '"); Ws(cmd); Wsl("'.");
 }
 
-void ParseAndHandleCommand(struct CommandList *commands) {
+
+void ParseAndHandleCommand() {
   char command[20];
 
   Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
 
   if (Eof()) {if (IsUser(Input)) {Wl();}  QuitCommand();}
-  else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command, commands);}
+  else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
   SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
 }
 
-void Prompt() {
+
+void DisassemblyPrompt() {
   u8 buf[4];  // Enough for a 2 word instruction
   Wx(PC, 4); Ws(": ");  // Word address, e.g. as used in pc and bp setting instructions
   DwReadFlash(PC<<1, 4, buf);
@@ -84,8 +82,16 @@ void Prompt() {
   Wt(40);
 }
 
-void UnconnectedPrompt() {
+
+void Prompt() {
   if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+    if (!Prompted) {
+      switch(State) {
+        case unconnected: Ws("Unconnected.");   break;
+        case connected:   DisassemblyPrompt();  break;
+        case running:     Ws("Running.");       break;
+      }
+    }
     Wt(40); Ws("> "); Flush();
   } else {
     if (Prompted) {Wl();}
@@ -93,38 +99,15 @@ void UnconnectedPrompt() {
   Prompted = 0;
 }
 
-void ConnectedPrompt() {
-  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
-    if (!Prompted) {Prompt();}
-    Wt(40); Ws("> "); Flush();
-  } else {
-    if (Prompted) {Wl();}
-  }
-  Prompted = 0;
-}
 
 void UI() {
-  enum {unconnected, connected, running} state = unconnected;
 
   while (1) {
     if (QuitRequested) return;
-
-    switch (state) {
-      case unconnected:
-        if (setjmp(FailPoint)) {Sl();}
-        UnconnectedPrompt();
-        ParseAndHandleCommand(UnconnectedCommands);
-      break;
-
-      case connected:
-        if (setjmp(FailPoint)) {Sl();}
-        ConnectedPrompt();
-        ParseAndHandleCommand(ConnectedCommands);
-      break;
-
-      case running:
-      break;
-    }
+    if (setjmp(FailPoint)) {Sl();}
+    Prompt();
+    ParseAndHandleCommand();
+    if (State == unconnected  &&  SerialPort) {State = connected;}
   }
 
 
