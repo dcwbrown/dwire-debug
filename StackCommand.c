@@ -18,8 +18,8 @@ void StackCommand () {
 
     DwReadAddr(0x5D, 2, sp);
 
-    int addr = min(DataLimit, ((sp[1] << 8) | sp[0]) + 1);
-    int len  = min(DataLimit, addr+16) - addr;
+    int addr = min(DataLimit(), ((sp[1] << 8) | sp[0]) + 1);
+    int len  = min(DataLimit(), addr+16) - addr;
 
     Ws("SP = "); Wx(addr-1,4);
 

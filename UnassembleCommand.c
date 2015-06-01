@@ -10,7 +10,7 @@ void UnassembleCommand() {
   if (!DwEoln()) {Wsl("Unrecognised parameters on unassemble command.");}
 
   int firstByte = Uaddr*2;
-  int limitByte = min(firstByte + count*4, FlashSize); // Allow for up to 2 words per instruction
+  int limitByte = min(firstByte + count*4, FlashSize()); // Allow for up to 2 words per instruction
   int length    = limitByte - firstByte;
 
   if (length <= 0) {Fail("Nothing to disassemble.");}
@@ -23,7 +23,7 @@ void UnassembleCommand() {
     Wx(Uaddr, 4); Ws(": ");
     Uaddr += DisassembleInstruction(Uaddr, &buf[Uaddr*2-firstByte]);
     count--;
-    if (count <= 0  ||  Uaddr >= FlashSize/2) {Prompted=1; return;}
+    if (count <= 0  ||  Uaddr >= FlashSize()/2) {Prompted=1; return;}
     Wl();
   }
 }

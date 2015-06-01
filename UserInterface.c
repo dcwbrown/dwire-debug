@@ -9,21 +9,21 @@
 
 
 
+void HelpCommand();
+
 int QuitRequested = 0;
 
 void PCommand()      {PC = ReadNumber(1);}
-void Go()            {Wsl("Going, going, ...., gone.");}
 void QuitCommand()   {QuitRequested = 1;}
 void TraceCommand()  {DwTrace();}
 void FailCommand()   {Fail("FailCommand ...");}
-void HelpCommand();
 void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
   {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
   {"dw",          "Dump data words",        1, DumpDataWordsCommand},
-  {"g",           "Go",                     1, Go},
+  {"g",           "Go",                     1, GoCommand},
   {"p",           "PC set / query",         1, PCommand},
   {"q",           "Quit ",                  0, QuitCommand},
   {"r",           "Registers",              1, RegistersCommand},
@@ -39,13 +39,12 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
 };
 
 
-enum {unconnected, connected, running} State = unconnected;
+enum {unconnected, connected} State = unconnected;
 
 
 void HelpCommand() {
-  Wsl("dwdebug commands:\n");
   for (int i=0; Commands[i].help; i++) {
-    Ws("  "); Ws(Commands[i].name); Ws(" - "); Wsl(Commands[i].help);
+    Ws("  "); Ws(Commands[i].name); Wt(10); Ws("- "); Wsl(Commands[i].help);
   }
 }
 
@@ -89,7 +88,6 @@ void Prompt() {
       switch(State) {
         case unconnected: Ws("Unconnected.");   break;
         case connected:   DisassemblyPrompt();  break;
-        case running:     Ws("Running.");       break;
       }
     }
     Wt(40); Ws("> "); Flush();
@@ -101,7 +99,6 @@ void Prompt() {
 
 
 void UI() {
-
   while (1) {
     if (QuitRequested) return;
     if (setjmp(FailPoint)) {Sl();}
@@ -109,25 +106,4 @@ void UI() {
     ParseAndHandleCommand();
     if (State == unconnected  &&  SerialPort) {State = connected;}
   }
-
-
-  //while (1) {
-  //
-  //  if (QuitRequested) return;
-  //
-  //  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
-  //    if (!Prompted) {Prompt();}
-  //    Wt(40); Ws("> "); Flush();
-  //  } else {
-  //    if (Prompted) {Wl();}
-  //  }
-  //  Prompted = 0;
-  //
-  //  Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
-  //
-  //  if (Eof()) {if (IsUser(Input)) {Wl();} break;}
-  //  else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
-  //
-  //  SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
-  //}
 }

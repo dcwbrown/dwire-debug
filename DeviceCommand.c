@@ -2,9 +2,6 @@
 
 
 
-char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
-
-
 #ifdef windows
   int  NextUsbSerialPortIndex = 0;
   HKEY SerialComm             = 0;

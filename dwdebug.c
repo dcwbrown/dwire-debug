@@ -17,6 +17,7 @@ typedef unsigned char u8;
 #include "UnassembleCommand.c"
 #include "Dump.c"
 #include "DumpCommand.c"
+#include "GoCommand.c"
 #include "UserInterface.c"
 
 

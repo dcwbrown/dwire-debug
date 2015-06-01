@@ -10,7 +10,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
 
   if (!DwEoln()) {Ws("Unrecognised parameters on "); Ws(context); Fail(" command.");}
 
-  *len = min(*addr + *len, DataLimit) - *addr;
+  *len = min(*addr + *len, DataLimit()) - *addr;
 
   if (*len <= 0) {Ws("Requested addresses beyond range available for "); Ws(context); Fail(" command.");}
 }
@@ -20,7 +20,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
 
 void DumpDataBytesCommand() {
   int length = 128; // Default data byte count to display
-  ParseDumpParameters("dump bytes", DataLimit, &DBaddr, &length);
+  ParseDumpParameters("dump bytes", DataLimit(), &DBaddr, &length);
 
   u8 buf[length];
   DwReadAddr(DBaddr, length, buf);
@@ -34,7 +34,7 @@ void DumpDataBytesCommand() {
 
 void DumpDataWordsCommand() {
   int length = 128; // Default data byte count to display
-  ParseDumpParameters("dump bytes", DataLimit, &DWaddr, &length);
+  ParseDumpParameters("dump bytes", DataLimit(), &DWaddr, &length);
 
   u8 buf[length];
   DwReadAddr(DWaddr, length, buf);

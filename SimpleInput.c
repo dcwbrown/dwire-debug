@@ -71,6 +71,8 @@ int Available() {Fill(); return BufferTotalContent();}
 char NextCh() {return InputBuffer[IOut];}
 void SkipCh() {IOut = (IOut + 1) % ILimit;}
 
+void DrainInput() {IIn = 0;  IOut = 0;  IEof = 0;  IEoln = 1;}
+
 void DumpInputState() {
   Ws("InputState: BufferTotalContent "); Wd(BufferTotalContent(),1);
   Ws(", IEof "); Wd(IEof,1);
