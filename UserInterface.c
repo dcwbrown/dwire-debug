@@ -30,7 +30,6 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"u",           "Unassemble",             1, UnassembleCommand},
   {"h",           "Help",                   0, HelpCommand},
   {"reset",       "Reset processor",        1, DwReset},
-  {"serialdump",  "(dwdebug debugging)",    1, SerialDump},
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
   {"",            0,                        0, EmptyCommand}
@@ -82,7 +81,7 @@ void DisassemblyPrompt() {
 
 void Prompt() {
   if (BufferTotalContent() == 0  &&  IsUser(Input)) {
-    if (!Prompted) {
+    if (OutputPosition == 0) {
       switch(State) {
         case unconnected: Ws("Unconnected.");   break;
         case connected:   DisassemblyPrompt();  break;
@@ -90,9 +89,8 @@ void Prompt() {
     }
     Wt(40); Ws("> "); Flush();
   } else {
-    if (Prompted) {Wl();}
+    if (OutputPosition) {Wl();}
   }
-  Prompted = 0;
 }
 
 

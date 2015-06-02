@@ -73,7 +73,7 @@ void GoCommand() {
   // Wait for input from either the serial port or the keyboard.
 
   Ws("Running. ");
-  if (IsUser(Input)) {Ws("Press any key to force break. Waiting ..."); Flush();}
+  if (IsUser(Input)) {Ws("Press return key to force break. Waiting ..."); Flush();}
 
 
   // Wait for either serial port or keyboard input

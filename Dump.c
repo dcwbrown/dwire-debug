@@ -42,7 +42,7 @@ void DumpBytes(int addr, int len, const u8 *buf) {
       if (base >= addr+len) {break;} else {Wl();}
     }
   }
-  Wt(80); Prompted = 1;
+  Wt(80);
 }
 
 
@@ -89,5 +89,5 @@ void DumpWords(int addr, int len, const u8 *buf) {
       if (base >= addr+len) {break;} else {Wl();}
     }
   }
-  Wt(80); Prompted = 1;
+  Wt(80);
 }
