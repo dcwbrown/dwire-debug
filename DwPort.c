@@ -3,8 +3,6 @@
 #define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 
-int PC = 0;
-u8 Registers[32] = {0};  // Note: r30 & r31 are read on connection, the rest only on demand
 
 
 
@@ -77,45 +75,6 @@ void DwSync() { // Used after reset/go/break
 void DwBreak() {SerialBreak(400); DwSync();}
 
 
-struct {
-  int   signature;
-  int   ioregSize;
-  int   sramSize;
-  int   eepromSize;
-  int   flashSize;
-  int   DWDR;
-  char *name;
-} Characteristics[] = {
-//    sig  io  sram eeeprom flash dwdr
-  {0x9108,  64,  128,  128,  2048, 0x42, "ATtiny25"},
-  {0x910B,  64,  128,  128,  2048, 0x47, "ATtiny24"},
-
-  {0x9205, 224,  512,  256,  4096, 0x51, "ATmega48A"},
-  {0x9206,  64,  256,  256,  4096, 0x42, "ATtiny45"},
-  {0x9207,  64,  256,  256,  4096, 0x47, "ATtiny44"},
-  {0x920A, 224,  512,  256,  4096, 0x51, "ATmega48PA"},
-  {0x9215, 224,  256,  256,  4096, 0x47, "ATtiny441"},
-
-  {0x930A, 224, 1024,  512,  8192, 0x51, "ATmega88A"},
-  {0x930B,  64,  512,  512,  8192, 0x42, "ATtiny85"},
-  {0x930C,  64,  512,  512,  8192, 0x47, "ATtiny84"},
-  {0x930F, 224, 1024,  512,  8192, 0x51, "ATmega88PA"},
-  {0x9315, 224,  512,  512,  8192, 0x47, "ATtiny841"},
-  {0x9389, 224,  512,  512,  8192, 0x51, "ATmega8U2"},
-
-  {0x9406, 224, 1024,  512, 16384, 0x51, "ATmega168A"},
-  {0x940B, 224, 1024,  512, 16384, 0x51, "ATmega168PA"},
-  {0x9489, 224,  512,  512, 16384, 0x51, "ATmega16U2"},
-
-  {0x950F, 224, 2048, 1024, 32768, 0x51, "ATmega328P"},
-  {0x9514, 224, 2048, 1024, 32768, 0x51, "ATmega328"},
-  {0x958A, 224, 1024, 1024, 32768, 0x51, "ATmega32U2"},
-  {0,      0,   0,    0,    0,     0,    0}
-};
-
-
-int DeviceType = -1;
-
 void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
 int  IoregSize()   {CheckDevice(); return Characteristics[DeviceType].ioregSize;}
 int  SramSize()    {CheckDevice(); return Characteristics[DeviceType].sramSize;}
@@ -165,7 +124,7 @@ void DwWriteRegisters(u8 *registers, int first, int count) {
 }
 
 
-void DwReadUnsafeAddr(int addr, int len, u8 *buf) {
+void DwUnsafeReadAddr(int addr, int len, u8 *buf) {
   // Do not read addresses 30, 31 or DWDR as these interfere with the read process
   DwWrite(ByteArrayLiteral(
     0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
@@ -179,25 +138,25 @@ void DwReadUnsafeAddr(int addr, int len, u8 *buf) {
 void DwReadAddr(int addr, int len, u8 *buf) {
   // Read range before r30
   int len1 = min(len, 30-addr);
-  if (len1 > 0) {DwReadUnsafeAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
+  if (len1 > 0) {DwUnsafeReadAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
 
   // Registers 30 and 31 are cached - use the cached values.
-  if (addr == 30  &&  len > 0) {buf[0] = Registers[30]; addr++; len--; buf++;}
-  if (addr == 31  &&  len > 0) {buf[0] = Registers[31]; addr++; len--; buf++;}
+  if (addr == 30  &&  len > 0) {buf[0] = R30; addr++; len--; buf++;}
+  if (addr == 31  &&  len > 0) {buf[0] = R31; addr++; len--; buf++;}
 
   // Read range from 32 to DWDR
   int len2 = min(len, DWDR()-addr);
-  if (len2 > 0) {DwReadUnsafeAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
+  if (len2 > 0) {DwUnsafeReadAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
 
   // Provide dummy 0 value for DWDR
   if (addr == DWDR()  &&  len > 0) {buf[0] = 0; addr++; len--; buf++;}
 
   // Read anything beyond DWDR
-  if (len > 0) {DwReadUnsafeAddr(addr, len, buf);}
+  if (len > 0) {DwUnsafeReadAddr(addr, len, buf);}
 }
 
 
-void DwWriteUnsafeAddr(int addr, int len, const u8 *buf) {
+void DwUnsafeWriteAddr(int addr, int len, const u8 *buf) {
   // Do not write addresses 30, 31 or DWDR as these interfere with the write process
   DwWrite(ByteArrayLiteral(
     0xD0, 0,0x1e, 0xD1, 0,0x20,                 // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
@@ -211,21 +170,21 @@ void DwWriteUnsafeAddr(int addr, int len, const u8 *buf) {
 void DwWriteAddr(int addr, int len, const u8 *buf) {
   // Write range before r30
   int len1 = min(len, 30-addr);
-  if (len1 > 0) {DwWriteUnsafeAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
+  if (len1 > 0) {DwUnsafeWriteAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
 
   // Registers 30 and 31 are cached - update the cached values.
-  if (addr == 30  &&  len > 0) {Registers[30] = buf[0]; addr++; len--; buf++;}
-  if (addr == 31  &&  len > 0) {Registers[31] = buf[0]; addr++; len--; buf++;}
+  if (addr == 30  &&  len > 0) {R30 = buf[0]; addr++; len--; buf++;}
+  if (addr == 31  &&  len > 0) {R31 = buf[0]; addr++; len--; buf++;}
 
   // Write range from 32 to DWDR
   int len2 = min(len, DWDR()-addr);
-  if (len2 > 0) {DwWriteUnsafeAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
+  if (len2 > 0) {DwUnsafeWriteAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
 
   // (Ignore anything for DWDR - as the DebugWIRE port it is in use and wouldn't retain a value anyway)
   if (addr == DWDR()  &&  len > 0) {addr++; len--; buf++;}
 
   // Write anything beyond DWDR
-  if (len > 0) {DwWriteUnsafeAddr(addr, len, buf);}
+  if (len > 0) {DwUnsafeWriteAddr(addr, len, buf);}
 }
 
 
@@ -242,7 +201,10 @@ void DwReadFlash(int addr, int len, u8 *buf) {
 
 void DwReconnect() {
   DwWrite(ByteArrayLiteral(0xF0)); PC = DwReadWord()-1;
-  DwReadRegisters(&Registers[30], 30, 2);  // Save r30 & r31
+  u8 buf[2];
+  DwReadRegisters(buf, 30, 2);
+  R30 = buf[0];
+  R31 = buf[1];
 }
 
 void DwConnect() {
@@ -263,7 +225,7 @@ void DwTrace() { // Execute one instruction
     0xD0, 0, 30,                   // Set up to set registers starting from r30
     0xD1, 0, 32,                   // Register limit is 32 (i.e. stop at r31)
     0xC2, 5, 0x20,                 // Select reigster write mode and start
-    Registers[30], Registers[31],  // Saved value of r30 and r31
+    R30, R31,                      // Cached value of r30 and r31
     0x60, 0xD0, hi(PC), lo(PC),    // Address to restart execution at
     0x31                           // Continue execution (single step)
   ));
@@ -280,7 +242,7 @@ void DwGo() { // Begin executing.
     0xD0, 0, 30,                   // Set up to set registers starting from r30
     0xD1, 0, 32,                   // Register limit is 32 (i.e. stop at r31)
     0xC2, 5, 0x20,                 // Select reigster write mode and start
-    Registers[30], Registers[31],  // Saved value of r30 and r31
+    R30, R31,                      // Cached value of r30 and r31
     0x60, 0xD0, hi(PC), lo(PC),    // Address to restart execution at
     0x30                           // Continue execution (go)
   ));

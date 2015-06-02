@@ -1,6 +1,8 @@
 /// Dump.c
 
 
+// TODO - DOn't force alignment to multiplr of 16.
+
 
 
 void DumpBytes(int addr, int len, const u8 *buf) {

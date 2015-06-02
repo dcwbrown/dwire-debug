@@ -11,8 +11,6 @@
 
 void HelpCommand();
 
-int QuitRequested = 0;
-
 void PCommand()      {PC = ReadNumber(1);}
 void QuitCommand()   {QuitRequested = 1;}
 void TraceCommand()  {DwTrace();}

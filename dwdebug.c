@@ -6,7 +6,7 @@
 
 typedef unsigned char u8;
 
-
+#include "GlobalData.c"
 #include "SerialPort.c"
 #include "DwPort.c"
 #include "Disassemble.c"

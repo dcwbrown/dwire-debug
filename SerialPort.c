@@ -8,10 +8,6 @@
 //// Serial port access.
 
 
-char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
-FileHandle SerialPort = 0;
-
-
 #if windows
   void MakeSerialPort(char *portname, int baudrate) {
 

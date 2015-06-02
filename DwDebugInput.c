@@ -37,14 +37,3 @@ int ReadNumber(int defaultHex) {  // Recognise Leading '$' or trailing 'h' as he
 
 
 
-// Current dump instruction states
-
-int DBaddr = 0;
-int DWaddr = 0;
-int EBaddr = 0;
-int EWaddr = 0;
-int FBaddr = 0;
-int FWaddr = 0;
-int Uaddr  = 0;
-
-int Prompted = 0; // Set to 1 by dump commands.
