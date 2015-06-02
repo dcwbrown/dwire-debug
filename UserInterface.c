@@ -63,7 +63,7 @@ void ParseAndHandleCommand() {
 
   Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
 
-  if (Eof()) {if (IsUser(Input)) {Wl();}  QuitCommand();}
+  if (Eof()) {if (Interactive(Input)) {Wl();}  QuitCommand();}
   else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
   SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
@@ -80,7 +80,7 @@ void DisassemblyPrompt() {
 
 
 void Prompt() {
-  if (BufferTotalContent() == 0  &&  IsUser(Input)) {
+  if (BufferTotalContent() == 0  &&  Interactive(Input)) {
     if (OutputPosition == 0) {
       switch(State) {
         case unconnected: Ws("Unconnected.");   break;

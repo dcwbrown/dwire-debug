@@ -29,12 +29,16 @@ void KeyboardBreak() {
         break;
       }
       // See if there's a user pressing a key
-      if (IsUser(Input)) {
+      if (Interactive(Input)) {
         DWORD bytesAvailable;
-        WinOK(PeekNamedPipe(Input, 0,0,0, &bytesAvailable, 0));
-        if (bytesAvailable) {
-          KeyboardBreak();
-          break;
+        if (PeekNamedPipe(Input, 0,0,0, &bytesAvailable, 0)) {
+          if (bytesAvailable) {
+            KeyboardBreak(); break; // Running under cygwin or through other sort of pipe
+          }
+        } else {
+          if (WaitForSingleObject(Input, 0) == WAIT_OBJECT_0) {
+            KeyboardBreak(); break; // Running in console
+          }
         }
       }
     }
@@ -73,7 +77,7 @@ void GoCommand() {
   // Wait for input from either the serial port or the keyboard.
 
   Ws("Running. ");
-  if (IsUser(Input)) {Ws("Press return key to force break. Waiting ..."); Flush();}
+  if (Interactive(Input)) {Ws("Press return key to force break. Waiting ..."); Flush();}
 
 
   // Wait for either serial port or keyboard input

@@ -31,7 +31,7 @@ void WWinError(DWORD winError) {
 
 
 
-/// IsUser file handle test
+/// Interactive file handle test
 
 struct FILE_NAME_INFO {
   DWORD FileNameLength;
@@ -40,7 +40,7 @@ struct FILE_NAME_INFO {
 
 typedef NTSTATUS (NTAPI *tNtQueryInformationFile) (HANDLE, PVOID, struct FILE_NAME_INFO*, ULONG, DWORD);
 
-int IsUser(FileHandle handle) {
+int Interactive(FileHandle handle) {
   DWORD fileType = GetFileType(handle);
   if (fileType == FILE_TYPE_CHAR) {return 1;}
   if (fileType != FILE_TYPE_PIPE) {return 0;}
@@ -54,4 +54,4 @@ int IsUser(FileHandle handle) {
   return 1;
 }
 
-/// IsUser file handle test end.
+/// Interactive file handle test end.

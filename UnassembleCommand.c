@@ -4,10 +4,10 @@
 
 
 void UnassembleCommand() {
-  Sb(); if (IsDwDebugNumeric(NextCh())) {Uaddr = ReadNumber(1); Wl();}
   int count = 8; // Default instruction count to display
-  Sb();  if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}
-  if (!DwEoln()) {Wsl("Unrecognised parameters on unassemble command.");}
+  Sb(); if (IsDwDebugNumeric(NextCh())) {Uaddr = ReadNumber(1); Wl();}
+  Sb(); if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}
+  Sb(); if (!DwEoln()) {Wsl("Unrecognised parameters on unassemble command.");}
 
   int firstByte = Uaddr*2;
   int limitByte = min(firstByte + count*4, FlashSize()); // Allow for up to 2 words per instruction

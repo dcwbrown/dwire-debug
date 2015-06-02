@@ -64,7 +64,7 @@ void SerialRead(u8 *buf, int len) {
     if (lengthRead == 0) {
       Ws("SerialRead expected ");
       Wd(len,1); Ws(" bytes, received ");
-      Wd(totalRead,1); Wsl(" bytes.");
+      Wd(totalRead,1); Ws(" bytes from "); Wsl(UsbSerialPortName);
       for (int i=0; i<lengthRead; i++) {Wx(buf[i],2); Ws("  ");}
       Fail("");
     }

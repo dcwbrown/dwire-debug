@@ -52,7 +52,7 @@ static jmp_buf FailPoint;
   typedef int FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
   int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
-  int  IsUser(FileHandle handle)                                 {return isatty(handle);}
+  int  Interactive(FileHandle handle)                            {return isatty(handle);}
 #endif
 
 FileHandle Input  = 0;
@@ -79,10 +79,18 @@ void *Allocate(int length) {
   #ifdef windows
     void *ptr = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, length);
   #else
-    void *ptr = sbrk(length);
+    void *ptr = malloc(length);
   #endif
   if (ptr <= 0) {Write(Error, "Out of memory.\r\n", 16); Exit(1);}
   return ptr;
+}
+
+void Free(void *ptr) {
+  #ifdef windows
+    HeapFree(GetProcessHeap(), 0, ptr);
+  #else
+    free(ptr));
+  #endif
 }
 
 /// Minimal memory allocation support end.

@@ -8,7 +8,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
   Sb(); if (IsDwDebugNumeric(NextCh())) {*addr = ReadNumber(1);}
   Sb(); if (IsDwDebugNumeric(NextCh())) {*len  = ReadNumber(1);}
 
-  if (!DwEoln()) {Ws("Unrecognised parameters on "); Ws(context); Fail(" command.");}
+  Sb(); if (!DwEoln()) {Ws("Unrecognised parameters on "); Ws(context); Fail(" command.");}
 
   *len = min(*addr + *len, DataLimit()) - *addr;
 

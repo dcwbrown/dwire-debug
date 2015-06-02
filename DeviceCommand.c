@@ -3,42 +3,46 @@
 
 
 #ifdef windows
-  int  NextUsbSerialPortIndex = 0;
-  HKEY SerialComm             = 0;
+
+  char *DosDevices = 0;
+  char *CurrentDevice = 0;
+
+  void LoadDosDevices() {
+    if (DosDevices == (char*)-1) {CurrentDevice=0; return;}
+    int size = 24576;
+    int used = 0;
+    while (1) {
+      DosDevices = Allocate(size);
+      used = QueryDosDevice(0, DosDevices, size);
+      if (used) {break;}
+      int error = GetLastError();
+      Free(DosDevices);
+      if (error != ERROR_INSUFFICIENT_BUFFER) {break;}
+      size *= 2;
+    }
+    if (used) {CurrentDevice = DosDevices;}
+  }
+
+  void AdvanceCurrentDevice() {while (*CurrentDevice) {CurrentDevice++;} CurrentDevice++;}
 
   void NextUsbSerialPort() {
-    UsbSerialPortName[0] = 0;
-    if (NextUsbSerialPortIndex >= 0) {
-    	if (!SerialComm) {
-        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DEVICEMAP\\SERIALCOMM\\", 0,	KEY_READ | KEY_WOW64_64KEY, &SerialComm) != ERROR_SUCCESS)
-          {Wsl("Couldn't open HKLM\\HARDWARE\\DEVICEMAP\\SERIALCOMM\\."); NextUsbSerialPortIndex = -1; return;}
-      }
-      char name[256];  DWORD namelen  = sizeof(name);
-      char value[256]; DWORD valuelen = sizeof(value);
-    	if (RegEnumValue(
-    		SerialComm,
-    		NextUsbSerialPortIndex++,
-    		name, &namelen,
-    		0,0,
-    		(unsigned char*)value, &valuelen
-    	  ) != ERROR_SUCCESS
-    	){
-    	  NextUsbSerialPortIndex = -1;
-    	  RegCloseKey(SerialComm); SerialComm = 0;
-    	  return;
-    	}
-    	if (    (strncmp("\\Device\\Serial", name, 14) == 0)  // Ignore motherboard RS232 ports - we're looking for USB virtual serial ports
-    		  ||  (strncmp("COM", value, 3)              != 0)
-    	){
-    	  NextUsbSerialPort(UsbSerialPortName);
-    	  return;
-    	}
-      strncpy(UsbSerialPortName, value, 6); UsbSerialPortName[6] = 0;
+    if (!DosDevices) {LoadDosDevices();}
+    while (CurrentDevice  &&  strncmp("COM", CurrentDevice, 3)) {AdvanceCurrentDevice();}
+    if (CurrentDevice) {
+      strncpy(UsbSerialPortName, CurrentDevice, 6);
+      UsbSerialPortName[6] = 0;
+      AdvanceCurrentDevice();
+    } else {
+      UsbSerialPortName[0] = 0;
     }
   }
+
 #else
+
   #include <dirent.h>
+
   DIR *DeviceDir = 0;
+
   void NextUsbSerialPort() {
     UsbSerialPortName[0] = 0;
     if (!DeviceDir) {DeviceDir = opendir("/dev");
@@ -50,17 +54,28 @@
         {strncpy(UsbSerialPortName, entry->d_name, 255); UsbSerialPortName[255] = 0;}
     }
   }
+
 #endif
 
 
 
 
-void TryConnectSerialPort() {
-  MakeSerialPort(UsbSerialPortName, 1000000/128);
-  if (!SerialPort) {return;}
 
-  DwBreak();
-  DwConnect();
+
+void TryConnectSerialPort() {
+  jmp_buf oldFailPoint;
+  memcpy(oldFailPoint, FailPoint, sizeof(FailPoint));
+
+  if (setjmp(FailPoint)) {
+    SerialPort = 0;
+  } else {
+    MakeSerialPort(UsbSerialPortName, 1000000/128);
+    if (!SerialPort) {return;}
+    DwBreak();
+    DwConnect();
+  }
+
+  memcpy(FailPoint, oldFailPoint, sizeof(FailPoint));
 }
 
 
