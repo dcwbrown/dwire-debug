@@ -89,7 +89,7 @@ void Free(void *ptr) {
   #ifdef windows
     HeapFree(GetProcessHeap(), 0, ptr);
   #else
-    free(ptr));
+    free(ptr);
   #endif
 }
 
