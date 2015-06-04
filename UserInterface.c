@@ -21,6 +21,7 @@ void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
   {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
   {"dw",          "Dump data words",        1, DumpDataWordsCommand},
+  {"o",           "Open file",              0, OpenFileCommand},
   {"g",           "Go",                     1, GoCommand},
   {"p",           "PC set / query",         1, PCommand},
   {"q",           "Quit ",                  0, QuitCommand},
