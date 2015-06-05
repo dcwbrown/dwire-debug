@@ -61,3 +61,6 @@ int Uaddr  = 0;
 
 int QuitRequested = 0;
 
+FileHandle CurrentFile          = 0;
+char       CurrentFileName[500] = "";
+

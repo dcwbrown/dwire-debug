@@ -18,7 +18,13 @@
 
 
 
+typedef unsigned char  u8;
+typedef unsigned short u16;
+typedef unsigned int   u32;
 
+typedef signed   char  s8;
+typedef signed   short s16;
+typedef signed   int   s32;
 
 
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
@@ -43,14 +49,16 @@ static jmp_buf FailPoint;
 
 #ifdef windows
   typedef HANDLE FileHandle;
-  void Write(FileHandle handle, const void *buffer, int length) {WriteFile(handle, buffer, length, 0,0);}
-  int  Read (FileHandle handle,       void *buffer, int length) {
+  void Write (FileHandle handle, const void *buffer, int length) {WriteFile(handle, buffer, length, 0,0);}
+  void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
+  int  Read  (FileHandle handle,       void *buffer, int length) {
     DWORD bytesRead = 0;
     return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;
   }
 #else
   typedef int FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
+  void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
   int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
   int  Interactive(FileHandle handle)                            {return isatty(handle);}
 #endif

@@ -1,8 +1,5 @@
 // OpenFileCommand.c
 
-FileHandle CurrentFile          = 0;
-char       CurrentFileName[500] = "";
-
 #ifdef windows
 
   OPENFILENAME OpenFileName = {sizeof(OpenFileName), 0};
@@ -17,6 +14,7 @@ char       CurrentFileName[500] = "";
     OpenFileName.lpstrFilter = "All files\0*.*\0*.bin\0*.bin\0\0";
     if (GetOpenFileName(&OpenFileName)) {
       CurrentFile = CreateFile(CurrentFileName, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+
       if (CurrentFile == INVALID_HANDLE_VALUE) {
         DWORD winError = GetLastError();
         Ws("Couldn't open ");
@@ -25,6 +23,8 @@ char       CurrentFileName[500] = "";
         WWinError(winError);
         Fail("");
       }
+
+      LoadFile();
     }
   }
 

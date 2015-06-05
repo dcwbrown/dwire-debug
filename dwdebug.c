@@ -4,8 +4,6 @@
 #include "SimpleOutput.c"
 #include "SimpleInput.c"
 
-typedef unsigned char u8;
-
 #include "GlobalData.c"
 #include "SerialPort.c"
 #include "DwPort.c"
@@ -18,6 +16,7 @@ typedef unsigned char u8;
 #include "Dump.c"
 #include "DumpCommand.c"
 #include "GoCommand.c"
+#include "LoadFile.c"
 #include "OpenFileCommand.c"
 #include "UserInterface.c"
 
