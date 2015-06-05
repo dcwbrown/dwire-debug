@@ -56,13 +56,9 @@ char       CurrentFileName[500] = "";
 
   void OpenFileCommand() {
 
-    GtkApplication *App = gtk_application_new(
-      "com.dcwbrown.dwdebug",
-      G_APPLICATION_FLAGS_NONE
-    );
+    GtkApplication *App = gtk_application_new("com.dcwbrown.dwdebug", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(App, "activate", G_CALLBACK(Activate), NULL);
-    int status = g_application_run(G_APPLICATION(App), 0,0);
-    (void)(status);
+    g_application_run(G_APPLICATION(App), 0,0);
     g_object_unref(App);
   }
 
