@@ -48,8 +48,27 @@ struct ElfSectionHeader {
   u32 info;      // Depends on section type.
   u32 addralign; // Alignment in bytes.
   u32 entsize;   // Size of each entry in section.
-} Elf32_Shdr;
+};
 
+struct ElfSymbol {
+  u32 name;   // String table index of name.
+  u32 value;  // Symbol value.
+  u32 size;   // Size of associated object.
+  u8  info;   // Type and binding information.
+  u8  other;  // Reserved (not used).
+  u16 shndx;  // Section index of symbol.
+};
+
+struct stab {
+  u32 strx;    // index into string table of name.
+  u8  type;    // type of symbol.
+  u8  other;   // misc info (usually empty).
+  u16 desc;    // description field.
+  u32 value;   // value of symbol.
+};
+
+
+char SourceFilename[300] = {0};
 
 
 int IsLoadableElf() {
@@ -88,24 +107,174 @@ int IsLoadableElf() {
 
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (programHeaders + (i*ElfHeader.phentsize));
-    Ws("Program header. Type "); Wd(header->type,1);
-    Ws(", offset ");             Wd(header->offset,1);
-    Ws(", vaddr ");              Wd(header->vaddr,1);
-    Ws(", paddr ");              Wd(header->paddr,1);
-    Ws(", filesize ");           Wd(header->filesize,1);
-    Ws(", memsize ");            Wd(header->memsize,1);
-    Ws(", flags ");              Wd(header->flags,1);
-    Ws(", align ");              Wd(header->align,1);
+    Ws("Segment type "); Wd(header->type,1);
+    Ws(", offset ");     Wd(header->offset,1);
+    Ws(", vaddr ");      Wd(header->vaddr,1);
+    Ws(", paddr ");      Wd(header->paddr,1);
+    Ws(", filesize ");   Wd(header->filesize,1);
+    Ws(", memsize ");    Wd(header->memsize,1);
+    Ws(", flags ");      Wd(header->flags,1);
+    Ws(", align ");      Wd(header->align,1);
     Wl();
   }
 
   // Section header table
 
+  int elfSectionHeaderSize = ElfHeader.shnum * ElfHeader.shentsize;
+
+  if (elfSectionHeaderSize < sizeof(struct ElfSectionHeader))       {Fail("Cannot load ELF with incomplete section header table.");}
+  if (elfSectionHeaderSize > sizeof(struct ElfSectionHeader) * 200) {Fail("Cannot load ELF with unreasonable long section header table.");}
+
+  u8 *sectionHeaders = Allocate(elfSectionHeaderSize);
+  Seek(CurrentFile, ElfHeader.shoff);
+  lengthRead = Read(CurrentFile, sectionHeaders, elfSectionHeaderSize);
+  if (lengthRead != elfSectionHeaderSize) {Fail("Cannot load ELF - failed to load section header table.");}
+
+  // Load section names
+
+  if (ElfHeader.shstrndx >= ElfHeader.shnum) {Fail("Cannot load ELF with section name table index out of range.");}
+  struct ElfSectionHeader *sectionNamesHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * ElfHeader.shstrndx);
+
+  char *sectionNames = Allocate(sectionNamesHeader->size);
+  Seek(CurrentFile, sectionNamesHeader->offset);
+  lengthRead = Read(CurrentFile, sectionNames, sectionNamesHeader->size);
+  if (lengthRead != sectionNamesHeader->size) {Fail("CannotLoad ELF with incomplete sectionnames table.");}
+
+  // Display section headers content
+
+  int symbolTableIndex     = -1;
+  int symbolNameTableIndex = -1;
+  int stabTableIndex       = -1;
+  int stabstrTableIndex    = -1;
+
+  for (int i=0; i<ElfHeader.shnum; i++) {
+    struct ElfSectionHeader *header = (struct ElfSectionHeader *) (sectionHeaders + (i*ElfHeader.shentsize));
+    if (header->name >= sectionNamesHeader->size-1) {Fail("Cannot load ELF with section name string beyond end of section name table.");}
+    Ws("Section ");     Ws(sectionNames[header->name] ? sectionNames + header->name : "(unnamed)");
+    Ws(", type ");      if (header->type<4) {Ws((char*[]){"null","progbits","symtab","strtab"}[header->type]);} else {Wd(header->type,1);}
+    Ws(", flags ");     Wd(header->flags,1);
+    Ws(", addr ");      Wd(header->addr,1);
+    Ws(", offset ");    Wd(header->offset,1);
+    Ws(", size ");      Wd(header->size,1);
+    Ws(", link ");      Wd(header->link,1);
+    Ws(", info ");      Wd(header->info,1);
+    Ws(", addralign "); Wd(header->addralign,1);
+    Ws(", entsize ");   Wd(header->entsize,1);
+    if (i == ElfHeader.shstrndx) {Ws(" (section name table)");}
+    //if (header->type == 2) {symbolTableIndex = i;}
+    if (memcmp(sectionNames + header->name, ".symtab",  8) == 0) {symbolTableIndex = i;}
+    if (memcmp(sectionNames + header->name, ".strtab",  8) == 0) {symbolNameTableIndex = i;}
+    if (memcmp(sectionNames + header->name, ".stab",    8) == 0) {stabTableIndex = i;}
+    if (memcmp(sectionNames + header->name, ".stabstr", 8) == 0) {stabstrTableIndex = i;}
+    Wl();
+  }
+
+  // Symbol table
+
+  if (symbolTableIndex > 0  &&  symbolNameTableIndex > 0) {
+
+    // Load symbol table
+
+    if (symbolTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with symbol table index out of range.");}
+    struct ElfSectionHeader *symbolTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbolTableIndex);
+
+    struct ElfSymbol *symbols = Allocate(symbolTableHeader->size);
+    Seek(CurrentFile, symbolTableHeader->offset);
+    lengthRead = Read(CurrentFile, symbols, symbolTableHeader->size);
+    if (lengthRead != symbolTableHeader->size) {Fail("CannotLoad ELF with incomplete symbol table.");}
+
+    // Load symbol name table
+
+    if (symbolNameTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with symbol name table index out of range.");}
+    struct ElfSectionHeader *symbolNamesHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbolNameTableIndex);
+
+    char *symbolNames = Allocate(symbolNamesHeader->size);
+    Seek(CurrentFile, symbolNamesHeader->offset);
+    lengthRead = Read(CurrentFile, symbolNames, symbolNamesHeader->size);
+    if (lengthRead != symbolNamesHeader->size) {Fail("CannotLoad ELF with incomplete symbol names table.");}
+
+    // Display symbols
+
+    u8 *p = (u8*)symbols;
+    while (p < ((u8*)symbols) + symbolTableHeader->size) {
+      struct ElfSymbol *symbol = (struct ElfSymbol *)p;
+      //Ws("Symbol ");  Ws(symbolNames[symbol->name] ? symbolNames + symbol->name : "(unnamed)");
+      //Ws(", value "); Wd(symbol->value,1);
+      //Ws(", size ");  Wd(symbol->size,1);
+      //Ws(", info ");  Wd(symbol->info,1);
+      //Ws(", other "); Wd(symbol->other,1);
+      //Ws(", shndx "); Wd(symbol->shndx,1);
+      //Wl();
+
+      if (symbol->name  &&  symbol->info < 16) { // Named SHB_LOCAL symbol
+        if (symbol->shndx == 0xFFF1) {Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  0x"); Wx(symbol->value,4); Wl();}
+        else {
+          Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  ");
+          struct ElfSectionHeader *refHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbol->shndx);
+          Ws(sectionNames + refHeader->name);
+          Wc(':'); Wx(symbol->value,4); Wl();
+        }
+      }
+      p += symbolTableHeader->entsize;
+    }
+  }
 
 
+  //stab (debugging data table)
+
+  if (stabTableIndex > 0  &&  stabstrTableIndex > 0) {
+
+    // Load stab
+
+    if (stabTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with stab table index out of range.");}
+    struct ElfSectionHeader *stabTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * stabTableIndex);
+
+    struct stab *stabs = Allocate(stabTableHeader->size);
+    Seek(CurrentFile, stabTableHeader->offset);
+    lengthRead = Read(CurrentFile, stabs, stabTableHeader->size);
+    if (lengthRead != stabTableHeader->size) {Fail("CannotLoad ELF with incomplete stab table.");}
+
+    // Load stab name table
+
+    if (stabstrTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with stabstr table index out of range.");}
+    struct ElfSectionHeader *stabstrTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * stabstrTableIndex);
+
+    char *stabNames = Allocate(stabstrTableHeader->size);
+    Seek(CurrentFile, stabstrTableHeader->offset);
+    lengthRead = Read(CurrentFile, stabNames, stabstrTableHeader->size);
+    if (lengthRead != stabstrTableHeader->size) {Fail("CannotLoad ELF with incomplete stab names table.");}
+
+    // Display stabs
+
+    char *filename = "";
+
+    u8 *p = (u8*)stabs;
+    while (p < ((u8*)stabs) + stabTableHeader->size) {
+      struct stab *stab = (struct stab *)p;
+      //Ws("Stab ");    Ws(stabNames[stab->strx] ? stabNames + stab->strx : "(unnamed)");
+      //Ws(", type ");  Wd(stab->type,1);
+      //Ws(", other "); Wd(stab->other,1);
+      //Ws(", desc ");  Wd(stab->desc,1);
+      //Ws(", value "); Wd(stab->value,1);
+      //Wl();
+
+      if (stab->strx  &&  (stab->type == 100  ||  stab->type == 132)) {filename = stabNames+stab->strx;}
+      if (stab->type == 68) { // N_SLINE
+        Ws("0x"); Wx(stab->value,4); Ws(": "); Ws(filename); Wc(':'); Wd(stab->desc,1); Wl();
+      }
+
+      p += stabTableHeader->entsize;
+    }
+  }
 
 
-
+//struct stab {
+//  u32 strx;    // index into string table of name.
+//  u8  type;    // type of symbol.
+//  u8  other;   // misc info (usually empty).
+//  u16 desc;    // description field.
+//  u32 value;   // value of symbol.
+//};
 
   return 1;
 }

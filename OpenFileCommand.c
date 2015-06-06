@@ -4,28 +4,13 @@
 
   OPENFILENAME OpenFileName = {sizeof(OpenFileName), 0};
 
-  void OpenFileCommand()
+  void OpenFileDialog()
   {
-    if (CurrentFile) {CloseHandle(CurrentFile);}
-
     OpenFileName.lpstrFile   = CurrentFileName;
     OpenFileName.nMaxFile    = countof(CurrentFileName);
     OpenFileName.Flags       = OFN_FILEMUSTEXIST;
     OpenFileName.lpstrFilter = "All files\0*.*\0*.bin\0*.bin\0\0";
-    if (GetOpenFileName(&OpenFileName)) {
-      CurrentFile = CreateFile(CurrentFileName, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-
-      if (CurrentFile == INVALID_HANDLE_VALUE) {
-        DWORD winError = GetLastError();
-        Ws("Couldn't open ");
-        Ws(CurrentFileName);
-        Ws(": ");
-        WWinError(winError);
-        Fail("");
-      }
-
-      LoadFile();
-    }
+    if (!GetOpenFileName(&OpenFileName)) {CurrentFileName[0] = 0;}
   }
 
 #else
@@ -55,7 +40,6 @@
   }
 
   void OpenFileCommand() {
-
     GtkApplication *App = gtk_application_new("com.dcwbrown.dwdebug", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(App, "activate", G_CALLBACK(Activate), NULL);
     g_application_run(G_APPLICATION(App), 0,0);
@@ -64,3 +48,37 @@
 
 
 #endif
+
+void TrimTrailingSpace(char *s) {
+  char *p = 0; // First char of potential trailing space
+  while (*s) {if (*s > ' ') {p = 0;} else if (!p)  {p = s;}; s++;}
+  if (p) {*p=0;}
+}
+
+void OpenFileCommand() {
+
+  if (CurrentFile) {CloseHandle(CurrentFile); CurrentFile = 0; CurrentFileName[0] = 0;}
+
+  Sb(); if (Eoln()) {
+    OpenFileDialog();
+  } else {
+    ReadWhile(NotEoln, CurrentFileName, sizeof(CurrentFileName));
+    TrimTrailingSpace(CurrentFileName);
+  }
+
+  if (CurrentFileName[0]) {
+
+    CurrentFile = CreateFile(CurrentFileName, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+
+    if (CurrentFile == INVALID_HANDLE_VALUE) {
+      DWORD winError = GetLastError();
+      Ws("Couldn't open ");
+      Ws(CurrentFileName);
+      Ws(": ");
+      WWinError(winError);
+      Fail("");
+    }
+
+    LoadFile();
+  }
+}
