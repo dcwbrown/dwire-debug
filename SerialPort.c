@@ -9,9 +9,12 @@
 
 
 #if windows
-  void MakeSerialPort(char *portname, int baudrate) {
+  char portfilename[] = "//./COMnnn";
 
-    SerialPort = CreateFile(portname, GENERIC_WRITE | GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+  void MakeSerialPort(char *portname, int baudrate) {
+    strncpy(portfilename+4, portname, sizeof(portfilename)-5);
+    portfilename[sizeof(portfilename)-1] = 0;
+    SerialPort = CreateFile(portfilename, GENERIC_WRITE | GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
     if (SerialPort==INVALID_HANDLE_VALUE) {
       DWORD winError = GetLastError();
       Ws("Couldn't open ");
