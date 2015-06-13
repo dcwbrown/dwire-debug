@@ -169,6 +169,31 @@ void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1)
 
 
 
+
+
+/// Get command line parameters as a single char string.
+
+#ifdef windows
+  char *GetCommandParameters() {
+    char *command = GetCommandLine();
+    while (*command  &&  *command <= ' ') {command++;}     // Skip leading spaces
+    while (*command > ' ') {                               // Skip to blank after command filename
+      if (*command == '"') {                               // Skip up to second double-quote of a pair, and anything in between
+        command++;
+        while (*command  &&  *command != '"') {command++;}
+      }
+      if (*command) {command++;}
+    }
+    while (*command  &&  *command <= ' ') {command++;}     // Skip spaces before first parameter
+    return command;
+  }
+#else
+#endif
+
+/// Get command line parameters as a single char string end.
+
+
+
 #ifdef windows
   #include "WindowsServices.c"
 #endif

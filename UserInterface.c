@@ -21,11 +21,13 @@ void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
   {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
   {"dw",          "Dump data words",        1, DumpDataWordsCommand},
+  {"f",           "Dump flash bytes",       1, DumpFlashBytesCommand},
+  {"fw",          "Dump flash words",       1, DumpFlashWordsCommand},
   {"o",           "Open file",              0, OpenFileCommand},
   {"g",           "Go",                     1, GoCommand},
   {"p",           "PC set / query",         1, PCommand},
   {"q",           "Quit ",                  0, QuitCommand},
-  {"r",           "Registers",              1, RegistersCommand},
+  {"r",           "Display registers",      1, RegistersCommand},
   {"s",           "Stack",                  1, StackCommand},
   {"t",           "Trace",                  1, TraceCommand},
   {"u",           "Unassemble",             1, UnassembleCommand},
@@ -62,7 +64,7 @@ void HandleCommand(const char *cmd) {
 void ParseAndHandleCommand() {
   char command[20];
 
-  Sb(); if (NextCh() == ';') {SkipCh(); Sb();}
+  Sb(); if (IsCommandSeparator(NextCh())) {SkipCh(); Sb();}
 
   if (Eof()) {if (Interactive(Input)) {Wl();}  QuitCommand();}
   else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
@@ -96,6 +98,7 @@ void Prompt() {
 
 
 void UI() {
+  PreloadInput(GetCommandParameters());
   while (1) {
     if (QuitRequested) return;
     if (setjmp(FailPoint)) {Sl();}

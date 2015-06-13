@@ -1,9 +1,10 @@
 /// DwDebugInput.c
 
-int IsDwDebugNumeric(char c) {return IsNumeric(c) || c=='$' || c=='#';}
-int IsDwEoln(char c)         {return IsEolnChar(c) || c == ';';}
-int NotDwEoln(char c)        {return NotEoln(c)  &&  c != ';';}
-int DwEoln()                 {return Eoln()  ||  NextCh() == ';';}
+int IsDwDebugNumeric(char c)   {return IsNumeric(c)  || c=='$' || c=='#';}
+int IsCommandSeparator(char c) {return c==';' || c==',';}
+int IsDwEoln(char c)           {return IsEolnChar(c) || IsCommandSeparator(c);}
+int NotDwEoln(char c)          {return NotEoln(c)  &&  !IsCommandSeparator(c);}
+int DwEoln()                   {return Eoln()  ||  IsCommandSeparator(NextCh());}
 
 int ReadNumber(int defaultHex) {  // Recognise Leading '$' or trailing 'h' as hex, or '#' or 'd' for decimal.
   int  decimal = 0;

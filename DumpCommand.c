@@ -20,7 +20,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
 
 void DumpDataBytesCommand() {
   int length = 128; // Default data byte count to display
-  ParseDumpParameters("dump bytes", DataLimit(), &DBaddr, &length);
+  ParseDumpParameters("dump data bytes", DataLimit(), &DBaddr, &length);
 
   u8 buf[length];
   DwReadAddr(DBaddr, length, buf);
@@ -34,7 +34,7 @@ void DumpDataBytesCommand() {
 
 void DumpDataWordsCommand() {
   int length = 128; // Default data byte count to display
-  ParseDumpParameters("dump bytes", DataLimit(), &DWaddr, &length);
+  ParseDumpParameters("dump data words", DataLimit(), &DWaddr, &length);
 
   u8 buf[length];
   DwReadAddr(DWaddr, length, buf);
@@ -42,3 +42,35 @@ void DumpDataWordsCommand() {
   DumpWords(DWaddr, length, buf);
   DWaddr += length;
 }
+
+
+
+
+void DumpFlashBytesCommand() {
+  int length = 128; // Default byte count to display
+  ParseDumpParameters("dump flash bytes", FlashSize(), &FBaddr, &length);
+
+  u8 buf[length];
+  DwReadFlash(FBaddr, length, buf);
+
+  DumpBytes(FBaddr, length, buf);
+  FBaddr += length;
+}
+
+
+
+
+void DumpFlashWordsCommand() {
+  int length = 128; // Default byte count to display
+  ParseDumpParameters("dump flash words", DataLimit(), &FWaddr, &length);
+
+  u8 buf[length];
+  DwReadFlash(FWaddr, length, buf);
+
+  DumpWords(FWaddr, length, buf);
+  FWaddr += length;
+}
+
+
+
+

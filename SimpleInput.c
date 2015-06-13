@@ -83,6 +83,19 @@ void DumpInputState() {
   Wl();
 }
 
+void PreloadInput(char *preload) {
+  int preloadLength = min(strlen(preload), sizeof(InputBuffer)-2);
+  if (preloadLength) {
+    memcpy(InputBuffer, preload, preloadLength);
+    InputBuffer[preloadLength] = 10; // line feed
+    IOut  = 0;
+    IIn   = preloadLength+1;
+    IEof  = 0;
+    IEoln = 1;
+  }
+}
+
+
 /// Circular input buffer end.
 
 
