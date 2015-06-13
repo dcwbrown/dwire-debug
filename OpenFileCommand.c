@@ -39,7 +39,7 @@
     gtk_widget_destroy(window);
   }
 
-  void OpenFileCommand() {
+  void OpenFileDialog() {
     GtkApplication *App = gtk_application_new("com.dcwbrown.dwdebug", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(App, "activate", G_CALLBACK(Activate), NULL);
     g_application_run(G_APPLICATION(App), 0,0);
@@ -57,7 +57,7 @@ void TrimTrailingSpace(char *s) {
 
 void OpenFileCommand() {
 
-  if (CurrentFile) {CloseHandle(CurrentFile); CurrentFile = 0; CurrentFileName[0] = 0;}
+  if (CurrentFile) {Close(CurrentFile); CurrentFile = 0; CurrentFileName[0] = 0;}
 
   Sb(); if (Eoln()) {
     OpenFileDialog();
@@ -67,18 +67,7 @@ void OpenFileCommand() {
   }
 
   if (CurrentFileName[0]) {
-
-    CurrentFile = CreateFile(CurrentFileName, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-
-    if (CurrentFile == INVALID_HANDLE_VALUE) {
-      DWORD winError = GetLastError();
-      Ws("Couldn't open ");
-      Ws(CurrentFileName);
-      Ws(": ");
-      WWinError(winError);
-      Fail("");
-    }
-
+    CurrentFile = Open(CurrentFileName);
     LoadFile();
   }
 }

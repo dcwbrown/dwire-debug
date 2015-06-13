@@ -45,21 +45,55 @@ static jmp_buf FailPoint;
 
 
 
+/// Simple text writing interface headers.
+
+void Flush();
+void Wc(char c);
+void Ws(const char *s);
+void Wl();
+void Wsl(const char *s);
+void Wd(int i, int w);
+void Wx(unsigned int i, int w);
+void Fail(const char *message);
+
+/// Simple text writing interface headers end.
+
+
+
+
+
+
 /// Minimal file access support.
 
 #ifdef windows
   typedef HANDLE FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {WriteFile(handle, buffer, length, 0,0);}
   void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
+  void Close (FileHandle handle)                                 {CloseHandle(handle);}
   int  Read  (FileHandle handle,       void *buffer, int length) {
     DWORD bytesRead = 0;
     return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;
   }
+  int  Open  (const char *filename) {
+    FileHandle h = CreateFile(filename, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+    if (h==INVALID_HANDLE_VALUE) {
+      DWORD winError = GetLastError();
+      Ws("Couldn't open "); Ws(filename); Ws(": "); WWinError(winError);
+      Fail("");
+    }
+    return h;
 #else
   typedef int FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
   void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
   int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
+  void Close (FileHandle handle)                                 {close(handle);}
+  int  Open  (const char *filename) {
+    FileHandle h = open(filename, O_RDONLY);
+    if (h<0) {Ws("Couldn't open "); Fail(filename);}
+    return h;
+  }
+
   int  Interactive(FileHandle handle)                            {return isatty(handle);}
 #endif
 
@@ -102,23 +136,6 @@ void Free(void *ptr) {
 }
 
 /// Minimal memory allocation support end.
-
-
-
-
-
-
-/// Simple text writing interface headers.
-
-void Flush();
-void Wc(char c);
-void Ws(const char *s);
-void Wl();
-void Wsl(const char *s);
-void Wd(int i, int w);
-void Wx(unsigned int i, int w);
-
-/// Simple text writing interface headers end.
 
 
 
@@ -173,6 +190,9 @@ void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1)
 
 /// Get command line parameters as a single char string.
 
+char **ArgVector;
+int    ArgCount;
+
 #ifdef windows
   char *GetCommandParameters() {
     char *command = GetCommandLine();
@@ -188,6 +208,23 @@ void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1)
     return command;
   }
 #else
+  // On Linux, piece the command line together from the arguments. We don't
+  // bother to put quotes around arguments with spaces ...
+  char CommandParameters[256];
+  char *GetCommandParameters() {
+    int arg = 1;
+    int p   = 0;
+    while (arg < ArgCount) {
+      int argLength = strlen(ArgVector[arg]);
+      if (p + argLength + 1 >= sizeof(CommandParameters) - 1) {break;}
+      if (p) {CommandParameters[p++] = ' ';}
+      memcpy(CommandParameters+p, ArgVector[arg], argLength);
+      p += argLength;
+      arg++;
+    }
+    CommandParameters[p] = 0;
+    return CommandParameters;
+  }
 #endif
 
 /// Get command line parameters as a single char string end.
@@ -215,6 +252,9 @@ int main(int argCount, char **argVector) {
     Output = 1;
     Error  = 2;
   #endif
+
+  ArgVector = argVector;
+  ArgCount  = argCount;
 
   if (setjmp(FailPoint)) {Exit(3);}
   Exit(Program(0,0));
