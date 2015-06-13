@@ -66,6 +66,7 @@ void Fail(const char *message);
 /// Minimal file access support.
 
 #ifdef windows
+  void WWinError(DWORD winError);
   typedef HANDLE FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {WriteFile(handle, buffer, length, 0,0);}
   void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
@@ -74,7 +75,7 @@ void Fail(const char *message);
     DWORD bytesRead = 0;
     return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;
   }
-  int  Open  (const char *filename) {
+  FileHandle Open  (const char *filename) {
     FileHandle h = CreateFile(filename, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
     if (h==INVALID_HANDLE_VALUE) {
       DWORD winError = GetLastError();
@@ -82,13 +83,14 @@ void Fail(const char *message);
       Fail("");
     }
     return h;
+  }
 #else
   typedef int FileHandle;
   void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
   void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
   int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
   void Close (FileHandle handle)                                 {close(handle);}
-  int  Open  (const char *filename) {
+  FileHandle Open  (const char *filename) {
     FileHandle h = open(filename, O_RDONLY);
     if (h<0) {Ws("Couldn't open "); Fail(filename);}
     return h;
