@@ -40,6 +40,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
 
 
 enum {unconnected, connected} State = unconnected;
+int IsInteractive = 0;
 
 
 void HelpCommand() {
@@ -66,7 +67,7 @@ void ParseAndHandleCommand() {
 
   Sb(); if (IsCommandSeparator(NextCh())) {SkipCh(); Sb();}
 
-  if (Eof()) {if (Interactive(Input)) {Wl();}  QuitCommand();}
+  if (Eof()) {if (IsInteractive) {Wl();}  QuitCommand();}
   else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
   SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
@@ -83,7 +84,7 @@ void DisassemblyPrompt() {
 
 
 void Prompt() {
-  if (BufferTotalContent() == 0  &&  Interactive(Input)) {
+  if (BufferTotalContent() == 0  &&  IsInteractive) {
     if (OutputPosition == 0) {
       switch(State) {
         case unconnected: Ws("Unconnected.");   break;
@@ -101,7 +102,8 @@ void UI() {
   PreloadInput(GetCommandParameters());
   while (1) {
     if (QuitRequested) return;
-    if (setjmp(FailPoint)) {Sl();}
+    if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
+    if (IsInteractive) {if (setjmp(FailPoint)) {Sl();}}
     Prompt();
     ParseAndHandleCommand();
     if (State == unconnected  &&  SerialPort) {State = connected;}

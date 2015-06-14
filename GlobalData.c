@@ -17,7 +17,7 @@ struct {
   int   DWDR;       // DebugWIRE data register, aka MONDR - Monitor data register
   char *name;
 } Characteristics[] = {
-//    sig  io  sram eeeprom flash  dwdr
+//    sig   io  sram eeprom flash  dwdr
   {0x9108,  64,  128,  128,  2048, 0x42, "ATtiny25"},
   {0x910B,  64,  128,  128,  2048, 0x47, "ATtiny24"},
 

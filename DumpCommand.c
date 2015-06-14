@@ -10,7 +10,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
 
   Sb(); if (!DwEoln()) {Ws("Unrecognised parameters on "); Ws(context); Fail(" command.");}
 
-  *len = min(*addr + *len, DataLimit()) - *addr;
+  *len = min(*addr + *len, limit) - *addr;
 
   if (*len <= 0) {Ws("Requested addresses beyond range available for "); Ws(context); Fail(" command.");}
 }
@@ -62,7 +62,7 @@ void DumpFlashBytesCommand() {
 
 void DumpFlashWordsCommand() {
   int length = 128; // Default byte count to display
-  ParseDumpParameters("dump flash words", DataLimit(), &FWaddr, &length);
+  ParseDumpParameters("dump flash words", FlashSize(), &FWaddr, &length);
 
   u8 buf[length];
   DwReadFlash(FWaddr, length, buf);
