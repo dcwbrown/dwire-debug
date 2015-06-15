@@ -23,7 +23,11 @@
     if (used) {CurrentDevice = DosDevices;}
   }
 
-  void AdvanceCurrentDevice() {while (*CurrentDevice) {CurrentDevice++;} CurrentDevice++;}
+  void AdvanceCurrentDevice() {
+    while (*CurrentDevice) {CurrentDevice++;}
+    CurrentDevice++;
+    if (!*CurrentDevice) {CurrentDevice = 0;}
+  }
 
   void NextUsbSerialPort() {
     if (!DosDevices) {LoadDosDevices();}
@@ -34,6 +38,9 @@
       AdvanceCurrentDevice();
     } else {
       UsbSerialPortName[0] = 0;
+      Free(DosDevices);
+      DosDevices = 0;
+      CurrentDevice = 0;
     }
   }
 

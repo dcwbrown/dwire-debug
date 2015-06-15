@@ -67,15 +67,12 @@ void SerialRead(u8 *buf, int len) {
     if (lengthRead == 0) {
       Ws("SerialRead expected ");
       Wd(len,1); Ws(" bytes, received ");
-      Wd(totalRead,1); Ws(" bytes from "); Wsl(UsbSerialPortName);
-      for (int i=0; i<lengthRead; i++) {Wx(buf[i],2); Ws("  ");}
+      Wd(totalRead,1); Ws(" bytes from "); Ws(UsbSerialPortName);
+      if (totalRead) {Wl(); for (int i=0; i<totalRead; i++) {Wx(buf[i],2); Ws("  ");}}
       Fail("");
     }
     totalRead += lengthRead;
   } while(totalRead < len);
-  //Ws("Serial Read received "); Wd(len,1); Ws(" bytes: ");
-  //for (int i=0; i<len; i++) {Wx(buf[i],2); Wc(' ');}
-  //Wl();
 }
 
 void SerialBreak(int period) {
