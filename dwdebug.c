@@ -16,6 +16,7 @@
 #include "Dump.c"
 #include "DumpCommand.c"
 #include "GoCommand.c"
+#include "WriteFlash.c"
 #include "LoadFile.c"
 #include "OpenFileCommand.c"
 #include "UserInterface.c"

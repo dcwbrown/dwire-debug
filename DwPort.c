@@ -79,7 +79,8 @@ void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
 int  IoregSize()   {CheckDevice(); return Characteristics[DeviceType].ioregSize;}
 int  SramSize()    {CheckDevice(); return Characteristics[DeviceType].sramSize;}
 int  EepromSize()  {CheckDevice(); return Characteristics[DeviceType].eepromSize;}
-int  FlashSize()   {CheckDevice(); return Characteristics[DeviceType].flashSize;}
+int  FlashSize()   {CheckDevice(); return Characteristics[DeviceType].flashSize;}  // In bytes
+int  PageSize()    {CheckDevice(); return Characteristics[DeviceType].pageSize;}   // In bytes
 int  DWDR()        {CheckDevice(); return Characteristics[DeviceType].DWDR;}
 int  DataLimit()   {CheckDevice(); return 32 + IoregSize() + SramSize();}
 

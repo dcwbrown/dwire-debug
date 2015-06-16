@@ -267,15 +267,6 @@ int IsLoadableElf() {
     }
   }
 
-
-//struct stab {
-//  u32 strx;    // index into string table of name.
-//  u8  type;    // type of symbol.
-//  u8  other;   // misc info (usually empty).
-//  u16 desc;    // description field.
-//  u32 value;   // value of symbol.
-//};
-
   return 1;
 }
 
