@@ -21,7 +21,7 @@ void EraseFlashPage(u16 a) { // a = byte address of first word of page
 
 // The largest page size is 128 bytes / 64 words
 
-u8 FlashWriteBuffer[16 + 22*64 + 21] = {0};
+u8 FlashWriteBuffer[14 + 25*(MaxFlashPageSize/2) + 25] = {0};
 
 void AddBytes(u8 **p, const u8 *bytes, int length) {
 	Assert(*p >= FlashWriteBuffer);
@@ -35,12 +35,13 @@ void ProgramFlashPage(u16 a, const u8 *buf) {
   u8*       q = FlashWriteBuffer;
 
   AddBytes(&q, ByteArrayLiteral(
-    0xD0, 0, 29, 0xD1, 0, 32,            // Set PC=29, BP=32 - address registers r29 through r31
+    0x66, 0xD0, 0, 29, 0xD1, 0, 32,      // Set PC=29, BP=32 - address registers r29 through r31
     0xC2, 5, 0x20, SPMEN, lo(a), hi(a),  // r29 = op (write next page buffer word), Z = first byte address of page
-    0x66, 0xD0, 0x1F, 0x00));            // Set PC to bootsection for spm to work
+    0x64));
 
   for (int i=0; i<PageSize()/2; i++) {
     AddBytes(&q, ByteArrayLiteral(
+      0xD0, 0x1F, 0x00,                  // Set PC to bootsection for spm to work
       0xD2, 0xB4, 0x02, 0x23, *(p++),    // in r0,DWDR (low byte)
       0xD2, 0xB4, 0x12, 0x23, *(p++),    // in r1,DWDR (high byte)
       0xD2, 0xBF, 0xD7, 0x23,            // out SPMCSR,r29 (write next page buffer word)
@@ -49,6 +50,7 @@ void ProgramFlashPage(u16 a, const u8 *buf) {
   }
 
   AddBytes(&q, ByteArrayLiteral(
+    0x66, 0xD0, 0x1F, 0x00,              // Set PC to bootsection for spm to work
     0xD0, 0, 29, 0xD1, 0, 32,            // Set PC=29, BP=32 - address registers r29 through r31
     0xC2, 5, 0x20, PGWRT, lo(a), hi(a),  // r29 = op (page write), Z = first byte address of page
     0x64, 0xD2, 0xBF, 0xD7, 0x23,        // out SPMCSR,r29 (3=PGERS, 5=PGWRT)
@@ -64,10 +66,10 @@ void ProgramFlashPage(u16 a, const u8 *buf) {
 void WriteFlashPage(u16 a, const u8 *buf) {
 	// Uses r0, r1, r29, r30, r31
 
-  u8 page[128];
+  u8 page[MaxFlashPageSize];
   Assert(PageSize() <= sizeof(page));
 
-  ReadFlash(a, PageSize(), page);
+  DwReadFlash(a, PageSize(), page);
 
   if (memcmp(buf, page, PageSize()) == 0) {
   	Ws("Skipping write of unchanged page at $"); Wx(a,4); Wl();
@@ -81,34 +83,35 @@ void WriteFlashPage(u16 a, const u8 *buf) {
 
   if (!erase) {
   	Ws("Skipping erase of page with sufficient 1's at $"); Wx(a,4); Wl();
-  	return;
   } else {
+    Ws("Erasing page at $"); Wx(a,4); Wl();
   	EraseFlashPage(a);
   }
 
- Now skip writing page if we erased it and desired result is all 1's.
+  memset(page, 0xff, PageSize());
+  if (memcmp(buf, page, PageSize()) == 0) {
+    Ws("Skipping write of fully $ff page at $"); Wx(a,4); Wl();
+    return;
+  }
 
+  Ws("Programming page at $"); Wx(a,4); Wl();
+  ProgramFlashPage(a, buf);
 }
 
-
-void EraseCommand() { // For testing
-	u8 r29;
-	DwReadRegisters(&r29, 29, 1);
-  ErasePage(PageSize());
-  DwReset();
-  DwWriteRegisters(&r29, 29, 1);
-}
 
 
 u8 testbuf[64];
 
 void WriteFlashCommand() { // For testing
+  int key = 0;
+  Sb(); if (IsDwDebugNumeric(NextCh())) {key = ReadNumber(1);}
+
 	//u8 r29;
 	//DwReadRegisters(&r29, 29, 1);
 
-  for (int i=0; i<64; i++) {testbuf[i] = i+64;}
+  for (int i=0; i<64; i++) {testbuf[i] = i+key;}
 
-  ProgramFlashPage(PageSize(), testbuf);
+  WriteFlashPage(PageSize(), testbuf);
 
   DwReset();
   //DwWriteRegisters(&r29, 29, 1);

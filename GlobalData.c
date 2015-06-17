@@ -45,6 +45,7 @@ struct {
   {0,      0,   0,    0,    0,     0,    0}
 };
 
+enum {MaxFlashPageSize = 128};
 
 int DeviceType = -1;
 

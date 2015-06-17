@@ -35,7 +35,6 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"reset",       "Reset processor",        1, DwReset},
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
-  {"erase",       "Erase testing",          1, EraseCommand},
   {"writeflash",  "Flash write testing",    1, WriteFlashCommand},
   {"",            0,                        0, EmptyCommand}
 };
