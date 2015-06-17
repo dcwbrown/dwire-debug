@@ -23,7 +23,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"dw",          "Dump data words",        1, DumpDataWordsCommand},
   {"f",           "Dump flash bytes",       1, DumpFlashBytesCommand},
   {"fw",          "Dump flash words",       1, DumpFlashWordsCommand},
-  {"o",           "Open file",              0, OpenFileCommand},
+  {"l",           "Load file",              1, LoadFileCommand},
   {"g",           "Go",                     1, GoCommand},
   {"p",           "PC set / query",         1, PCommand},
   {"q",           "Quit ",                  0, QuitCommand},
@@ -35,7 +35,6 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"reset",       "Reset processor",        1, DwReset},
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
-  {"writeflash",  "Flash write testing",    1, WriteFlashCommand},
   {"",            0,                        0, EmptyCommand}
 };
 

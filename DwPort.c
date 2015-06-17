@@ -106,8 +106,8 @@ void SetSizes(int signature) {
 
 
 void DwReadRegisters(u8 *registers, int first, int count) {
-  //wsl("Load Registers.");
-  // Load Registers (destroys PC and BP)
+  //wsl("Read Registers.");
+  // Read Registers (destroys PC and BP)
   DwWrite(ByteArrayLiteral(
     0x66,                 // Access registers/memory mode
     0xD0, 0, first,       // Set PC = first
@@ -119,8 +119,8 @@ void DwReadRegisters(u8 *registers, int first, int count) {
 
 
 void DwWriteRegisters(u8 *registers, int first, int count) {
-  //wsl("Load Registers.");
-  // Load Registers (destroys PC and BP)
+  //wsl("Write Registers.");
+  // Write Registers (destroys PC and BP)
   DwWrite(ByteArrayLiteral(
     0x66,                 // Access registers/memory mode
     0xD0, 0, first,       // Set PC = first
@@ -134,7 +134,7 @@ void DwWriteRegisters(u8 *registers, int first, int count) {
 void DwUnsafeReadAddr(int addr, int len, u8 *buf) {
   // Do not read addresses 30, 31 or DWDR as these interfere with the read process
   DwWrite(ByteArrayLiteral(
-    0xD0, 0,0x1e, 0xD1, 0,0x20,             // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
+    0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,       // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
     0xD0, 0,0, 0xD1, hi(len*2), lo(len*2),  // Set PC=0, BP=2*length
     0xC2, 0, 0x20                           // Start the read
@@ -166,7 +166,7 @@ void DwReadAddr(int addr, int len, u8 *buf) {
 void DwUnsafeWriteAddr(int addr, int len, const u8 *buf) {
   // Do not write addresses 30, 31 or DWDR as these interfere with the write process
   DwWrite(ByteArrayLiteral(
-    0xD0, 0,0x1e, 0xD1, 0,0x20,                 // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
+    0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,           // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
     0xC2, 5, 0x20, lo(addr), hi(addr),          // Write SRAM address of first IO register to Z
     0xD0, 0,1, 0xD1, hi(len*2+1), lo(len*2+1),  // Set PC=0, BP=2*length
     0xC2, 4, 0x20                               // Start the write
@@ -202,7 +202,7 @@ void DwReadFlash(int addr, int len, u8 *buf) {
     int length = min(limit-addr, 256); // Read no more than 256 bytes at a time.
     //Ws("ReadFlashBlock at $"); Wx(addr,1); Ws(", length $"); Wx(length,1); Wl();
     DwWrite(ByteArrayLiteral(
-      0xD0, 0,0x1e, 0xD1, 0,0x20,                 // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
+      0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,           // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
       0xC2, 5, 0x20, lo(addr),hi(addr),           // Write addr to Z
       0xD0, 0,0, 0xD1, hi(2*length),lo(2*length), // Set PC=0, BP=2*len
       0xC2, 2, 0x20                               // Read length bytes from flash starting at first

@@ -1,4 +1,4 @@
-// OpenFileCommand.c
+// OpenFile.c
 
 #ifdef windows
 
@@ -6,11 +6,11 @@
 
   void OpenFileDialog()
   {
-    OpenFileName.lpstrFile   = CurrentFileName;
-    OpenFileName.nMaxFile    = countof(CurrentFileName);
+    OpenFileName.lpstrFile   = CurrentFilename;
+    OpenFileName.nMaxFile    = countof(CurrentFilename);
     OpenFileName.Flags       = OFN_FILEMUSTEXIST;
     OpenFileName.lpstrFilter = "All files\0*.*\0*.bin\0*.bin\0\0";
-    if (!GetOpenFileName(&OpenFileName)) {CurrentFileName[0] = 0;}
+    if (!GetOpenFileName(&OpenFileName)) {CurrentFilename[0] = 0;}
   }
 
 #else
@@ -30,10 +30,10 @@
     gint result = gtk_dialog_run(GTK_DIALOG(dialog));
     if (result == GTK_RESPONSE_ACCEPT) {
       char *filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-      strncpy(CurrentFileName, filename, sizeof(CurrentFileName)-1);
-      CurrentFileName[sizeof(CurrentFileName)-1] = 0;
+      strncpy(CurrentFilename, filename, sizeof(CurrentFilename)-1);
+      CurrentFilename[sizeof(CurrentFilename)-1] = 0;
       g_free(filename);
-      Wsl(CurrentFileName);
+      Wsl(CurrentFilename);
     }
     gtk_widget_destroy(dialog);
     gtk_widget_destroy(window);
@@ -49,25 +49,3 @@
 
 #endif
 
-void TrimTrailingSpace(char *s) {
-  char *p = 0; // First char of potential trailing space
-  while (*s) {if (*s > ' ') {p = 0;} else if (!p)  {p = s;}; s++;}
-  if (p) {*p=0;}
-}
-
-void OpenFileCommand() {
-
-  if (CurrentFile) {Close(CurrentFile); CurrentFile = 0; CurrentFileName[0] = 0;}
-
-  Sb(); if (Eoln()) {
-    OpenFileDialog();
-  } else {
-    ReadWhile(NotEoln, CurrentFileName, sizeof(CurrentFileName));
-    TrimTrailingSpace(CurrentFileName);
-  }
-
-  if (CurrentFileName[0]) {
-    CurrentFile = Open(CurrentFileName);
-    LoadFile();
-  }
-}

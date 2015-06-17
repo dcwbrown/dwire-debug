@@ -233,6 +233,24 @@ int    ArgCount;
 
 
 
+
+
+
+/// Simple string handling
+
+void TrimTrailingSpace(char *s) {
+  char *p = 0; // First char of potential trailing space
+  while (*s) {if (*s > ' ') {p = 0;} else if (!p)  {p = s;}; s++;}
+  if (p) {*p=0;}
+}
+
+/// Simple string handling end.
+
+
+
+
+
+
 #ifdef windows
   #include "WindowsServices.c"
 #endif

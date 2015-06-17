@@ -45,7 +45,7 @@ struct {
   {0,      0,   0,    0,    0,     0,    0}
 };
 
-enum {MaxFlashPageSize = 128};
+enum {MaxFlashPageSize = 128, MaxFlashSize = 32768};
 
 int DeviceType = -1;
 
@@ -64,5 +64,5 @@ int Uaddr  = 0;
 int QuitRequested = 0;
 
 FileHandle CurrentFile          = 0;
-char       CurrentFileName[500] = "";
+char       CurrentFilename[500] = "";
 

@@ -70,8 +70,17 @@ struct stab {
 
 char SourceFilename[300] = {0};
 
+int ElfFlashImageOffset = 0;
+int ElfFlashImageLength = 0;
+int ElfFlashMemLength   = 0;
+
 
 int IsLoadableElf() {
+
+  ElfFlashImageOffset = 0;
+  ElfFlashImageLength = 0;
+  ElfFlashMemLength   = 0;
+
   int length = Read(CurrentFile, &ElfHeader, sizeof(ElfHeader));
   Seek(CurrentFile, 0);
 
@@ -116,6 +125,14 @@ int IsLoadableElf() {
     Ws(", flags ");      Wd(header->flags,1);
     Ws(", align ");      Wd(header->align,1);
     Wl();
+
+    if (header->type == 1) {
+      if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
+      if (ElfFlashImageOffset) {Fail("Elf file provides multiple binary segments.");} // Not expected - what would it mean?
+      ElfFlashImageOffset = header->offset;
+      ElfFlashImageLength = header->filesize;
+      ElfFlashMemLength   = header->memsize;
+    }
   }
 
   // Section header table
@@ -270,12 +287,61 @@ int IsLoadableElf() {
   return 1;
 }
 
-void LoadElf() {
 
+
+
+
+
+u8 FlashBuffer[MaxFlashSize] = {0};
+
+void LoadElf() {
+  if (!ElfFlashImageOffset)                    {Fail("No flash memory image found in ELF file.");}
+  if (ElfFlashImageLength > ElfFlashMemLength) {Fail("ELF file error: filesize>memsize.");}
+  if (ElfFlashMemLength > FlashSize())         {Fail("Flash memory image is too large for this device.");}
+
+  Seek(CurrentFile, ElfFlashImageOffset);
+  int length = Read(CurrentFile, FlashBuffer, ElfFlashImageLength);
+  if (length < ElfFlashImageLength) {Fail("Failed to read memory image from ELF.");}
+
+  if (ElfFlashMemLength > ElfFlashImageLength) {
+    memset(FlashBuffer+ElfFlashImageLength, 0, ElfFlashMemLength-ElfFlashImageLength);
+  }
+
+  WriteFlash(0, FlashBuffer, ElfFlashMemLength);
 }
+
+
+
 
 void LoadBinary() {
+  Seek(CurrentFile, 0);
+  int length = Read(CurrentFile, FlashBuffer, sizeof(FlashBuffer));
+  if (length <= 0) {Fail("File is empty.");}
 
+  WriteFlash(0, FlashBuffer, length);
 }
 
-void LoadFile() {if (IsLoadableElf()) {LoadElf();} else {LoadBinary();}}
+
+
+
+
+
+void LoadFileCommand() {
+  Close(CurrentFile);
+  CurrentFilename[0] = 0;
+
+  Sb(); if (!DwEoln()) {
+    ReadWhile(NotDwEoln, CurrentFilename, countof(CurrentFilename));
+    TrimTrailingSpace(CurrentFilename);
+  } else {
+    OpenFileDialog();
+  }
+
+  if (!CurrentFilename[0]) {Fail("No filename provided.");}
+
+  CurrentFile = Open(CurrentFilename);
+
+  if (!CurrentFile) {Fail("Could not open specified file.");}
+
+  if (IsLoadableElf()) {LoadElf();} else {LoadBinary();}
+}
