@@ -16,7 +16,7 @@ endif
 all: run
 
 run: $(BINARY)
-	echo "r" | ./$(BINARY)
+	./$(BINARY) f0,q
 
 $(BINARY): *.c Makefile
 ifdef WINDIR
