@@ -20,7 +20,6 @@ void UnassembleCommand() {
   buf[length] = 0; buf[length+1] = 0;
 
   while (1) {
-    Wx(Uaddr, 4); Ws(": ");
     Uaddr += DisassembleInstruction(Uaddr, &buf[Uaddr*2-firstByte]);
     count--;
     if (count <= 0  ||  Uaddr >= FlashSize()/2) {return;}

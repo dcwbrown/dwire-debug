@@ -76,10 +76,9 @@ void ParseAndHandleCommand() {
 
 void DisassemblyPrompt() {
   u8 buf[4];  // Enough for a 2 word instruction
-  Wx(PC, 4); Ws(": ");  // Word address, e.g. as used in pc and bp setting instructions
   DwReadFlash(PC<<1, 4, buf);
   Uaddr = PC + DisassembleInstruction(PC, buf);
-  Wt(40);
+  Wt(HasLineNumbers ? 60 : 40);
 }
 
 
@@ -91,7 +90,7 @@ void Prompt() {
         case connected:   DisassemblyPrompt();  break;
       }
     }
-    Wt(40); Ws("> "); Flush();
+    Wt(HasLineNumbers ? 60 : 40); Ws("> "); Flush();
   } else {
     if (OutputPosition) {Wl();}
   }

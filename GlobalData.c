@@ -1,8 +1,9 @@
 // GlobalData.c
 
+int BaudRate = 1000000/125;  // Correct for ATtiny45 with default clock settings
+
 char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
 FileHandle SerialPort = 0;
-
 
 int PC  = 0;
 u8  R30 = 0;
@@ -18,7 +19,7 @@ struct {
   int   pageSize;   // In bytes
   char *name;
 } Characteristics[] = {
-//    sig   io  sram eeprom flash  dwdr   pg
+//    sig   io  sram eeprom flash  dwdr   pg   name
   {0x9108,  64,  128,  128,  2048, 0x42,  32, "ATtiny25"},
   {0x910B,  64,  128,  128,  2048, 0x47,  32, "ATtiny24"},
 
@@ -45,9 +46,16 @@ struct {
   {0,      0,   0,    0,    0,     0,    0}
 };
 
-enum {MaxFlashPageSize = 128, MaxFlashSize = 32768};
+enum {MaxFlashPageSize = 128, MaxFlashSize = 32768, MaxSRamSize = 2048};
 
 int DeviceType = -1;
+
+int   HasLineNumbers           = 0;
+int   LineNumber[MaxFlashSize] = {0};
+char *FileName[MaxFlashSize]   = {0};
+char *CodeSymbol[MaxFlashSize] = {0};
+char *SramSymbol[MaxSRamSize]  = {0};
+
 
 // Current dump instruction states
 

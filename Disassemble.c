@@ -21,6 +21,15 @@ void WregPair(int n) {
   Wreg(n+1); Wc(':'); Wreg(n);
 }
 
+void WSramAddr(int addr) {
+  if (SramSymbol[addr]) {
+    Ws(SramSymbol[addr]);
+    Ws(" ($"); Wx(addr,1); Wc(')');
+  } else {
+    Wc('$'); Wx(addr,1);
+  }
+}
+
 int Winst0(int i, int code) {
   u8 rrrrr = ((code & 0x200) >> 5) | (code & 0xF);
   u8 ddddd = (code >> 4) & 0x1F;
@@ -277,16 +286,16 @@ int Winst97(int i, int code) {
 }
 
 //  1001 1000 AAAA Abbb  CBI
-int Winst98(int i, int code) {Ws("cbi   $"); Wx((code >> 3) & 0x1F,2); Ws(", "); Wd(code & 7,1); return 0;}
+int Winst98(int i, int code) {Ws("cbi   "); WSramAddr((code >> 3) & 0x1F); Ws(", "); Wd(code & 7,1); return 0;}
 
 //  1001 1001 AAAA Abbb  SBIC
-int Winst99(int i, int code) {Ws("sbic  $"); Wx((code >> 3) & 0x1F,2); Ws(", "); Wd(code & 7,1); return 0;}
+int Winst99(int i, int code) {Ws("sbic  "); WSramAddr((code >> 3) & 0x1F); Ws(", "); Wd(code & 7,1); return 0;}
 
 //  1001 1010 AAAA Abbb  SBI
-int Winst9A(int i, int code) {Ws("sbi   $"); Wx((code >> 3) & 0x1F,2); Ws(", "); Wd(code & 7,1); return 0;}
+int Winst9A(int i, int code) {Ws("sbi   "); WSramAddr((code >> 3) & 0x1F); Ws(", "); Wd(code & 7,1); return 0;}
 
 //  1001 1011 AAAA Abbb  SBIS
-int Winst9B(int i, int code) {Ws("sbis  $"); Wx((code >> 3) & 0x1F,2); Ws(", "); Wd(code & 7,1); return 0;}
+int Winst9B(int i, int code) {Ws("sbis  "); WSramAddr((code >> 3) & 0x1F); Ws(", "); Wd(code & 7,1); return 0;}
 
 //  1001 11rd dddd rrrr  MUL
 int Winst9C(int i, int code) {
@@ -325,20 +334,21 @@ int WinstB(int i, int code) {
   int reg = (code >> 4) & 0x1f;
   int adr = ((code >> 5) & 0x30) | (code & 0xf);
   if (code & 0x800) {
-    Ws("out   $"); Wx(adr, 2); Ws(", "); Wreg(reg);
+    Ws("out   "); WSramAddr(adr); Ws(", "); Wreg(reg);
   } else {
-    Ws("in    "); Wreg(reg); Ws(", $"); Wx(adr, 2);
+    Ws("in    "); Wreg(reg); Ws(", "); WSramAddr(adr);
   }
   return 0;
 }
 
 
 void wRelative(int i, int delta) {
-  Wx(i+delta, 4);
+  if (CodeSymbol[(i+delta)*2]) {Ws(CodeSymbol[(i+delta)*2]);}
+  else                         {Wx(i+delta, 4);}
   Ws(" (");
   if (delta >= 0) {Wc('+');}
   Wd(delta, 1);
-  Ws(" words)");
+  Wc(')');
 }
 
 void wRelative12(int i, int code) {
@@ -370,7 +380,7 @@ int WinstE(int i, int code) {
   int reg = ((code >> 4) & 0xf) + 16;
   int val = ((code >> 4) & 0xf0) | (code & 0xf);
   Ws("ldi   ");
-  Wreg(reg); Ws(", $"); Wx(val, 2);
+  Wreg(reg); Ws(", "); WSramAddr(val);
   return 0;
 }
 
@@ -462,46 +472,16 @@ int Winstruction(int i, int code) {
 
 
 int DisassembleInstruction(int addr, u8 *buf) { // Returns instruction length in words
+  if (CodeSymbol[addr*2]) {Wl(); Ws(CodeSymbol[addr*2]); Wsl(":");}
+  if (HasLineNumbers) {
+    if (FileName[addr*2])   {Ws(FileName[addr*2]);}
+    if (LineNumber[addr*2]) {Wc('['); Wd(LineNumber[addr*2],1); Wc(']');}
+    Wt(20);
+  }
+  Wx(addr, 4); Ws(": ");
   int code = (buf[1] << 8) | buf[0];
   Wx(code, 4); Ws("  ");     // Instruction code
   if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 2;}
   return 1;
 }
-
-//// Disassembly addresses are word offsets into flash
-//void DisassembleBlock(int first, int limit) {
-//  LoadFlashBytes(2*first, 2*limit);
-//
-//  // SetRegisterPair(0x1e, 2*first);  // Write start address to register pair R30/R31 (aka Z)
-//  // // Read Flash starting at Z
-//  // SetPC(0); SetBP(4*(limit-first)); SetMode(2); DwGo();
-//
-//  int i = first;
-//  while (i<limit) {
-//    Wx(i<<1,4); Ws("   ");  // Byte address, as used in gnu assembler listings
-//    Wx(i, 4); Ws(":    ");  // Word address, e.g. as used in pc and bp setting instructions
-//    // int code = ReadPort();  code |= (ReadPort() << 8);
-//    int code = FlashWord(i);
-//    Wx(code, 4); Ws("     ");
-//    int argwords = Winstruction(i, code);
-//    i++;
-//    while (argwords) {
-//      //code = ReadPort();  code |= (ReadPort() << 8);
-//      code = FlashWord(i);
-//      Wc('$');
-//      Wx(code, 4);
-//      i++; argwords--;
-//      if (argwords) {Ws(", ");}
-//    }
-//    wl(0);
-//  }
-//}
-
-
-/// AVR disassembly end
-
-
-
-
-
 

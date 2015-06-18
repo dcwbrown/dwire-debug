@@ -76,7 +76,7 @@ void TryConnectSerialPort() {
   if (setjmp(FailPoint)) {
     SerialPort = 0;
   } else {
-    MakeSerialPort(UsbSerialPortName, 1000000/128);
+    MakeSerialPort(UsbSerialPortName);
     if (!SerialPort) {return;}
     DwBreak();
     DwConnect();

@@ -116,15 +116,16 @@ int IsLoadableElf() {
 
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (programHeaders + (i*ElfHeader.phentsize));
-    Ws("Segment type "); Wd(header->type,1);
-    Ws(", offset ");     Wd(header->offset,1);
-    Ws(", vaddr ");      Wd(header->vaddr,1);
-    Ws(", paddr ");      Wd(header->paddr,1);
-    Ws(", filesize ");   Wd(header->filesize,1);
-    Ws(", memsize ");    Wd(header->memsize,1);
-    Ws(", flags ");      Wd(header->flags,1);
-    Ws(", align ");      Wd(header->align,1);
-    Wl();
+
+    //Ws("Segment type "); Wd(header->type,1);
+    //Ws(", offset ");     Wd(header->offset,1);
+    //Ws(", vaddr ");      Wd(header->vaddr,1);
+    //Ws(", paddr ");      Wd(header->paddr,1);
+    //Ws(", filesize ");   Wd(header->filesize,1);
+    //Ws(", memsize ");    Wd(header->memsize,1);
+    //Ws(", flags ");      Wd(header->flags,1);
+    //Ws(", align ");      Wd(header->align,1);
+    //Wl();
 
     if (header->type == 1) {
       if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
@@ -167,23 +168,24 @@ int IsLoadableElf() {
   for (int i=0; i<ElfHeader.shnum; i++) {
     struct ElfSectionHeader *header = (struct ElfSectionHeader *) (sectionHeaders + (i*ElfHeader.shentsize));
     if (header->name >= sectionNamesHeader->size-1) {Fail("Cannot load ELF with section name string beyond end of section name table.");}
-    Ws("Section ");     Ws(sectionNames[header->name] ? sectionNames + header->name : "(unnamed)");
-    Ws(", type ");      if (header->type<4) {Ws((char*[]){"null","progbits","symtab","strtab"}[header->type]);} else {Wd(header->type,1);}
-    Ws(", flags ");     Wd(header->flags,1);
-    Ws(", addr ");      Wd(header->addr,1);
-    Ws(", offset ");    Wd(header->offset,1);
-    Ws(", size ");      Wd(header->size,1);
-    Ws(", link ");      Wd(header->link,1);
-    Ws(", info ");      Wd(header->info,1);
-    Ws(", addralign "); Wd(header->addralign,1);
-    Ws(", entsize ");   Wd(header->entsize,1);
-    if (i == ElfHeader.shstrndx) {Ws(" (section name table)");}
-    //if (header->type == 2) {symbolTableIndex = i;}
+
+    //Ws("Section ");     Ws(sectionNames[header->name] ? sectionNames + header->name : "(unnamed)");
+    //Ws(", type ");      if (header->type<4) {Ws((char*[]){"null","progbits","symtab","strtab"}[header->type]);} else {Wd(header->type,1);}
+    //Ws(", flags ");     Wd(header->flags,1);
+    //Ws(", addr ");      Wd(header->addr,1);
+    //Ws(", offset ");    Wd(header->offset,1);
+    //Ws(", size ");      Wd(header->size,1);
+    //Ws(", link ");      Wd(header->link,1);
+    //Ws(", info ");      Wd(header->info,1);
+    //Ws(", addralign "); Wd(header->addralign,1);
+    //Ws(", entsize ");   Wd(header->entsize,1);
+    //if (i == ElfHeader.shstrndx) {Ws(" (section name table)");}
+    //Wl();
+
     if (memcmp(sectionNames + header->name, ".symtab",  8) == 0) {symbolTableIndex = i;}
     if (memcmp(sectionNames + header->name, ".strtab",  8) == 0) {symbolNameTableIndex = i;}
     if (memcmp(sectionNames + header->name, ".stab",    8) == 0) {stabTableIndex = i;}
     if (memcmp(sectionNames + header->name, ".stabstr", 8) == 0) {stabstrTableIndex = i;}
-    Wl();
   }
 
   // Symbol table
@@ -224,12 +226,15 @@ int IsLoadableElf() {
       //Wl();
 
       if (symbol->name  &&  symbol->info < 16) { // Named SHB_LOCAL symbol
-        if (symbol->shndx == 0xFFF1) {Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  0x"); Wx(symbol->value,4); Wl();}
-        else {
+        if (symbol->shndx == 0xFFF1) {
+          Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  0x"); Wx(symbol->value,4); Wl();
+          if (symbol->value < countof(SramSymbol)) {SramSymbol[symbol->value] = symbolNames+symbol->name;}
+        } else {
           Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  ");
           struct ElfSectionHeader *refHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbol->shndx);
           Ws(sectionNames + refHeader->name);
           Wc(':'); Wx(symbol->value,4); Wl();
+          if (symbol->value < countof(CodeSymbol)) {CodeSymbol[symbol->value] = symbolNames+symbol->name;}
         }
       }
       p += symbolTableHeader->entsize;
@@ -277,7 +282,12 @@ int IsLoadableElf() {
 
       if (stab->strx  &&  (stab->type == 100  ||  stab->type == 132)) {filename = stabNames+stab->strx;}
       if (stab->type == 68) { // N_SLINE
-        Ws("0x"); Wx(stab->value,4); Ws(": "); Ws(filename); Wc(':'); Wd(stab->desc,1); Wl();
+        //Ws("0x"); Wx(stab->value,4); Ws(": "); Ws(filename); Wc(':'); Wd(stab->desc,1); Wl();
+        if (stab->value < countof(LineNumber)) {
+          HasLineNumbers = 1;
+          LineNumber[stab->value] = stab->desc;
+          FileName  [stab->value] = filename;
+        }
       }
 
       p += stabTableHeader->entsize;
