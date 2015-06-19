@@ -52,7 +52,7 @@
     if (ioctl(SerialPort, TCSETS2, &config)) {Fail("Couldn't set serial port configuration.");}
   }
 
-  void CloseSerialPort() {if (SerialPort) {close(SerialPort); SerialPort = 0;}}
+  void CloseSerialPort() {if (SerialPort) {Close(SerialPort); SerialPort = 0;}}
 #endif
 
 

@@ -44,12 +44,6 @@ void DwExpect(const u8 *bytes, int len) {
 
 
 void DwWrite(const u8 *bytes, int len) {
-  //while (len > 200) {
-  //  DwSerialWrite(bytes, 200);
-  //  DwExpect(bytes, 200);
-  //  bytes += 200;
-  //  len -= 200;
-  //}
   DwSerialWrite(bytes, len);
   DwExpect(bytes, len);
 }

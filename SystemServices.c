@@ -55,6 +55,7 @@ void Wsl(const char *s);
 void Wd(int i, int w);
 void Wx(unsigned int i, int w);
 void Fail(const char *message);
+void DrainInput();
 
 /// Simple text writing interface headers end.
 
@@ -68,34 +69,33 @@ void Fail(const char *message);
 #ifdef windows
   void WWinError(DWORD winError);
   typedef HANDLE FileHandle;
-  void Write (FileHandle handle, const void *buffer, int length) {WriteFile(handle, buffer, length, 0,0);}
-  void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
-  void Close (FileHandle handle)                                 {CloseHandle(handle);}
-  int  Read  (FileHandle handle,       void *buffer, int length) {
-    DWORD bytesRead = 0;
-    return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;
-  }
   FileHandle Open  (const char *filename) {
     FileHandle h = CreateFile(filename, GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
     if (h==INVALID_HANDLE_VALUE) {
       DWORD winError = GetLastError();
       Ws("Couldn't open "); Ws(filename); Ws(": "); WWinError(winError);
-      Fail("");
-    }
-    return h;
-  }
+      Fail("");}
+    return h;}
+  void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
+  int  Read  (FileHandle handle, void *buffer, int length)       {DWORD bytesRead = 0; return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;}
+  void Write (FileHandle handle, const void *buffer, int length) {DWORD lengthWritten; WriteFile(handle, buffer, length, &lengthWritten,0);}
+  void Close (FileHandle handle)                                 {CloseHandle(handle);}
+  #define CreateFile Do not use CreateFile, use Open.
+  #define SetFilePointer Do not use SetFilePointer, use Seek.
+  #define ReadFile Do not use ReadFile, use Read
+  #define WriteFile Do not use WriteFile, use Write.
+  #define CloseHandle Do not use CloseHandle, use Close.
 #else
   typedef int FileHandle;
-  void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
-  void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
-  int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
-  void Close (FileHandle handle)                                 {close(handle);}
   FileHandle Open  (const char *filename) {
     FileHandle h = open(filename, O_RDONLY);
     if (h<0) {Ws("Couldn't open "); Fail(filename);}
     return h;
   }
-
+  void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
+  int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
+  void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
+  void Close (FileHandle handle)                                 {close(handle);}
   int  Interactive(FileHandle handle)                            {return isatty(handle);}
 #endif
 
@@ -175,7 +175,12 @@ void StackTrace() {
 
 /// Simple error handling.
 
-void Fail(const char *message) {Wsl(message); StackTrace(); longjmp(FailPoint,1);}
+void Fail(const char *message) {
+  Wsl(message);
+  StackTrace();
+  DrainInput();
+  longjmp(FailPoint,1);
+}
 
 #define S(x) #x
 #define S_(x) S(x)
@@ -252,8 +257,56 @@ void TrimTrailingSpace(char *s) {
 
 
 #ifdef windows
-  #include "WindowsServices.c"
+
+/// Windows specific error handling.
+
+void WWinError(DWORD winError) {
+  char *lastErrorMessage = 0;
+  FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+    0,
+    winError,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR) &lastErrorMessage,
+    0,0
+  );
+  Ws(lastErrorMessage);
+  Flush();
+  LocalFree(lastErrorMessage);
+}
+
+#define WinOK(fn) if(!(fn)) {DWORD winError = GetLastError(); Ws("Couldn't " #fn ": "); WWinError(winError); Exit(2);}
+
+/// Windows specific error handling end.
+
+
+
+
+
+
+/// Interactive file handle test
+
+struct FILE_NAME_INFO {DWORD length; WCHAR name[1000];}
+typedef NTSTATUS (NTAPI *tNtQueryInformationFile) (HANDLE, PVOID, struct FILE_NAME_INFO*, ULONG, DWORD);
+int Interactive(FileHandle handle) {
+  DWORD fileType = GetFileType(handle);
+  if (fileType == FILE_TYPE_CHAR) {return 1;}
+  if (fileType != FILE_TYPE_PIPE) {return 0;}
+  PVOID io[2];
+  tNtQueryInformationFile pNtQueryInformationFile;
+  if (!(pNtQueryInformationFile = (tNtQueryInformationFile) GetProcAddress(GetModuleHandle("ntdll.dll"), "NtQueryInformationFile"))) {return 0;}
+  struct FILE_NAME_INFO info;
+  if (pNtQueryInformationFile(handle, &io, &info, sizeof(info) - sizeof(WCHAR), 9) & 0x80000000) {return 0;}
+  if (info.length / sizeof(WCHAR) < 28) {return 0;}
+  for (int i=0; i<8; i++) {if (info.name[i] != "\\cygwin-"[i]) {return 0;}}
+  for (int i=0; i<4; i++) {if (info.name[24+i] != "-pty"[i]) {return 0;}}
+  return 1;
+}
+
+/// Interactive file handle test end.
+
 #endif
+
 
 
 
