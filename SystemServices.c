@@ -80,11 +80,12 @@ void DrainInput();
   int  Read  (FileHandle handle, void *buffer, int length)       {DWORD bytesRead = 0; return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;}
   void Write (FileHandle handle, const void *buffer, int length) {DWORD lengthWritten; WriteFile(handle, buffer, length, &lengthWritten,0);}
   void Close (FileHandle handle)                                 {CloseHandle(handle);}
-  #define CreateFile Do not use CreateFile, use Open.
+  #undef  SetFilePointer
   #define SetFilePointer Do not use SetFilePointer, use Seek.
+  #undef  ReadFile
   #define ReadFile Do not use ReadFile, use Read
+  #undef  WriteFile
   #define WriteFile Do not use WriteFile, use Write.
-  #define CloseHandle Do not use CloseHandle, use Close.
 #else
   typedef int FileHandle;
   FileHandle Open  (const char *filename) {
@@ -179,6 +180,7 @@ void Fail(const char *message) {
   Wsl(message);
   StackTrace();
   DrainInput();
+  Wsl("Jumping to fail point.");
   longjmp(FailPoint,1);
 }
 
@@ -286,7 +288,7 @@ void WWinError(DWORD winError) {
 
 /// Interactive file handle test
 
-struct FILE_NAME_INFO {DWORD length; WCHAR name[1000];}
+struct FILE_NAME_INFO {DWORD length; WCHAR name[1000];};
 typedef NTSTATUS (NTAPI *tNtQueryInformationFile) (HANDLE, PVOID, struct FILE_NAME_INFO*, ULONG, DWORD);
 int Interactive(FileHandle handle) {
   DWORD fileType = GetFileType(handle);

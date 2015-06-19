@@ -102,7 +102,13 @@ void UI() {
   while (1) {
     if (QuitRequested) return;
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
-    if (IsInteractive) {if (setjmp(FailPoint)) {Sl();}}
+    if (IsInteractive) {
+      if (setjmp(FailPoint)) {
+        Wsl("Arrived at FailPoint in UI().");
+        SkipWhile(NotEoln);
+        //SkipEoln();
+      }
+    }
     Prompt();
     ParseAndHandleCommand();
     if (State == unconnected  &&  SerialPort) {State = connected;}
