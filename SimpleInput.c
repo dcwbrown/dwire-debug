@@ -50,13 +50,7 @@ int BufferContiguousFree() {
 
 void ContiguousFill() {
   int lengthRead = Read(Input, &InputBuffer[IIn], BufferContiguousFree());
-  if (lengthRead < 0) {
-    Ws("Length read "); Wd(lengthRead,1); Ws(", errno "); Wd(errno,1);
-    Ws(": "); Ws(strerror(errno)); Wsl(".");
-    //lengthRead = 0;
-    sleep(5);
-    return;
-  }
+  if (lengthRead < 0) {Fail("Couldn't read stdin!");}
   IEof  = (lengthRead == 0);
   IEoln = (lengthRead  &&  IsEolnChar(InputBuffer[IIn+lengthRead-1]));
   IIn   = (IIn + lengthRead) % ILimit;

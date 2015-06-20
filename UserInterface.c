@@ -103,16 +103,7 @@ void UI() {
     if (QuitRequested) return;
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
     if (IsInteractive) {
-      if (setjmp(FailPoint)) {
-        Wsl("Arrived at FailPoint in UI().");
-        Ws("Before Fill():"); DumpInputState();
-        Fill();
-        Ws("Before eoln skip:"); DumpInputState();
-        SkipWhile(NotEoln);
-        Ws("After skip to eoln:"); DumpInputState();
-        SkipEoln();
-        Ws("After skip of eoln:"); DumpInputState();
-      }
+      if (setjmp(FailPoint)) {SkipWhile(NotEoln); SkipEoln();}
     }
     Prompt();
     ParseAndHandleCommand();

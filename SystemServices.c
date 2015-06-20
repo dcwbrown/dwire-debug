@@ -181,8 +181,6 @@ void StackTrace() {
 void Fail(const char *message) {
   Wsl(message);
   StackTrace();
-  Wsl("Jumping to fail point.");
-  Ws("Before longjmp:"); DumpInputState();
   longjmp(FailPoint,1);
 }
 

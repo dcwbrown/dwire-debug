@@ -127,7 +127,7 @@ int IsLoadableElf() {
     //Ws(", align ");      Wd(header->align,1);
     //Wl();
 
-    if (header->type == 1) {
+    if (header->type == 1  &&  header->memsize>0) {
       if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
       if (ElfFlashImageOffset) {Fail("Elf file provides multiple binary segments.");} // Not expected - what would it mean?
       ElfFlashImageOffset = header->offset;
@@ -227,13 +227,13 @@ int IsLoadableElf() {
 
       if (symbol->name  &&  symbol->info < 16) { // Named SHB_LOCAL symbol
         if (symbol->shndx == 0xFFF1) {
-          Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  0x"); Wx(symbol->value,4); Wl();
+          //Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  0x"); Wx(symbol->value,4); Wl();
           if (symbol->value < countof(SramSymbol)) {SramSymbol[symbol->value] = symbolNames+symbol->name;}
         } else {
-          Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  ");
-          struct ElfSectionHeader *refHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbol->shndx);
-          Ws(sectionNames + refHeader->name);
-          Wc(':'); Wx(symbol->value,4); Wl();
+          //Ws(symbolNames+symbol->name); Wc(' '); Wt(10); Ws(".equ  ");
+          //struct ElfSectionHeader *refHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbol->shndx);
+          //Ws(sectionNames + refHeader->name);
+          //Wc(':'); Wx(symbol->value,4); Wl();
           if (symbol->value < countof(CodeSymbol)) {CodeSymbol[symbol->value] = symbolNames+symbol->name;}
         }
       }
@@ -337,7 +337,7 @@ void LoadBinary() {
 
 
 void LoadFileCommand() {
-  Close(CurrentFile);
+  if (CurrentFile) {Close(CurrentFile);}
   CurrentFilename[0] = 0;
 
   Sb(); if (!DwEoln()) {
