@@ -50,6 +50,13 @@ int BufferContiguousFree() {
 
 void ContiguousFill() {
   int lengthRead = Read(Input, &InputBuffer[IIn], BufferContiguousFree());
+  if (lengthRead < 0) {
+    Ws("Length read "); Wd(lengthRead,1); Ws(", errno "); Wd(errno,1);
+    Ws(": "); Ws(strerror(errno)); Wsl(".");
+    //lengthRead = 0;
+    sleep(5);
+    return;
+  }
   IEof  = (lengthRead == 0);
   IEoln = (lengthRead  &&  IsEolnChar(InputBuffer[IIn+lengthRead-1]));
   IIn   = (IIn + lengthRead) % ILimit;
@@ -75,7 +82,10 @@ void DrainInput() {IIn = 0;  IOut = 0;  IEof = 0;  IEoln = 1;}
 
 void DumpInputState() {
   Ws("InputState: BufferTotalContent "); Wd(BufferTotalContent(),1);
-  Ws(", IEof "); Wd(IEof,1);
+  Ws(", BufferContiguousFree "); Wd(BufferContiguousFree(),1);
+  Ws(", IIn ");   Wd(IIn,1);
+  Ws(", IOut ");  Wd(IOut,1);
+  Ws(", IEof ");  Wd(IEof,1);
   Ws(", IEoln "); Wd(IEoln,1);
   if (BufferTotalContent()) {
     Ws(", NextCh() '"); Wc(NextCh()); Wc('\'');
@@ -110,7 +120,8 @@ int Eoln()  {return Available() == 0  ||  IsEolnChar(NextCh());}
 
 void ReadWhile(int (test)(char ch), char *buf, int bufLen) {
   Fill();
-  while (buf < buf+bufLen-1  &&  IIn != IOut  &&  test(NextCh())) {
+  char *bufLimit = buf+bufLen-1;
+  while (buf < bufLimit  &&  IIn != IOut  &&  test(NextCh())) {
     *(buf++) = NextCh();
     SkipCh();
   }

@@ -14,6 +14,7 @@
   #include <unistd.h>
   #include <stdlib.h>
   #include <string.h>
+  #include <errno.h>
 #endif
 
 
@@ -56,6 +57,7 @@ void Wd(int i, int w);
 void Wx(unsigned int i, int w);
 void Fail(const char *message);
 void DrainInput();
+void DumpInputState();
 
 /// Simple text writing interface headers end.
 
@@ -179,8 +181,8 @@ void StackTrace() {
 void Fail(const char *message) {
   Wsl(message);
   StackTrace();
-  DrainInput();
   Wsl("Jumping to fail point.");
+  Ws("Before longjmp:"); DumpInputState();
   longjmp(FailPoint,1);
 }
 

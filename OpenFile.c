@@ -40,10 +40,20 @@
   }
 
   void OpenFileDialog() {
+
+    int dupstdin = dup(0);
+    if (dupstdin < 0) {Ws("dup(0) failed: "); Wsl(strerror(errno));}
+    Ws("dupstdin = "); Wd(dupstdin,1); Wl();
+
     GtkApplication *App = gtk_application_new("com.dcwbrown.dwdebug", G_APPLICATION_FLAGS_NONE);
     g_signal_connect(App, "activate", G_CALLBACK(Activate), NULL);
     g_application_run(G_APPLICATION(App), 0,0);
     g_object_unref(App);
+
+    int result = dup2(dupstdin, 0);
+    Ws("dup(dupstdin, 0) returned "); Wd(result,1); Wl();
+    close(dupstdin);
+
   }
 
 

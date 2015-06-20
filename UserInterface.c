@@ -105,8 +105,13 @@ void UI() {
     if (IsInteractive) {
       if (setjmp(FailPoint)) {
         Wsl("Arrived at FailPoint in UI().");
+        Ws("Before Fill():"); DumpInputState();
+        Fill();
+        Ws("Before eoln skip:"); DumpInputState();
         SkipWhile(NotEoln);
-        //SkipEoln();
+        Ws("After skip to eoln:"); DumpInputState();
+        SkipEoln();
+        Ws("After skip of eoln:"); DumpInputState();
       }
     }
     Prompt();
