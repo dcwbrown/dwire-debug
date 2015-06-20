@@ -117,17 +117,17 @@ int IsLoadableElf() {
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (programHeaders + (i*ElfHeader.phentsize));
 
-    //Ws("Segment type "); Wd(header->type,1);
-    //Ws(", offset ");     Wd(header->offset,1);
-    //Ws(", vaddr ");      Wd(header->vaddr,1);
-    //Ws(", paddr ");      Wd(header->paddr,1);
-    //Ws(", filesize ");   Wd(header->filesize,1);
-    //Ws(", memsize ");    Wd(header->memsize,1);
-    //Ws(", flags ");      Wd(header->flags,1);
-    //Ws(", align ");      Wd(header->align,1);
-    //Wl();
+    Ws("Segment type "); Wd(header->type,1);
+    Ws(", offset ");     Wd(header->offset,1);
+    Ws(", vaddr ");      Wd(header->vaddr,1);
+    Ws(", paddr ");      Wd(header->paddr,1);
+    Ws(", filesize ");   Wd(header->filesize,1);
+    Ws(", memsize ");    Wd(header->memsize,1);
+    Ws(", flags ");      Wd(header->flags,1);
+    Ws(", align ");      Wd(header->align,1);
+    Wl();
 
-    if (header->type == 1  &&  header->memsize>0) {
+    if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
       if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
       if (ElfFlashImageOffset) {Fail("Elf file provides multiple binary segments.");} // Not expected - what would it mean?
       ElfFlashImageOffset = header->offset;

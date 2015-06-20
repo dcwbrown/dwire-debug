@@ -11,6 +11,7 @@ endif
 .PHONY: all
 .PHONY: clean
 .PHONY: run
+.PHONY: install
 
 #all: clean run
 all: run
@@ -29,3 +30,6 @@ endif
 
 clean:
 	-rm -f *.o *.map *.list $(BINARY)
+
+install:
+	cp -p $(BINARY) /usr/local/bin
