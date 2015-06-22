@@ -117,15 +117,15 @@ int IsLoadableElf() {
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (programHeaders + (i*ElfHeader.phentsize));
 
-    Ws("Segment type "); Wd(header->type,1);
-    Ws(", offset ");     Wd(header->offset,1);
-    Ws(", vaddr ");      Wd(header->vaddr,1);
-    Ws(", paddr ");      Wd(header->paddr,1);
-    Ws(", filesize ");   Wd(header->filesize,1);
-    Ws(", memsize ");    Wd(header->memsize,1);
-    Ws(", flags ");      Wd(header->flags,1);
-    Ws(", align ");      Wd(header->align,1);
-    Wl();
+    //Ws("Segment type "); Wd(header->type,1);
+    //Ws(", offset ");     Wd(header->offset,1);
+    //Ws(", vaddr $");     Wx(header->vaddr,1);
+    //Ws(", paddr $");     Wx(header->paddr,1);
+    //Ws(", filesize $");  Wx(header->filesize,1);
+    //Ws(", memsize $");   Wx(header->memsize,1);
+    //Ws(", flags ");      Wd(header->flags,1);
+    //Ws(", align ");      Wd(header->align,1);
+    //Wl();
 
     if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
       if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
@@ -244,6 +244,13 @@ int IsLoadableElf() {
 
   //stab (debugging data table)
 
+  void TrimFunctionDetails(char *fn) {
+    while(*fn  &&  *fn != ':') {fn++;}
+    if (fn[0] && fn[1] && fn[2]) {fn[0]='('; fn[1]=')'; fn[2]=0;}
+  }
+
+  int FunctionOffset = 0;
+
   if (stabTableIndex > 0  &&  stabstrTableIndex > 0) {
 
     // Load stab
@@ -271,6 +278,7 @@ int IsLoadableElf() {
     char *filename = "";
 
     u8 *p = (u8*)stabs;
+    int addr = 0;
     while (p < ((u8*)stabs) + stabTableHeader->size) {
       struct stab *stab = (struct stab *)p;
       //Ws("Stab ");    Ws(stabNames[stab->strx] ? stabNames + stab->strx : "(unnamed)");
@@ -280,14 +288,25 @@ int IsLoadableElf() {
       //Ws(", value "); Wd(stab->value,1);
       //Wl();
 
-      if (stab->strx  &&  (stab->type == 100  ||  stab->type == 132)) {filename = stabNames+stab->strx;}
-      if (stab->type == 68) { // N_SLINE
-        //Ws("0x"); Wx(stab->value,4); Ws(": "); Ws(filename); Wc(':'); Wd(stab->desc,1); Wl();
-        if (stab->value < countof(LineNumber)) {
-          HasLineNumbers = 1;
-          LineNumber[stab->value] = stab->desc;
-          FileName  [stab->value] = filename;
-        }
+      switch (stab->type) {
+        case 100: case 132:
+          if (stab->strx) {filename = stabNames+stab->strx;}
+          break;
+        case 36:
+          FunctionOffset = stab->value;
+          TrimFunctionDetails(stabNames+stab->strx);
+          if (stab->strx) {CodeSymbol[stab->value] = stabNames+stab->strx;}
+          break;
+        case 68:  // N_SLINE
+          addr = FunctionOffset + stab->value;
+          //Ws("0x"); Wx(addr,4); Ws(": "); Ws(filename); Wc(':'); Wd(stab->desc,1); Wl();
+          if (addr < countof(LineNumber)) {
+            HasLineNumbers = 1;
+            LineNumber[addr] = stab->desc;
+            FileName  [addr] = filename;
+          }
+          break;
+        default: break;
       }
 
       p += stabTableHeader->entsize;
@@ -318,6 +337,7 @@ void LoadElf() {
   }
 
   WriteFlash(0, FlashBuffer, ElfFlashMemLength);
+  Ws("Loaded "); Wd(length,1); Wsl(" bytes.");
 }
 
 
@@ -329,6 +349,7 @@ void LoadBinary() {
   if (length <= 0) {Fail("File is empty.");}
 
   WriteFlash(0, FlashBuffer, length);
+  Ws("Loaded "); Wd(length,1); Wsl(" bytes.");
 }
 
 
