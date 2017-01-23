@@ -79,9 +79,10 @@ void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
 int  IoregSize()   {CheckDevice(); return Characteristics[DeviceType].ioregSize;}
 int  SramSize()    {CheckDevice(); return Characteristics[DeviceType].sramSize;}
 int  EepromSize()  {CheckDevice(); return Characteristics[DeviceType].eepromSize;}
-int  FlashSize()   {CheckDevice(); return Characteristics[DeviceType].flashSize;}  // In bytes
-int  PageSize()    {CheckDevice(); return Characteristics[DeviceType].pageSize;}   // In bytes
-int  DWDR()        {CheckDevice(); return Characteristics[DeviceType].DWDR;}
+int  FlashSize()   {CheckDevice(); return Characteristics[DeviceType].flashSize;}   // In bytes
+int  PageSize()    {CheckDevice(); return Characteristics[DeviceType].pageSize;}    // In bytes
+int  DWDRreg()     {CheckDevice(); return Characteristics[DeviceType].DWDR;}
+int  DWDRaddr()    {CheckDevice(); return Characteristics[DeviceType].DWDR + 0x20;} // IO regs come after the 32 regs r0-r31
 int  DataLimit()   {CheckDevice(); return 32 + IoregSize() + SramSize();}
 
 void SetSizes(int signature) {
@@ -146,11 +147,11 @@ void DwReadAddr(int addr, int len, u8 *buf) {
   if (addr == 31  &&  len > 0) {buf[0] = R31; addr++; len--; buf++;}
 
   // Read range from 32 to DWDR
-  int len2 = min(len, DWDR()-addr);
+  int len2 = min(len, DWDRaddr()-addr);
   if (len2 > 0) {DwUnsafeReadAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
 
   // Provide dummy 0 value for DWDR
-  if (addr == DWDR()  &&  len > 0) {buf[0] = 0; addr++; len--; buf++;}
+  if (addr == DWDRaddr()  &&  len > 0) {buf[0] = 0; addr++; len--; buf++;}
 
   // Read anything beyond DWDR
   if (len > 0) {DwUnsafeReadAddr(addr, len, buf);}
@@ -178,11 +179,11 @@ void DwWriteAddr(int addr, int len, const u8 *buf) {
   if (addr == 31  &&  len > 0) {R31 = buf[0]; addr++; len--; buf++;}
 
   // Write range from 32 to DWDR
-  int len2 = min(len, DWDR()-addr);
+  int len2 = min(len, DWDRaddr()-addr);
   if (len2 > 0) {DwUnsafeWriteAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
 
   // (Ignore anything for DWDR - as the DebugWIRE port it is in use and wouldn't retain a value anyway)
-  if (addr == DWDR()  &&  len > 0) {addr++; len--; buf++;}
+  if (addr == DWDRaddr()  &&  len > 0) {addr++; len--; buf++;}
 
   // Write anything beyond DWDR
   if (len > 0) {DwUnsafeWriteAddr(addr, len, buf);}
@@ -560,9 +561,4 @@ D2 E1 C1 23 ldi r28,0x11
 D2 BF C7 23 out SPMCSR,r28 = 11 = RWWSRE
 D2 95 E8 33 spm
 <00 55> 83 <55>
-
-
-
-
-
 */

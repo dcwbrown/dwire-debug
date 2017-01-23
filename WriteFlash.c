@@ -32,6 +32,8 @@ void AddBytes(u8 **p, const u8 *bytes, int length) {
 void ProgramFlashPage(u16 a, const u8 *buf) {
   const u8 *p = buf;
   u8*       q = FlashWriteCommandBuffer;
+  u16       inr0 = 0xB000 | ((DWDRreg() & 0x30) << 5) | (DWDRreg() & 0xF);
+  u16       inr1 = 0xB010 | ((DWDRreg() & 0x30) << 5) | (DWDRreg() & 0xF);
 
   AddBytes(&q, ByteArrayLiteral(
     0x66, 0xD0, 0, 29, 0xD1, 0, 32,      // Set PC=29, BP=32 - address registers r29 through r31
@@ -40,12 +42,12 @@ void ProgramFlashPage(u16 a, const u8 *buf) {
 
   for (int i=0; i<PageSize()/2; i++) {
     AddBytes(&q, ByteArrayLiteral(
-      0xD0, 0x1F, 0x00,                  // Set PC to bootsection for spm to work
-      0xD2, 0xB4, 0x02, 0x23, *(p++),    // in r0,DWDR (low byte)
-      0xD2, 0xB4, 0x12, 0x23, *(p++),    // in r1,DWDR (high byte)
-      0xD2, 0xBF, 0xD7, 0x23,            // out SPMCSR,r29 (write next page buffer word)
-      0xD2, 0x95, 0xE8, 0x23,            // spm
-      0xD2, 0x96, 0x32, 0x23));          // adiw Z,2
+      0xD0, 0x1F, 0x00,                       // Set PC to bootsection for spm to work
+      0xD2, hi(inr0), lo(inr0), 0x23, *(p++), // in r0,DWDR (low byte)
+      0xD2, hi(inr1), lo(inr1), 0x23, *(p++), // in r1,DWDR (high byte)
+      0xD2, 0xBF, 0xD7, 0x23,                 // out SPMCSR,r29 (write next page buffer word)
+      0xD2, 0x95, 0xE8, 0x23,                 // spm
+      0xD2, 0x96, 0x32, 0x23));               // adiw Z,2
   }
 
   AddBytes(&q, ByteArrayLiteral(
