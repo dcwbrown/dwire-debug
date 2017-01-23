@@ -3,7 +3,7 @@
 
 
 void DeviceBreak() {
-  Wsl(" Device reached breakpoint.");
+  Wsl("\rDevice reached breakpoint.                                        ");
   DwSync();
   DwReconnect();
 }

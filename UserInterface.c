@@ -12,6 +12,8 @@
 void HelpCommand();
 
 void PCommand()      {PC = ReadNumber(1);}
+void BPCommand()     {BP = ReadNumber(1);}
+void BCCommand()     {BP = -1;}
 void QuitCommand()   {QuitRequested = 1;}
 void TraceCommand()  {DwTrace();}
 void FailCommand()   {Fail("FailCommand ...");}
@@ -19,6 +21,8 @@ void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
+  {"b",           "Set breakpoint",         1, BPCommand},
+  {"bc",          "Clear breakpoint",       1, BCCommand},
   {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
   {"dw",          "Dump data words",        1, DumpDataWordsCommand},
   {"f",           "Dump flash bytes",       1, DumpFlashBytesCommand},

@@ -252,12 +252,18 @@ void DwGo() { // Begin executing.
     0xD0, 0, 30,                   // Set up to set registers starting from r30
     0xD1, 0, 32,                   // Register limit is 32 (i.e. stop at r31)
     0xC2, 5, 0x20,                 // Select reigster write mode and start
-    R30, R31,                      // Cached value of r30 and r31
+    R30, R31                       // Cached value of r30 and r31
+  ));
+
+  if (BP < 0) DwWrite(ByteArrayLiteral(
     0x60, 0xD0, hi(PC), lo(PC),    // Address to restart execution at
+    0x30                           // Continue execution (go)
+  )); else DwWrite(ByteArrayLiteral(
+    0xD1, hi(BP), lo(BP),          // Set breakpoint for execution to stop at
+    0x61, 0xD0, hi(PC), lo(PC),    // Address to restart execution at (with BP enable)
     0x30                           // Continue execution (go)
   ));
 }
-
 
 
 #if 0
