@@ -1,4 +1,9 @@
 *.sublime-*
 dwdebug
 *.exe
+*.elf
+*.list
+*.map
+*.dump
+*.o
 ref/*

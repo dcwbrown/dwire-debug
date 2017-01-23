@@ -100,8 +100,6 @@ int IsLoadableElf() {
       ||  ElfHeader.phentsize == 0
       ||  ElfHeader.phnum     == 0)  {Fail("Cannot load ELF with no program header table.");}
 
-  Wsl("Loading ELF file.");
-
   // Program header table
 
   int elfProgramHeaderSize = ElfHeader.phnum * ElfHeader.phentsize;
@@ -336,8 +334,8 @@ void LoadElf() {
     memset(FlashBuffer+ElfFlashImageLength, 0, ElfFlashMemLength-ElfFlashImageLength);
   }
 
+  Ws("Loading "); Wd(ElfFlashMemLength,1); Wsl(" flash bytes from ELF text segment.");
   WriteFlash(0, FlashBuffer, ElfFlashMemLength);
-  Ws("Loaded "); Wd(length,1); Wsl(" bytes.");
 }
 
 
@@ -348,8 +346,8 @@ void LoadBinary() {
   int length = Read(CurrentFile, FlashBuffer, sizeof(FlashBuffer));
   if (length <= 0) {Fail("File is empty.");}
 
+  Ws("Loading "); Wd(length,1); Wsl(" flash bytes from binary image file.");
   WriteFlash(0, FlashBuffer, length);
-  Ws("Loaded "); Wd(length,1); Wsl(" bytes.");
 }
 
 
