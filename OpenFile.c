@@ -1,5 +1,13 @@
 // OpenFile.c
 
+#ifdef NOFILEDIALOG
+
+  void OpenFileDialog() {
+     Wsl("No open file dialog support present. Load command requires a filename parameter.");
+     CurrentFilename[0] = 0;
+  }
+
+#else
 #ifdef windows
 
   OPENFILENAME OpenFileName = {sizeof(OpenFileName), 0};
@@ -48,4 +56,4 @@
 
 
 #endif
-
+#endif

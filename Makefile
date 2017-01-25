@@ -1,5 +1,8 @@
 #PATH := /bin
 
+# Uncomment the following line to remove the Linux dependency on GTK
+#NOFILEDIALOG:=1
+
 TARGET := dwdebug
 
 ifdef WINDIR
@@ -21,10 +24,18 @@ run: $(BINARY)
 
 $(BINARY): *.c Makefile
 ifdef WINDIR
+ifdef NOFILEDIALOG
+	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows -DNOFILEDIALOG $(TARGET).c -lKernel32
+else
 	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
 	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
+endif
+else
+ifdef NOFILEDIALOG
+	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) -DNOFILEDIALOG $(TARGET).c `pkg-config --cflags`
 else
 	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) $(TARGET).c `pkg-config --cflags --libs gtk+-3.0`
+endif
 endif
 	ls -lap $(BINARY)
 
