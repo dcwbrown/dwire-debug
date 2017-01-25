@@ -11,7 +11,7 @@
 #if windows
   char portfilename[] = "//./COMnnn";
 
-  void MakeSerialPort(char *portname) {
+  void MakeSerialPort(char *portname, int baudrate) {
     strncpy(portfilename+4, portname, sizeof(portfilename)-5);
     portfilename[sizeof(portfilename)-1] = 0;
     SerialPort = CreateFile(portfilename, GENERIC_WRITE | GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
@@ -26,12 +26,16 @@
 
     DCB dcb = {sizeof dcb, 0};
     dcb.fBinary  = TRUE;
-    dcb.BaudRate = BaudRate;
+    dcb.BaudRate = baudrate;
     dcb.ByteSize = 8;
     dcb.Parity   = NOPARITY;
     dcb.StopBits = ONESTOPBIT;
 
-    WinOK(SetCommState(SerialPort, &dcb));
+    if (!SetCommState(SerialPort, &dcb)) {
+      // This is probably not an FT232
+      CloseHandle(SerialPort); SerialPort = 0; return;
+    }
+
     WinOK(SetCommTimeouts(SerialPort, &(COMMTIMEOUTS){300,300,1,300,1}));
   }
 
@@ -39,17 +43,20 @@
 #else
   #include <stropts.h>
   #include <asm/termios.h>
-  void MakeSerialPort(char *portname) {
+  void MakeSerialPort(char *portname, int baudrate) {
     char fullname[256] = "/dev/";
     strncat(fullname, portname, 250); fullname[255] = 0;
     if ((SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
     struct termios2 config = {0};
     config.c_cflag = CS8 | BOTHER;
-    config.c_ispeed    =  BaudRate;
-    config.c_ospeed    =  BaudRate;
+    config.c_ispeed    =  baudrate;
+    config.c_ospeed    =  baudrate;
     config.c_cc[VMIN]  =  200;         // Nonblocking read of up to 255 bytes
     config.c_cc[VTIME] =  5;           // 0.5 seconds timeout
-    if (ioctl(SerialPort, TCSETS2, &config)) {Fail("Couldn't set serial port configuration.");}
+    if (ioctl(SerialPort, TCSETS2, &config)) {
+      // This is probably not an FT232
+      Close(SerialPort); SerialPort = 0; return;
+    }
   }
 
   void CloseSerialPort() {if (SerialPort) {Close(SerialPort); SerialPort = 0;}}

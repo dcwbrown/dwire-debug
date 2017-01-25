@@ -1,0 +1,13 @@
+# Cygwin git and github for windows differ in their eol convention: Github for
+# windows uses crlf, but cygwin git uses LF.
+
+# Use LF in local directories, except where file originally checked in as CRLF
+*     text=auto
+*     eol=lf
+*.cmd eol=crlf
+*.sym binary
+
+# Provide type information to improve block annotation in git diff output.
+*.Mod diff=pascal
+*.c   diff=cpp
+*.h   diff=cpp

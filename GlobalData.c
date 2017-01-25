@@ -1,7 +1,5 @@
 // GlobalData.c
 
-int BaudRate = 1000000/128;  // Correct for ATtiny45 with default clock settings
-
 char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
 FileHandle SerialPort = 0;
 
