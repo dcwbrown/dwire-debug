@@ -78,12 +78,10 @@ int ReadByte() {
 
 int GetBreakResponseByte(int breaklen) {
   int byte  = 0;
-  int first = 0;
 
   //Ws(" SerialBreak("); Wd(breaklen,1); Ws(")");
   SerialBreak(breaklen);
   byte = ReadByte();
-  first = byte;
   if (byte != 0) {Ws(", warning, byte read after break is non-zero.");}
 
   Ws(", skipping [");
@@ -92,8 +90,7 @@ int GetBreakResponseByte(int breaklen) {
   Ws("]");
 
   //Ws(" GetBreakResponseByte: first "); Wd(first,1); Ws(", byte "); Wd(byte,1);
-  if ((first >= 0) && (byte < 0)) return 0xff;
-  else return byte;
+  return byte;
 }
 
 
@@ -179,7 +176,7 @@ int TryBaudRate(int baudrate, int breaklen) {
 
 void FindBaudRate() {
 
-  int baudrate = 20000; // Start well above the fastest dwire baud rate based
+  int baudrate = 40000; // Start well above the fastest dwire baud rate based
                         // on the max specified ATtiny clock of 20MHz.
   int breaklen = 50;    // 50ms allows for clocks down to 320KHz.
                         // For 8 MHz break len can be as low as 2ms.

@@ -92,7 +92,7 @@ void SerialBreak(int period) {
   WinOK(ClearCommBreak(SerialPort));
 #else
   ioctl(SerialPort, TCFLSH, TCIOFLUSH);
-  ioctl(SerialPort, TCSBRKP, (period+99)/100);
+  ioctl(SerialPort, TCSBRKP, 0); // would like to use '(period+99)/100' but this is not supported everywhere.
 #endif
 }
 

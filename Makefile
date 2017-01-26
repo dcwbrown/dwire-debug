@@ -32,9 +32,9 @@ else
 endif
 else
 ifdef NOFILEDIALOG
-	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) -DNOFILEDIALOG $(TARGET).c `pkg-config --cflags`
+	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) -DNOFILEDIALOG $(TARGET).c `pkg-config --cflags`
 else
-	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) $(TARGET).c `pkg-config --cflags --libs gtk+-3.0`
+	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) $(TARGET).c `pkg-config --cflags --libs gtk+-3.0`
 endif
 endif
 	ls -lap $(BINARY)
