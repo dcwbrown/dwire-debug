@@ -92,6 +92,9 @@ void SerialBreak(int period) {
   WinOK(ClearCommBreak(SerialPort));
 #else
   ioctl(SerialPort, TCFLSH, TCIOFLUSH);
+  usleep(period*1000); // Can't include the period in the break, but delaying first may help the chip
+                       // be ready to recognise a short break. After all it does seem to work with the 
+                       // first break when the baud rate is at its highest. 
   ioctl(SerialPort, TCSBRKP, 0); // would like to use '(period+99)/100' but this is not supported everywhere.
 #endif
 }

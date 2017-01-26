@@ -196,7 +196,6 @@ void FindBaudRate() {
     Ws(", factor "); Wd(factor,1); Wsl("%");
     if (factor < 115) factor = 115;
     baudrate = (baudrate * 100) / (factor-10);
-    breaklen = 100000 / baudrate; // Now we have the approx byte len we can use a shorter break.
     factor = TryBaudRate(baudrate, breaklen);
   }
 
