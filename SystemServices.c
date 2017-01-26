@@ -315,6 +315,7 @@ int Interactive(FileHandle handle) {
 /// Main entry point wrapper
 
 int Program(int argCount, char **argVector);
+int ProgramGdb(int argCount, char **argVector);
 
 //extern void EntryPoint() asm("EntryPoint"); // Specify exact name in object file
 int main(int argCount, char **argVector) {
@@ -331,6 +332,12 @@ int main(int argCount, char **argVector) {
   ArgVector = argVector;
   ArgCount  = argCount;
 
+
   if (setjmp(FailPoint)) {Exit(3);}
-  Exit(Program(0,0));
+
+  if (ArgCount > 1 && argVector[1][0]=='-') {
+    Exit(ProgramGdb(0,0));
+  } else {
+    Exit(Program(0,0));
+  }
 }

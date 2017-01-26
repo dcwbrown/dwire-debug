@@ -22,6 +22,13 @@
 #include "LoadFile.c"
 #include "UserInterface.c"
 
+#include "gdb/gdb.c"
+#include "gdb/network.c"
+#include "gdb/rsp.c"
+#include "gdb/target.c"
+#include "gdb/util.c"
 
 
 int Program(int argCount, char **argVector) {UI(); return 0;}
+
+int ProgramGdb(int argCount, char **argVector) {GDB_RSP(); return 0;}
