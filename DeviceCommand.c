@@ -133,6 +133,8 @@ int approxfactor(int byte) {
 
   if (count > 0) {avg = (100 * avg) / count;} else {avg = 110;}
 //Ws("longest "); Wd(longest,1); Ws(", avg "); Wd(avg,1);
+  // Only return 100 if the byte was exactly correct.
+  if ((avg < 105) && (byte != 0x55)) avg = 110;
 
   int factor;
   if (longest > 2) factor = 100*longest - 70; else factor = avg;
