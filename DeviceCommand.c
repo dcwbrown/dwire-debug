@@ -110,7 +110,9 @@ int approxfactor(int byte) {
   int longest = 1;
   int avg = -1;
   int count = 0;
-  for (int i = 6; i >= 0; i--) {
+  int i = 7;
+  while (((byte >> i) & 1) && (i > 1)) i--;  // Ignore leading ones as they likely come from preceeding stop bits.
+  while (i > 0) {
     int bit = (byte >> i) & 1;
     if (bit == current) {
       length++;
@@ -124,11 +126,12 @@ int approxfactor(int byte) {
       current = bit;
       length = 1;
     }
+    i--;
   }
   if (longest < length) longest = length;
   if (length > 1) {avg += length; count++;}
 
-  if (count > 0) avg = (100 * avg) / count;
+  if (count > 0) {avg = (100 * avg) / count;} else {avg = 110;}
 //Ws("longest "); Wd(longest,1); Ws(", avg "); Wd(avg,1);
 
   int factor;
