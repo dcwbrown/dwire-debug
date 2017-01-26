@@ -48,15 +48,18 @@
     strncat(fullname, portname, 250); fullname[255] = 0;
     if ((SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
     struct termios2 config = {0};
-    config.c_cflag = CS8 | BOTHER;
-    config.c_ispeed    =  baudrate;
-    config.c_ospeed    =  baudrate;
-    config.c_cc[VMIN]  =  200;         // Nonblocking read of up to 255 bytes
-    config.c_cc[VTIME] =  5;           // 0.5 seconds timeout
-    if (ioctl(SerialPort, TCSETS2, &config)) {
-      // This is probably not an FT232
-      Close(SerialPort); SerialPort = 0; return;
-    }
+    if (ioctl(SerialPort, TCGETS2, &config)) {Close(SerialPort); SerialPort = 0; return;}
+    config.c_cflag     = CS8 | BOTHER | CLOCAL;
+    config.c_iflag     = IGNPAR | IGNBRK;
+    config.c_oflag     = 0;
+    config.c_lflag     = 0;
+    config.c_ispeed    = baudrate;
+    config.c_ospeed    = baudrate;
+    config.c_cc[VMIN]  = 200;         // Nonblocking read of up to 255 bytes
+    config.c_cc[VTIME] = 5;           // 0.5 seconds timeout
+    if (ioctl(SerialPort, TCSETS2, &config)) {Close(SerialPort); SerialPort = 0; return;}
+    usleep(10000); // Allow 10ms for USB to settle.
+    ioctl(SerialPort, TCFLSH, TCIOFLUSH);
   }
 
   void CloseSerialPort() {if (SerialPort) {Close(SerialPort); SerialPort = 0;}}
@@ -88,6 +91,7 @@ void SerialBreak(int period) {
   Sleep(period);
   WinOK(ClearCommBreak(SerialPort));
 #else
+  ioctl(SerialPort, TCFLSH, TCIOFLUSH);
   ioctl(SerialPort, TCSBRKP, (period+99)/100);
 #endif
 }
