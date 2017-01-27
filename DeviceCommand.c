@@ -156,7 +156,9 @@ int scaleby(int byte) {
   if (lengthcount[1] > 1) return 95; // at least two runs just 1 bit long, we're very close.
   if (lengthcount[4])     return 40; // There is a 4 bit run
   if (lengthcount[5])     return 30; // There is a 6 bit run
-  return 25; // There is a 7 or more bit run
+  if (lengthcount[6])     return 25; // There is a 7 bit run
+  if (lengthcount[7])     return 25; // There is a 8 bit run
+  return 95;                         // Only short runs, we're very close
 }
 
 
