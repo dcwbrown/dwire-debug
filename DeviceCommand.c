@@ -190,10 +190,10 @@ int TryBaudRate(int baudrate, int breaklen) {
 
 void FindBaudRate() {
 
-  int baudrate = 80000; // Start well above the fastest dwire baud rate based
-                        // on the max specified ATtiny clock of 20MHz.
-  int breaklen = 50;    // 50ms allows for clocks down to 320KHz.
-                        // For 8 MHz break len can be as low as 2ms.
+  int baudrate = 150000; // Start well above the fastest dwire baud rate based
+                         // on the max specified ATtiny clock of 20MHz.
+  int breaklen = 50;     // 50ms allows for clocks down to 320KHz.
+                         // For 8 MHz break len can be as low as 2ms.
 
   // First try lower and lower clock rates until we get a good result.
   // The baud rate for each attempt is based on a rough measurement of
