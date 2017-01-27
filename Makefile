@@ -9,6 +9,15 @@ ifdef WINDIR
 BINARY := $(TARGET).exe
 else
 BINARY := $(TARGET)
+
+#autodetect FILEDIALOG options for Linux based on existance of gtk+-3.0
+ifndef NOFILEDIALOG
+       FILEDIALOG := $(shell pkg-config --exists gtk+-3.0 && echo \`pkg-config --cflags --libs gtk+-3.0\`)
+endif
+ifeq ($(strip $(FILEDIALOG)),)
+       FILEDIALOG = -DNOFILEDIALOG
+endif
+
 endif
 
 .PHONY: all
@@ -31,11 +40,7 @@ else
 	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
 endif
 else
-ifdef NOFILEDIALOG
-	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) -DNOFILEDIALOG $(TARGET).c `pkg-config --cflags`
-else
-	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) $(TARGET).c `pkg-config --cflags --libs gtk+-3.0`
-endif
+	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) $(TARGET).c $(FILEDIALOG)
 endif
 	ls -lap $(BINARY)
 
