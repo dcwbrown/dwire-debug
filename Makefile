@@ -40,7 +40,7 @@ else
 	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
 endif
 else
-	gcc -std=gnu99 -g -fno-pie -rdynamic -Wall -o $(BINARY) $(TARGET).c $(FILEDIALOG)
+	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) $(TARGET).c $(FILEDIALOG)
 endif
 	ls -lap $(BINARY)
 
