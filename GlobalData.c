@@ -3,8 +3,8 @@
 char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
 FileHandle SerialPort = 0;
 
-int PC  = 0;
-int BP  =-1;
+int PC  = 0;  // PC as a flash address, twice the value used over the dwire interface
+int BP  =-1;  // BP as a flash address, twice the value used over the dwire interface
 u8  R30 = 0;
 u8  R31 = 0;
 

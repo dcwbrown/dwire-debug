@@ -11,14 +11,30 @@
 
 void HelpCommand();
 
-void PCommand()       {PC = ReadNumber(1);}
-void BPCommand()      {BP = ReadNumber(1);}
+void PCommand()       {PC = ReadInstructionAddress("PC");}
+void BPCommand()      {BP = ReadInstructionAddress("BP");}
 void BCCommand()      {BP = -1;}
 void QuitCommand()    {QuitRequested = 1;}
-void TraceCommand()   {DwTrace();}
 void FailCommand()    {Fail("FailCommand ...");}
 void EmptyCommand()   {Sb(); if (!DwEoln()) {HelpCommand();}}
 void VerboseCommand() {Verbose = 1;}
+
+
+void DisassemblyPrompt() {
+  u8 buf[4];  // Enough for a 2 word instruction
+  DwReadFlash(PC, 4, buf);
+  Uaddr = PC + DisassembleInstruction(PC, buf);
+  Wt(HasLineNumbers ? 60 : 40);
+}
+
+
+void TraceCommand() {
+  int count = 1;
+  Sb(); if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}
+  if (count < 1) Fail("Trace count should be at least 1");
+  DwTrace();
+  while (count > 1) {DisassemblyPrompt(); Wl(); DwTrace(); count--;}
+}
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
@@ -80,14 +96,6 @@ void ParseAndHandleCommand() {
 }
 
 
-void DisassemblyPrompt() {
-  u8 buf[4];  // Enough for a 2 word instruction
-  DwReadFlash(PC<<1, 4, buf);
-  Uaddr = PC + DisassembleInstruction(PC, buf);
-  Wt(HasLineNumbers ? 60 : 40);
-}
-
-
 void Prompt() {
   if (BufferTotalContent() == 0  &&  IsInteractive) {
     if (OutputPosition == 0) {
@@ -97,6 +105,7 @@ void Prompt() {
       }
     }
     Wt(HasLineNumbers ? 60 : 40); Ws("> "); Flush();
+    HorizontalPosition = 0;  // Let SimpleOutput know user returned to column 1
   } else {
     if (OutputPosition) {Wl();}
   }

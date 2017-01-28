@@ -343,8 +343,8 @@ int WinstB(int i, int code) {
 
 
 void wRelative(int i, int delta) {
-  if (CodeSymbol[(i+delta)*2]) {Ws(CodeSymbol[(i+delta)*2]);}
-  else                         {Wx(i+delta, 4);}
+  if (CodeSymbol[i + delta*2]) {Ws(CodeSymbol[i + delta*2]);}
+  else                         {Wx(i + delta*2, 4);}
   Ws(" (");
   if (delta >= 0) {Wc('+');}
   Wd(delta, 1);
@@ -472,16 +472,17 @@ int Winstruction(int i, int code) {
 
 
 int DisassembleInstruction(int addr, u8 *buf) { // Returns instruction length in words
-  if (CodeSymbol[addr*2]) {Wl(); Ws(CodeSymbol[addr*2]); Wsl(":");}
+  Assert((addr & 1) == 0);
+  if (CodeSymbol[addr]) {Wl(); Ws(CodeSymbol[addr]); Wsl(":");}
   if (HasLineNumbers) {
-    if (FileName[addr*2])   {Ws(FileName[addr*2]);}
-    if (LineNumber[addr*2]) {Wc('['); Wd(LineNumber[addr*2],1); Wc(']');}
+    if (FileName[addr])   {Ws(FileName[addr]);}
+    if (LineNumber[addr]) {Wc('['); Wd(LineNumber[addr],1); Wc(']');}
     Wt(20);
   }
   Wx(addr, 4); Ws(": ");
   int code = (buf[1] << 8) | buf[0];
   Wx(code, 4); Ws("  ");     // Instruction code
-  if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 2;}
-  return 1;
+  if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 4;}
+  return 2;
 }
 
