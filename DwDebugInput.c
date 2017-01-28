@@ -37,6 +37,12 @@ int ReadNumber(int defaultHex) {  // Recognise Leading '$' or trailing 'h' as he
   }
 }
 
+int ReadInstructionAddress(const char *dest) {
+  int addr = ReadNumber(1);
+  if (addr & 1) {Ws("Expecting even instruction address for "); Fail(dest);}
+  return addr;
+}
+
 
 
 

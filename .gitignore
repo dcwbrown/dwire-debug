@@ -7,3 +7,4 @@ dwdebug
 *.dump
 *.o
 ref/*
+avrdude.conf

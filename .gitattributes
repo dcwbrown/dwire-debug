@@ -6,6 +6,7 @@
 *     eol=lf
 *.cmd eol=crlf
 *.sym binary
+*.jpg binary
 
 # Provide type information to improve block annotation in git diff output.
 *.Mod diff=pascal

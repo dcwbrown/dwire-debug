@@ -116,7 +116,7 @@ FileHandle Error  = 0;
 /// Minimal memory allocation support
 
 #ifdef windows
-  void Exit(int exitCode) {ExitProcess(exitCode);}
+  void Exit(int exitCode) {timeEndPeriod(1); ExitProcess(exitCode);}
 #else
   void Exit(int exitCode) {_exit(exitCode);}
 #endif
@@ -323,6 +323,7 @@ int main(int argCount, char **argVector) {
     Input  = GetStdHandle(STD_INPUT_HANDLE);
     Output = GetStdHandle(STD_OUTPUT_HANDLE);
     Error  = GetStdHandle(STD_ERROR_HANDLE);
+    timeBeginPeriod(1);
   #else
     Input  = 0;
     Output = 1;
@@ -334,10 +335,5 @@ int main(int argCount, char **argVector) {
 
 
   if (setjmp(FailPoint)) {Exit(3);}
-
-  if (ArgCount > 1 && argVector[1][0]=='-') {
-    Exit(ProgramGdb(0,0));
-  } else {
-    Exit(Program(0,0));
-  }
+  Exit(Program(argCount, argVector));
 }
