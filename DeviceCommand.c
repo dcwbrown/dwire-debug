@@ -314,6 +314,6 @@ void DeviceCommand() {
   Ran(ArrayAddressAndLength(UsbSerialPortName));
   Sb();
   int baud;
-  if (!Eoln()) {baud = ReadNumber(0);} else {baud = 0;}
+  if (!IsDwEoln(NextCh())) {baud = ReadNumber(0);} else {baud = 0;}
   ConnectSerialPort(baud);
 }
