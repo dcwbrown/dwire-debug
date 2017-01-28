@@ -90,7 +90,7 @@ void SetSizes(int signature) {
 
   if (Characteristics[i].signature) {
     DeviceType = i;
-    Ws(Characteristics[DeviceType].name); Ws(" found on "); Wsl(UsbSerialPortName);
+    Ws("Device recognised as "); Wsl(Characteristics[DeviceType].name);
   } else {
     DeviceType = -1;
     Ws("Unrecognised device signature: "); Wx(signature,4); Fail("");

@@ -4,10 +4,14 @@
           SystemServices.c.
 */
 
+int Verbose = 0;  // Set the verbose flag to flush all outputs, and to enable
+                  // the Vc, Vs, Vl etc. versions of the output functions.
+
 /// Simple standard output text writing and buffering.
 
-char OutputBuffer[100] = {0};
-int  OutputPosition    = 0;
+char OutputBuffer[100]  = {0};
+int  OutputPosition     = 0;
+int  HorizontalPosition = 0;
 
 void Flush() {
   if (OutputPosition) {
@@ -19,12 +23,23 @@ void Flush() {
 void Wc(char c) {
   if (OutputPosition >= sizeof OutputBuffer) {Flush();}
   OutputBuffer[OutputPosition++] = c;
+  if (c == '\n') {
+    Flush();
+    HorizontalPosition = 0;
+  } else {
+    HorizontalPosition++;
+  }
+  if (Verbose) Flush();
 }
 
 
 void Wt(int tab) {
-  tab = min(max(tab, OutputPosition), countof(OutputBuffer));
-  while (OutputPosition < tab) {OutputBuffer[OutputPosition++] = ' ';}
+  tab = min(max(tab, HorizontalPosition), countof(OutputBuffer));
+  while (HorizontalPosition < tab) {
+    OutputBuffer[OutputPosition++] = ' ';
+    HorizontalPosition++;
+  }
+  if (Verbose) Flush();
 }
 
 void Ws(const char *s) {
@@ -37,7 +52,6 @@ void Wl() {
   #else
     Wc('\n');
   #endif
-  Flush();
 }
 
 void Wsl(const char *s) {Ws(s); Wl();}
@@ -62,3 +76,12 @@ void Wx(unsigned int i, int w) {
   if (n>=sizeof(r)) {n=sizeof(r)-1;}
   while (n) {Wc(r[--n]);}
 }
+
+
+// Verbose mode only versions
+
+void Vl ()              {if (Verbose) Wl();}
+void Vc (char c)        {if (Verbose) Wc(c);}
+void Vs (const char* s) {if (Verbose) Ws(s);}
+void Vsl(const char* s) {if (Verbose) Wsl(s);}
+void Vd (int i, int w)  {if (Verbose) Wd(i, w);}

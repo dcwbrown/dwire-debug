@@ -11,13 +11,14 @@
 
 void HelpCommand();
 
-void PCommand()      {PC = ReadNumber(1);}
-void BPCommand()     {BP = ReadNumber(1);}
-void BCCommand()     {BP = -1;}
-void QuitCommand()   {QuitRequested = 1;}
-void TraceCommand()  {DwTrace();}
-void FailCommand()   {Fail("FailCommand ...");}
-void EmptyCommand()  {Sb(); if (!DwEoln()) {HelpCommand();}}
+void PCommand()       {PC = ReadNumber(1);}
+void BPCommand()      {BP = ReadNumber(1);}
+void BCCommand()      {BP = -1;}
+void QuitCommand()    {QuitRequested = 1;}
+void TraceCommand()   {DwTrace();}
+void FailCommand()    {Fail("FailCommand ...");}
+void EmptyCommand()   {Sb(); if (!DwEoln()) {HelpCommand();}}
+void VerboseCommand() {Verbose = 1;}
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
@@ -39,7 +40,8 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"reset",       "Reset processor",        1, DwReset},
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
-  {"",            0,                        0, EmptyCommand}
+  {"verbose",     "Set verbose mode",       0, VerboseCommand},
+  {"",            0,                        0, EmptyCommand},
 };
 
 
@@ -57,7 +59,7 @@ void HelpCommand() {
 void HandleCommand(const char *cmd) {
   for (int i=0; i<countof(Commands); i++) {
     if (!strcmp(cmd, Commands[i].name)) {
-      if (State == unconnected  &&  Commands[i].requiresConnection) {ConnectSerialPort();}
+      if (State == unconnected  &&  Commands[i].requiresConnection) {ConnectSerialPort(0);}
       Commands[i].handler();
       return;
     }

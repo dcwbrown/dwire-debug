@@ -70,8 +70,6 @@ int Uaddr  = 0;
 
 //int Prompted = 0; // Set to 1 by dump commands. TODO - Use OutputPosition instead.
 
-int QuitRequested = 0;
-
+int        QuitRequested        = 0;
 FileHandle CurrentFile          = 0;
 char       CurrentFilename[500] = "";
-

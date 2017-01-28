@@ -86,6 +86,7 @@ void SerialRead(u8 *buf, int len) {
 }
 
 void SerialBreak(int period) {
+if (period < 1) period = 1;
 #ifdef windows
   WinOK(SetCommBreak(SerialPort));
   Sleep(period);
