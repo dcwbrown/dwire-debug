@@ -1,10 +1,3 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdio.h>
-
 #include "rsp.h"
 
 #define BUFSZ 1024
@@ -18,13 +11,13 @@ int listen_sock(int port)
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (listenfd < 0) {
-        perror("listenfd");
+        PrintLastError("listenfd");
         return -1;
     }
 
     yes = 1;
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) < 0) {
-        perror("setsockopt");
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (char*)&yes, sizeof(int)) < 0) {
+        PrintLastError("setsockopt");
     }
 
     serv_addr.sin_family = AF_INET;
@@ -32,12 +25,12 @@ int listen_sock(int port)
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if (bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
-        perror("bind");
+        PrintLastError("bind");
         return -1;
     }
 
     if (listen(listenfd, 10) < 0) {
-        perror("listen");
+        PrintLastError("listen");
         return -1;
     }
 
@@ -52,14 +45,14 @@ void handle_client(int connfd)
     while (1) {
         r = read_command(connfd, cmd, sizeof(cmd));
         if (r < 1) {
-            fprintf(stderr, "Error reading command '%zd'!", r);
+            Ws("Error reading command. Error code: "); Wd(r,1); Wsl("!");
         }
-        printf("Got: %zu '%s'\n", r, cmd);
+        Ws("Got command: "); Ws(cmd); Wl();
 
         handle_command(connfd, cmd);
     }
 
-    close(connfd);
+    Close((FileHandle)connfd);
 
     return;
 }

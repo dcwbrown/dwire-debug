@@ -14,7 +14,7 @@ ssize_t read_command(int fd, char *buf, size_t size)
     char c;
 
     while (1) {
-        r = read(fd, &c, 1);
+        r = Read((FileHandle)fd, &c, 1);
         if (r < 1) {
             return r;
         }
@@ -24,7 +24,7 @@ ssize_t read_command(int fd, char *buf, size_t size)
     }
 
     while (1) {
-        r = read(fd, &c, 1);
+        r = Read((FileHandle)fd, &c, 1);
         if (r < 1) {
             return r;
         }
@@ -35,8 +35,8 @@ ssize_t read_command(int fd, char *buf, size_t size)
     }
 
     // TODO: check crc
-    r = read(fd, &c, 1);
-    r = read(fd, &c, 1);
+    r = Read((FileHandle)fd, &c, 1);
+    r = Read((FileHandle)fd, &c, 1);
 
     buf[i] = '\0';
 

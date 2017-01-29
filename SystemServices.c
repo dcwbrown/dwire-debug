@@ -5,13 +5,18 @@
 */
 
 #ifdef windows
+  #include <winsock2.h>
   #include <windows.h>
   #undef min
   #undef max
 #else
-  #include <stdio.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <arpa/inet.h>
   #include <fcntl.h>
   #include <unistd.h>
+  #include <stdio.h>
   #include <stdlib.h>
   #include <string.h>
   #include <errno.h>
@@ -19,13 +24,15 @@
 
 
 
-typedef unsigned char  u8;
-typedef unsigned short u16;
-typedef unsigned int   u32;
+typedef unsigned char      u8;
+typedef unsigned short     u16;
+typedef unsigned int       u32;
+typedef unsigned long long u64;
 
-typedef signed   char  s8;
-typedef signed   short s16;
-typedef signed   int   s32;
+typedef signed   char      s8;
+typedef signed   short     s16;
+typedef signed   int       s32;
+typedef signed   long long s64;
 
 
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
@@ -53,8 +60,8 @@ void Wc(char c);
 void Ws(const char *s);
 void Wl();
 void Wsl(const char *s);
-void Wd(int i, int w);
-void Wx(unsigned int i, int w);
+void Wd(s64 i, int w);
+void Wx(u64 i, int w);
 void Fail(const char *message);
 void DrainInput();
 void DumpInputState();
@@ -100,6 +107,7 @@ void DumpInputState();
   void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
   void Close (FileHandle handle)                                 {close(handle);}
   int  Interactive(FileHandle handle)                            {return isatty(handle);}
+  void PrintLastError(const char *msg) {perror(msg);}
 #endif
 
 FileHandle Input  = 0;
@@ -275,6 +283,11 @@ void WWinError(DWORD winError) {
   Ws(lastErrorMessage);
   Flush();
   LocalFree(lastErrorMessage);
+}
+
+void PrintLastError(const char *msg) {
+  if (msg) {Ws(msg); Ws(": ");}
+  WWinError(GetLastError());
 }
 
 #define WinOK(fn) if(!(fn)) {DWORD winError = GetLastError(); Ws("Couldn't " #fn ": "); WWinError(winError); Exit(2);}

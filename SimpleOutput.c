@@ -56,8 +56,8 @@ void Wl() {
 
 void Wsl(const char *s) {Ws(s); Wl();}
 
-void Wd(int i, int w) {
-  char r[20] = "00000000000000000000";
+void Wd(s64 i, int w) {
+  char r[22] = "0000000000000000000000";
   int  n = 0;
   if (i<0) {i = -i;  Wc('-');}
   while (i && n<sizeof(r)) {r[n++] = (i%10) + '0';  i = i/10;}
@@ -68,7 +68,7 @@ void Wd(int i, int w) {
 
 char HexChar(int i) {return (i<10) ? '0'+i : 'a'+i-10;}
 
-void Wx(unsigned int i, int w) {
+void Wx(u64 i, int w) {
   char r[20] = "00000000000000000000";
   int  n = 0;
   while (i && n<sizeof(r)) {r[n++] = HexChar(i&15);  i = (i >> 4) & 0x0fffffff;}

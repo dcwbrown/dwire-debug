@@ -31,12 +31,12 @@ all: run
 run: $(BINARY)
 	./$(BINARY) f0,q
 
-$(BINARY): *.c Makefile
+$(BINARY): *.c */*.c Makefile
 ifdef WINDIR
 ifdef NOFILEDIALOG
-	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows -DNOFILEDIALOG $(TARGET).c -lKernel32 -lWinmm
+	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows -DNOFILEDIALOG $(TARGET).c -lKernel32 -lWinmm -lWs2_32
 else
-	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lWinmm -lComdlg32
+	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lWinmm -lComdlg32 -lWs2_32
 	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
 endif
 else

@@ -17,7 +17,7 @@ void KeyboardBreak() {
 
 #ifdef windows
 
-  void WindowsGoWaitLoop() {
+  void GoWaitLoop(FileHandle fd) {
     while (1) {
       // See if there's anything ready at the serial port
       u8 ch;
@@ -47,18 +47,21 @@ void KeyboardBreak() {
 #else
 
   #include <sys/select.h>
-  void LinuxGoWaitLoop() {
+  void GoWaitLoop(FileHandle fd) {
     fd_set readfds;
+    fd_set excpfds;
     struct timeval timeout;
     while (1) {
       FD_ZERO(&readfds);
-      FD_SET(0, &readfds);  // stdin
+      FD_ZERO(&excpfds);
+      FD_SET(fd, &readfds);  // either stdin or GDB command socket
       FD_SET(SerialPort, &readfds);
       timeout = (struct timeval){10,0}; // 10 seconds
-      if(select(SerialPort+1, &readfds, 0,0, &timeout) > 0) {
+      if(select(max(fd, SerialPort)+1, &readfds, 0, &excpfds, &timeout) > 0) {
         // Something became available
         if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
-        if (FD_ISSET(0,          &readfds)) {KeyboardBreak(); break;}
+        if (FD_ISSET(fd,         &readfds)) {KeyboardBreak(); break;}
+        if (FD_ISSET(fd,         &excpfds)) {KeyboardBreak(); break;}
       } else {
         Ws("."); Flush();
       }
@@ -81,10 +84,5 @@ void GoCommand() {
 
 
   // Wait for either serial port or keyboard input
-
-  #ifdef windows
-    WindowsGoWaitLoop();
-  #else
-    LinuxGoWaitLoop();
-  #endif
+  GoWaitLoop(Input);
 }

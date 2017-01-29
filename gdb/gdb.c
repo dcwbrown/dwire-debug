@@ -8,22 +8,28 @@
 
 #define LISTEN_PORT 4444
 
-int GDB_RSP()
+void GDB_RSP()
 {
     int connfd;
 
+#ifdef windows
+    WSADATA WinSocketData = {0};
+    int err = WSAStartup(0x0202, &WinSocketData);
+    if (err != 0) {Ws("Could not start Windows sockets, error code "); Wd(err,1); Fail(".");}
+#endif
+
+
     if (target_reset()) {
-        fprintf(stderr, "Can't reset target!\n");
-        return -1;
+        Fail("Can't reset target!\n");
     }
 
-    printf("Target ready, waiting for GDB connection\n");
-    printf("Use 'target remote :%d'\n", LISTEN_PORT);
+    Wsl("Target ready, waiting for GDB connection.");
+    Ws("Use 'target remote :"); Wd(LISTEN_PORT,1); Wsl("'");
 
     connfd = listen_sock(LISTEN_PORT);
-    printf("Connection accepted\n");
+    if (connfd < 0) Fail("Listen failed.");
+
+    Wsl("Connection accepted.");
 
     handle_client(connfd);
-
-    return 0;
 }

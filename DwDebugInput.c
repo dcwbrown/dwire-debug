@@ -21,16 +21,8 @@ int ReadNumber(int defaultHex) {  // Recognise Leading '$' or trailing 'h' as he
     else if (c>='A' && c<='F')            {decimal = -1;                 hex = hex*16 + (c-'A') + 10; digits++;}
     else {
       if (!digits) {Fail("No digits in number.");}
-      if (hex >= 0) {
-        if (defaultHex  ||  decimal < 0) {
-          //Ws("-> hex: "); Wx(hex,1); Wl();
-          return hex;
-        }
-      }
-      if (decimal >= 0) {
-        //Ws("-> decimal: "); Wd(hex,1); Wl();
-        return decimal;
-      }
+      if ((hex >= 0) && (defaultHex  ||  decimal < 0)) {return hex;}
+      if (decimal >= 0)                                {return decimal;}
       Fail("Hex digits in decimal number");
     }
     SkipCh();
