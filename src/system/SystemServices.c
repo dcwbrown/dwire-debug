@@ -7,6 +7,10 @@
 #ifdef windows
   #include <winsock2.h>
   #include <windows.h>
+  #include <time.h>
+  #include <stdint.h>
+  #include <stdio.h>
+  #include <setjmp.h>
   #undef min
   #undef max
 #else
@@ -18,8 +22,17 @@
   #include <unistd.h>
   #include <stdio.h>
   #include <stdlib.h>
+  #include <stdint.h>
   #include <string.h>
   #include <errno.h>
+  #include <sys/select.h>
+  #include <dirent.h>
+  #include <stropts.h>
+  #include <asm/termios.h>
+  #ifndef NOFILEDIALOG
+    #include <gtk/gtk.h>
+  #endif
+  #include <setjmp.h>
 #endif
 
 
@@ -37,16 +50,10 @@ typedef signed   long long s64;
 
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
 #define ArrayAddressAndLength(array) array, sizeof(array)
+#define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 int min(int a, int b) {return a<b ? a : b;}
 int max(int a, int b) {return a>b ? a : b;}
-
-
-
-
-
-#include <setjmp.h>
-static jmp_buf FailPoint;
 
 
 
@@ -87,14 +94,9 @@ void DumpInputState();
     return h;}
   void Seek  (FileHandle handle, long offset)                    {SetFilePointer(handle, offset, 0, FILE_BEGIN);}
   int  Read  (FileHandle handle, void *buffer, int length)       {DWORD bytesRead = 0; return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;}
-  void Write (FileHandle handle, const void *buffer, int length) {DWORD lengthWritten; WriteFile(handle, buffer, length, &lengthWritten,0);}
+  int  Write (FileHandle handle, const void *buffer, int length) {DWORD lengthWritten; WriteFile(handle, buffer, length, &lengthWritten,0); return lengthWritten;}
   void Close (FileHandle handle)                                 {CloseHandle(handle);}
-  #undef  SetFilePointer
-  #define SetFilePointer Do not use SetFilePointer, use Seek.
-  #undef  ReadFile
-  #define ReadFile Do not use ReadFile, use Read
-  #undef  WriteFile
-  #define WriteFile Do not use WriteFile, use Write.
+  int Socket(int domain, int type, int protocol) {return WSASocket(domain, type, protocol, 0,0,0);}
 #else
   typedef int FileHandle;
   FileHandle Open  (const char *filename) {
@@ -110,6 +112,23 @@ void DumpInputState();
   void PrintLastError(const char *msg) {perror(msg);}
 #endif
 
+#undef  SetFilePointer
+#define SetFilePointer "Do not use SetFilePointer, use Seek."
+#undef  ReadFile
+#define ReadFile "Do not use ReadFile, use Read."
+#undef  WriteFile
+#define WriteFile "Do not use WriteFile, use Write."
+
+#undef socket
+#define socket "Do not use socket, use Socket."
+
+#undef read
+#define read(...) "Do not use read, use Read."
+
+#undef write
+#define write(...) "Do not use write, use Write."
+
+
 FileHandle Input  = 0;
 FileHandle Output = 0;
 FileHandle Error  = 0;
@@ -124,7 +143,7 @@ FileHandle Error  = 0;
 /// Minimal memory allocation support
 
 #ifdef windows
-  void Exit(int exitCode) {timeEndPeriod(1); ExitProcess(exitCode);}
+  void Exit(int exitCode) {timeEndPeriod(1); WSACleanup(); ExitProcess(exitCode);}
 #else
   void Exit(int exitCode) {_exit(exitCode);}
 #endif
@@ -185,6 +204,8 @@ void StackTrace() {
 
 
 /// Simple error handling.
+
+static jmp_buf FailPoint;
 
 void Fail(const char *message) {
   Wsl(message);
@@ -327,11 +348,7 @@ int Interactive(FileHandle handle) {
 
 /// Main entry point wrapper
 
-int Program(int argCount, char **argVector);
-int ProgramGdb(int argCount, char **argVector);
-
-//extern void EntryPoint() asm("EntryPoint"); // Specify exact name in object file
-int main(int argCount, char **argVector) {
+int systemstartup(int argCount, char **argVector) {
   #ifdef windows
     Input  = GetStdHandle(STD_INPUT_HANDLE);
     Output = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -346,7 +363,6 @@ int main(int argCount, char **argVector) {
   ArgVector = argVector;
   ArgCount  = argCount;
 
-
   if (setjmp(FailPoint)) {Exit(3);}
-  Exit(Program(argCount, argVector));
+  return 0;
 }

@@ -116,7 +116,7 @@ void Prompt() {
 void UI() {
   PreloadInput(GetCommandParameters());
   while (1) {
-    if (QuitRequested) {CloseSerialPort(); return;}
+    if (QuitRequested) {Close(SerialPort); SerialPort = 0; return;}
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
     if (IsInteractive) {
       if (setjmp(FailPoint)) {SkipWhile(NotEoln); SkipEoln();}

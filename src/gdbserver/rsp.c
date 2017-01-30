@@ -1,12 +1,3 @@
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdint.h>
-
-#include "rsp.h"
-#include "target.h"
-#include "util.h"
-
 ssize_t read_command(int fd, char *buf, size_t size)
 {
     ssize_t r;
@@ -37,11 +28,10 @@ ssize_t read_command(int fd, char *buf, size_t size)
     // TODO: check crc
     r = Read((FileHandle)fd, &c, 1);
     r = Read((FileHandle)fd, &c, 1);
-
     buf[i] = '\0';
 
     // send ack
-    write(fd, "+", 1);
+    Write((FileHandle)fd, "+", 1);
 
     return i;
 }
@@ -52,7 +42,7 @@ static size_t write_all(int fd, const char *buf, size_t len)
     size_t r;
 
     while (off < len) {
-        r = write(fd, buf+off, len-off);
+        r = Write((FileHandle)fd, buf+off, len-off);
         if (r < 1) {
             return r;
         }
@@ -109,25 +99,18 @@ void send_message(int fd, const char *txt)
 
 void cmd_read_registers(int fd)
 {
-    char buf[33*2 + 4 + 2 + 1];
+    char buf[36*2 + 1];
+    u8   regs[36];
 
-    struct registers r;
+    target_read_registers(regs);
 
-    target_read_registers(&r);
-
-    snprintf(buf, sizeof(buf),
-            "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-            "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-            "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
-            "%02x%02x%02x%04x%02x",
-            r.r0, r.r1, r.r2, r.r3, r.r4, r.r5, r.r6, r.r7,
-            r.r8, r.r9, r.r10, r.r11, r.r12, r.r13, r.r14, r.r15,
-            r.r16, r.r17, r.r18, r.r19, r.r20, r.r21, r.r22, r.r23,
-            r.r24, r.r25, r.r26, r.r27, r.r28, r.r29, r.r30, r.r31,
-            r.sreg, r.sp, r.pc);
+    for (int i=0; i<36; i++) {
+        buf[2*i]   = HexChar(regs[i] / 16);
+        buf[2*i+1] = HexChar(regs[i] % 16);
+    }
+    buf[36*2] = 0;
 
     write_resp(fd, buf);
-
 }
 
 void cmd_memory_read(int fd, const char *cmd)

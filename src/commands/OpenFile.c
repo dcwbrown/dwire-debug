@@ -23,8 +23,6 @@
 
 #else
 
-  #include <gtk/gtk.h>
-
   static void Activate(GtkApplication *app, gpointer user_data) {
     GtkWidget *window = gtk_application_window_new(app);
 

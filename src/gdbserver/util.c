@@ -1,6 +1,4 @@
-#include <stdint.h>
-
-uint8_t hex_nibble(char c)
+u8 hex_nibble(char c)
 {
     if (c >= '0' && c <= '9') {
         return c-'0';
@@ -15,7 +13,7 @@ uint8_t hex_nibble(char c)
     return 0;
 }
 
-uint8_t hex_to_byte(const char *cmd)
+u8 hex_to_byte(const char *cmd)
 {
     return hex_nibble(cmd[1]) | (hex_nibble(cmd[0])<<4);
 }

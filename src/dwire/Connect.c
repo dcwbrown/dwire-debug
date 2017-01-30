@@ -1,11 +1,8 @@
-/// DeviceCommand.c
-
-
-
 #ifdef windows
 
   char *DosDevices = 0;
   char *CurrentDevice = 0;
+  int   BreakLength = 0;
 
   void LoadDosDevices() {
     if (DosDevices == (char*)-1) {CurrentDevice=0; return;}
@@ -46,8 +43,6 @@
 
 #else
 
-  #include <dirent.h>
-
   DIR *DeviceDir = 0;
 
   void NextUsbSerialPort() {
@@ -76,10 +71,16 @@ int ReadByte() {
 }
 
 
-int GetBreakResponseByte(int breaklen) {
+
+void DwBreak() {
+  SerialBreak(SerialPort, BreakLength);
+}
+
+
+int GetBreakResponseByte() {
   int byte  = 0;
 
-  SerialBreak(breaklen);
+  DwBreak();
   byte = ReadByte();
   if (byte != 0) {Ws(", warning, byte read after break is non-zero.");}
 
@@ -168,30 +169,28 @@ int scaleby(int byte) {
 
 
 
-int TryBaudRate(int baudrate, int breaklen) {
+int TryBaudRate(int baudrate) {
   // Returns: > 100 - approx factor by which rate is too high (as multiple of 10)
   //          = 100 - rate generates correct 0x55 response
   //          = 0   - port does not support this baud rate
 
-  if (breaklen < 2) breaklen = 2;
-
   if (Verbose) {
-    Ws("Trying ");      Ws(UsbSerialPortName);
-    Ws(", baud rate "); Wd(baudrate, 6);
-    Ws(", breaklen ");  Wd(breaklen, 4);
+    Ws("Trying ");          Ws(UsbSerialPortName);
+    Ws(", baud rate ");     Wd(baudrate, 6);
+    Ws(", break length ");  Wd(BreakLength, 4);
   } else {
     Wc('.');
   }
   Flush();
-  MakeSerialPort(UsbSerialPortName, baudrate);
+  MakeSerialPort(UsbSerialPortName, baudrate, &SerialPort);
   if (!SerialPort) {
     Vsl(". Cannot set this baud rate, probably not an FT232.");
     return 0;
   }
 
-  int byte = GetBreakResponseByte(breaklen);
+  int byte = GetBreakResponseByte();
 
-  CloseSerialPort();
+  Close(SerialPort);
   SerialPort = 0;
 
   if (byte < 0) {
@@ -212,20 +211,20 @@ int FindBaudRate() {
 
   int baudrate = 150000; // Start well above the fastest dwire baud rate based
                          // on the max specified ATtiny clock of 20MHz.
-  int breaklen = 50;     // 50ms allows for clocks down to 320KHz.
+  BreakLength  = 50;     // 50ms allows for clocks down to 320KHz.
                          // For 8 MHz break len can be as low as 2ms.
 
   // First try lower and lower clock rates until we get a good result.
   // The baud rate for each attempt is based on a rough measurement of
   // the relative size of pulses seen in the byte returned after break.
 
-  int scale = TryBaudRate(baudrate, breaklen);
+  int scale = TryBaudRate(baudrate);
   if (scale == 0) {return 0;}
 
   while (scale != 100) {
     Vs(", scale "); Vd(scale,1); Vsl("%");
     baudrate = (baudrate * scale) / 100;
-    scale = TryBaudRate(baudrate, breaklen);
+    scale = TryBaudRate(baudrate);
   }
 
   if (scale == 0) return 0;
@@ -234,13 +233,14 @@ int FindBaudRate() {
   // Now find a lower and upper bound of working rates in order to
   // finally choose the middle rate.
 
-  breaklen = 100000 / baudrate; // Now we have the approx byte len we can use a shorter break.
+  BreakLength = 100000 / baudrate; // Now we have the approx byte len we can use a shorter break.
+  if (BreakLength < 2) BreakLength = 2;
 
   Vsl("Finding upper bound.");
   int upperbound = baudrate;
   do {
     int trial = (upperbound * 102) / 100;
-    scale = TryBaudRate(trial, breaklen);
+    scale = TryBaudRate(trial);
     if (scale == 100) upperbound = trial;
   } while (scale == 100);
   Vl();
@@ -249,7 +249,7 @@ int FindBaudRate() {
   int lowerbound = baudrate;
   do {
     int trial = (lowerbound * 98) / 100;
-    scale = TryBaudRate(trial, breaklen);
+    scale = TryBaudRate(trial);
     if (scale == 100) lowerbound = trial;
   } while (scale == 100);
   Vl();
@@ -272,9 +272,9 @@ void TryConnectSerialPort(int baud) {
   } else {
     if (baud == 0) {baud = FindBaudRate();}
     if (baud) {
-      MakeSerialPort(UsbSerialPortName, baud);
+      MakeSerialPort(UsbSerialPortName, baud, &SerialPort);
       int byte = GetBreakResponseByte(100000 / baud);
-      if (byte != 0x55) {CloseSerialPort(); SerialPort = 0;}
+      if (byte != 0x55) {Close(SerialPort); SerialPort = 0;}
     }
     if (SerialPort) {
       Wl();
@@ -303,17 +303,4 @@ void ConnectSerialPort(int baud) {
       TryConnectSerialPort(0);
     }
   }
-}
-
-
-
-
-void DeviceCommand() {
-  if (SerialPort) {CloseSerialPort();}
-  Sb();
-  Ran(ArrayAddressAndLength(UsbSerialPortName));
-  Sb();
-  int baud;
-  if (!IsDwEoln(NextCh())) {baud = ReadNumber(0);} else {baud = 0;}
-  ConnectSerialPort(baud);
 }

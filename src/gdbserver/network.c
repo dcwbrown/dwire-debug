@@ -1,5 +1,3 @@
-#include "rsp.h"
-
 #define BUFSZ 1024
 
 int listen_sock(int port)
@@ -8,7 +6,8 @@ int listen_sock(int port)
     int yes;
     struct sockaddr_in serv_addr = {0};
 
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+    //listenfd = WSASocket(AF_INET, SOCK_STREAM, 0,0,0,0);
 
     if (listenfd < 0) {
         PrintLastError("listenfd");

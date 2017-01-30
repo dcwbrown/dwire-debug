@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-
-#include "rsp.h"
-#include "network.h"
-#include "target.h"
-
 #define LISTEN_PORT 4444
 
 void GDB_RSP()
@@ -17,7 +9,6 @@ void GDB_RSP()
     int err = WSAStartup(0x0202, &WinSocketData);
     if (err != 0) {Ws("Could not start Windows sockets, error code "); Wd(err,1); Fail(".");}
 #endif
-
 
     if (target_reset()) {
         Fail("Can't reset target!\n");

@@ -31,21 +31,21 @@ all: run
 run: $(BINARY)
 	./$(BINARY) f0,q
 
-$(BINARY): *.c */*.c Makefile
+$(BINARY): */*/*.c */*.c Makefile
 ifdef WINDIR
 ifdef NOFILEDIALOG
-	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows -DNOFILEDIALOG $(TARGET).c -lKernel32 -lWinmm -lWs2_32
+	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows -DNOFILEDIALOG src/$(TARGET).c -lKernel32 -lWinmm -lWs2_32
 else
-	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lWinmm -lComdlg32 -lWs2_32
-	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows $(TARGET).c -lKernel32 -lComdlg32
+	i686-w64-mingw32-gcc -std=gnu99 -Wall -o $(BINARY) -Dwindows src/$(TARGET).c -lKernel32 -lWinmm -lComdlg32 -lWs2_32
+	#i686-w64-mingw32-gcc -g -oo -std=gnu99 -Wall -o $(BINARY) -Dwindows src/$(TARGET).c -lKernel32 -lComdlg32
 endif
 else
-	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) $(TARGET).c $(FILEDIALOG)
+	gcc -std=gnu99 -g -fno-pie -rdynamic -fPIC -Wall -o $(BINARY) src/$(TARGET).c $(FILEDIALOG)
 endif
 	ls -lap $(BINARY)
 
 clean:
-	-rm -f *.o *.map *.list $(BINARY)
+	-rm -rf *.o *.map *.list $(BINARY)
 
 install:
 	cp -p $(BINARY) /usr/local/bin

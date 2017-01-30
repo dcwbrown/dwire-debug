@@ -10,7 +10,8 @@ void DeviceBreak() {
 
 void KeyboardBreak() {
   Wsl("Keyboard requested break."); SkipEoln();
-  DwBreak(); DwReconnect();
+  SerialBreak(SerialPort, 100);
+  DwReconnect();
 }
 
 
@@ -46,7 +47,6 @@ void KeyboardBreak() {
 
 #else
 
-  #include <sys/select.h>
   void GoWaitLoop(FileHandle fd) {
     fd_set readfds;
     fd_set excpfds;

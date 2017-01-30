@@ -1,25 +1,16 @@
 /// DebugPort.c
 
-#define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
-
-
-
-
-
-
-
-
 void ConnectSerialPort();
 
 void DwSerialWrite(const u8 *bytes, int length) {
   if (!SerialPort) {ConnectSerialPort();}
-  SerialWrite(bytes, length);
+  SerialWrite(SerialPort, bytes, length);
 }
 #define SerialWrite "Don't use SerialWrite, use DwSerialWrite"
 
 void DwSerialRead(u8 *buf, int len) {
   if (!SerialPort) {ConnectSerialPort();}
-  SerialRead(buf, len);
+  SerialRead(SerialPort, buf, len);
 }
 #define SerialRead "Don't use SerialRead, use DwSerialRead"
 
@@ -72,7 +63,7 @@ void DwSync() { // Used after reset/go/break
 }
 
 
-void DwBreak() {SerialBreak(400); DwSync();}
+//void DwBreak() {SerialBreak(SerialPort, 400); DwSync();}
 
 
 void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
@@ -223,7 +214,7 @@ void DwConnect() {
 }
 
 void DwReset() {
-  DwBreak();
+  SerialBreak(SerialPort, 100);
   DwWrite(ByteArrayLiteral(7)); DwSync();
   DwReconnect();
 }
