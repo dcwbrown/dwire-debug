@@ -11,6 +11,7 @@ void DeviceBreak() {
 void KeyboardBreak() {
   Wsl("Keyboard requested break."); SkipEoln();
   SerialBreak(SerialPort, BreakLength);
+  DwSync();
   DwReconnect();
 }
 
