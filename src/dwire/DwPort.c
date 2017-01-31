@@ -210,12 +210,14 @@ void DwReconnect() {
 void DwConnect() {
   DwReconnect();
   DwWrite(ByteArrayLiteral(0xF3)); SetSizes(DwReadWord());
+  PC = 0;
 }
 
 void DwReset() {
   SerialBreak(SerialPort, BreakLength);
   DwSync();
   DwReconnect();
+  PC = 0;
 }
 
 

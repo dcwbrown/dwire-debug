@@ -1,14 +1,18 @@
-Manual
+DwDebug Manual
 ------
 
-### Goal
 
-The current implementation (24th May 2015) supports connecting to hardcoded
-ports com6/ttyUSB0, and the `reset`, `r`, `rn`, `p` and `t` commands.
-
-The following document fleshes out my aspiration for the full command set.
+![Simple out of circuit hardware](https://github.com/dcwbrown/dwire-debug/blob/master/simple-hardware.jpg?raw=true)
 
 
+### Goals
+
+ - Provide a simple debugger for Atmel devices which support the debugWIRE protocol.
+ - Use simple and cheap hardware - an FT232R USB to serial adapter.
+ - Work independently of Atmel Studio.
+ - Support Linux and Windows (via mingw on cygwin).
+ 
+ 
 #### Command line and parameters
 
 The dwire-debug executable is `dwdebug.exe` on Windows and `dwdebug` on Linux.
@@ -16,13 +20,147 @@ The dwire-debug executable is `dwdebug.exe` on Windows and `dwdebug` on Linux.
 Command line parameter text is parsed as commands in exactly the same way as
 commands read from standard input.
 
-Multiple commands my be entered on one line by separating them with ';'.
+Multiple commands my be entered on one line by separating them with a comma ','.
 
-#### Connecting to the com port
+For example
 
-By default, dwdebug uses the first usb connected serial port it finds. To
-override the default, use the port command. For example: `port com7` or
-`port ttyUSB2`.
+```
+dwdebug f0,q
+```
+
+Finds and connects to a dwire device, dumps the first 128 bytes of flash, and quits:
+
+```
+$ ./dwdebug f0,q
+................
+Connected to DebugWIRE device on USB serial port ttyUSB0 at baud rate 8069
+Device recognised as ATtiny84
+0000:   0e c0 18 95  26 c0 18 95   18 95 18 95  18 95 18 95   ....&...........
+0010:   18 95 18 95  25 c0 18 95   18 95 18 95  18 95 0f e7   ....%...........
+0020:   0d bf 00 e0  0e bf 08 e1   07 bb 07 e0  08 bb 01 e0   ................
+0030:   05 bb 00 e2  0b bf 02 e0   0a bd 04 e0  03 bf 07 e2   ................
+0040:   09 bd 00 e1  00 e3 05 bf   22 b7 33 27  44 27 78 94   ........".3'D'x.
+0050:   ff cf c0 99  03 c0 a2 b6   a2 1a 3a 0d  22 b7 18 95   ..........:."...
+0060:   0f 92 1f 92  0f b6 c0 9b   03 c0 a2 b6  a2 1a 3a 0d   ..............:.
+0070:   3d 31 08 f0  4e e1 22 b7   33 27 44 23  61 f0 4a 95   =1..N.".3'D#a.J.
+$
+```
+
+
+#### Connecting to the debugWIRE device.
+
+The ```device``` command can be used to specify both the port and baud rate. 
+
+Alternatively, if no parameters are specified, dwdebug will scan usb connected serial ports for a device and will attempt to determine the baud rate.
+
+Use the ```device``` command with no parameters to find the first connected device. For
+example (here on Windows):
+
+```
+$ ./dwdebug device
+..............
+Connected to DebugWIRE device on USB serial port COM4 at baud rate 7839
+Device recognised as ATtiny85
+0000: c00e  rjmp  001e (+15)            >
+```
+
+The ```device``` command can be given the port name and baud rate, saving the time taken by the baudrate determination algorithm. For example (here on Linux):
+
+```
+$ ./dwdebug device ttyUSB0 8060
+
+Connected to DebugWIRE device on USB serial port ttyUSB0 at baud rate 8060
+Device recognised as ATtiny84
+0000: c00e  rjmp  001e (+15)            >
+```
+
+
+#### Loading a program to flash
+
+Dwdebug can load flash from either a pure binary file, or an ELF formatted file.
+
+DwDebug minimises flash wear as follows:
+
+ - Flash pages that already contain the data being loaded are not touched.
+ 
+ - Flash pages are not erased unless the data being loaded contains '1' bits where the flash conatins '0's.
+ 
+ - When loading a page that differs from flash and is all 0xFF, the flash page will only be erased (which by itself leaves the flash as all 0xFFs.)
+ 
+When loading an ELF file, DwDebug extracts line number and symbol information and uses these to annotate the disassembly. See the dissamble command below for more details.
+
+
+
+#### User interface
+
+The dwdebug prompt is '>' which is displayed to the right of output. This way a sequencce of dump or unassemble commands form a continuous listing. For example:
+
+```
+$ ./dwdebug device ttyUSB0 8060
+
+Connected to DebugWIRE device on USB serial port ttyUSB0 at baud rate 8060
+Device recognised as ATtiny84
+0000: c00e  rjmp  001e (+15)            > d
+0000:   ff ef ff ff  ff ff ff ff   ff ff ff ff  ff ff 00 02   ................
+0010:   30 ff 00 00  00 7f ff ff   ff fd 4f f9  ff ff 00 02   0.........O.....
+0020:   00 00 00 00  00 00 00 00   00 00 00 00  00 00 00 00   ................
+0030:   00 00 00 00  00 00 00 00   00 00 00 00  00 00 ff 00   ................
+0040:   00 00 00 81  00 00 03 00   00 00 00 00  00 00 00 00   ................
+0050:   00 78 00 00  01 30 00 00   00 00 00 00  00 5f 02 82   .x...0......._..
+0060:   88 e7 4a 6c  25 37 11 51   2e c5 16 48  02 a4 01 32   ..Jl%7.Q...H...2
+0070:   0d d8 04 4c  24 13 af 59   56 9f 89 67  22 75 1e 54   ...L$..YV..g"u.T  > d
+0080:   84 0a 0b c4  a4 90 42 78   06 f4 90 c3  ab 6d 8e 71   ......Bx.....m.q
+0090:   0e 1a 02 cc  46 af 22 d4   ee a7 26 ec  26 49 0e 72   ....F."...&.&I.r
+00a0:   0d 85 02 83  81 6c 22 44   42 9b 29 e5  ac 05 ae c7   .....l"DB.).....
+00b0:   d6 00 83 c1  fc 88 01 7d   5c 25 a3 49  28 3f ad 01   .......}\%.I(?..
+00c0:   62 06 cb 6c  27 25 80 d4   f6 50 24 90  83 18 03 43   b..l'%...P$....C
+00d0:   2a 77 42 c4  00 81 3c 67   df 10 2c a3  4c 4a 32 c4   *wB...<g..,.LJ2.
+00e0:   b8 75 10 e4  74 77 07 13   b6 bc 02 65  02 00 03 d9   .u..tw.....e....
+00f0:   1e 5c 02 a8  48 cc 1c e1   dc 88 22 e0  65 a4 93 d1   .\..H.....".e...  > d
+0100:   b2 cf 0f ec  2c 48 8f f1   07 65 08 48  0c 10 37 24   ....,H...e.H..7$
+0110:   de 33 b2 74  0a 18 53 13   86 16 e3 ed  44 ae 2a 04   .3.t..S.....D.*.
+0120:   6e 40 b6 26  04 a1 41 b1   ce 70 2a e6  45 95 c6 e5   n@.&..A..p*.E...
+0130:   82 14 45 0b  18 cc e7 44   da 99 07 ca  6c a0 62 10   ..E....D....l.b.
+0140:   4e 48 27 c2  39 2c 37 07   ca 82 a2 c1  d4 20 8e 31   NH'.9,7...... .1
+0150:   86 04 92 d2  a5 46 af c1   ae 3b ec b8  1d 61 56 38   .....F...;...aV8
+0160:   0e 0e 40 18  14 55 28 51   8c 10 64 f4  8e d5 33 45   ..@..U(Q..d...3E
+0170:   df 0e 00 e2  8e 1c 4d 73   9b 68 90 84  02 52 26 c1   ......Ms.h...R&.  > d
+0180:   48 1c de e0  2c 27 ee 7a   ac 24 15 e3  36 03 0a 71   H...,'.z.$..6..q
+0190:   4a 1f 51 84  0e 10 7f d5   eb b5 46 e0  09 25 e2 db   J.Q.......F..%..
+01a0:   a6 b5 22 98  e7 58 0e 70   ce d4 12 27  6e 49 2b f6   .."..X.p...'nI+.
+01b0:   a4 25 4c e6  28 aa 22 d6   ce 10 0a 86  fe 80 69 53   .%L.(.".......iS
+01c0:   42 88 84 64  67 61 c6 42   e6 44 01 54  c8 6d 03 19   B..dga.B.D.T.m..
+01d0:   82 86 96 62  4e 65 8b 44   4c 77 b0 44  96 c7 49 70   ...bNe.DLw.D..Ip
+01e0:   2e 8c 58 aa  8e 4d 35 61   8e 37 a6 80  11 15 e7 9d   ..X..M5a.7......
+01f0:   c6 95 12 dc  0e 52 71 f0   e6 2c 5a e5  28 2c b3 54   .....Rq..,Z.(,.T  >
+```
+
+The ```h``` command displays simple help:
+
+```
+0200: ffff                              > h
+  b       - Set breakpoint
+  bc      - Clear breakpoint
+  d       - Dump data bytes
+  dw      - Dump data words
+  f       - Dump flash bytes
+  fw      - Dump flash words
+  l       - Load file
+  g       - Go
+  p       - PC set / query
+  q       - Quit
+  r       - Display registers
+  s       - Stack
+  t       - Trace
+  u       - Unassemble
+  h       - Help
+  reset   - Reset processor
+  help    - Help
+  device  - Device connection port
+  verbose - Set verbose mode
+  gdbserver- Start server for GDB
+0200: ffff                              >
+```
 
 
 #### Command format
@@ -85,46 +223,64 @@ SREG i t h s v n z c    PC 0015  SP 015f   X 0000   Y c000   Z 001a
 0015: f7e9  brne  0013 (-2 words)       >
 ````
 
-#### Full word commands
+#### Data, flash, register, and stack display commands.
 
-Cmd     | Args        | Does
----     | ---         | ---
-`help`  |             | Display manual summary
-`port`  | `port-name` | Specify serial port. E.g. 'com6' or 'ttyUSB0'
-`reset` |             | Reset processor
-`erase` | `addr len`  | Erase flash in specified range
-`erase` |             | Erase all flash
+Data and flash may be displayed by byte or by word.
+
+Data addressing is as used by processor data access instruction. That is, the first 32 bytes of the data address space correspond to the registers r0 .. r32. Subsequent data address space contains the io register set, followed by RAM.
+
+To dump data memory, use the ```d``` command (by byte) or the ```dw``` command (by word).
+
+To dump flash memory, use the ```f``` command (by byte) or the ```fw``` command (by word).
+
+Each command accepts none, one or two space separated parameters: being the start address and length.
+
+If no parameter is specified, the dump starts where the previous dump left off.
+
+If no length is specified, DwDebug dumps 128 (0x80) bytes.
+
+For example, to display the first 16 bytes of flash by word:
+
+```
+0000: c00e  rjmp  001e (+15)            > fw0 10
+0000:   c00e  9518   c026  9518    9518  9518   9518  9518    ....&...........  >
+```
+
+As well as appearing at address 0 in the data display, the registers may be displayed in an annotated layout with the ```r``` command:
+
+```
+0000: c00e  rjmp  001e (+15)            > r
+r0 00   r4 00    r8 00   r12 20   r16 30   r20 00   r24 55   r28 00
+r1 00   r5 00    r9 00   r13 88   r17 44   r21 10   r25 bf   r29 95
+r2 00   r6 00   r10 a4   r14 40   r18 1a   r22 00   r26 20   r30 04
+r3 00   r7 01   r11 10   r15 00   r19 00   r23 20   r27 09   r31 00
+SREG I t h s v n Z c    PC 0000  SP 007f   X 0920   Y 9500   Z 0004
+0000: c00e  rjmp  001e (+15)            >
+```
+
+The ```s``` command displays 16 bytes of data memory starting at SP+1. (SP addresses the byte below the last pushed data.)
 
 
-#### Loading binary files to flash
+#### Running the program
 
-Cmd | Args       | Does
---- | ---        | ---
-`n` | `filename` | Specify name of binary file
-`n` |            | Invoke OS file chooser UI
-`l` | `addr`     | Load binary file to flash at given address
-`l` |            | Load binary file to flash at 0
+The following commands may be used to control execution:
+
+Command | Argument      | Does | Notes
+------- | ----          | ---- | -----
+`p`     | flash address | Set PC to address | Address is a flash byte address and must be even
+`s`     | data address  | Set SP to nnn.|
+`b`     | flash address | Set the execution breakpoint address | Address is a flash byte address and must be even
+`bc`    |               | Clear execution breakpoint |
+`g`     |               | Go: begin or continue execution at current PC | Stops at breakpoint, or press return to regain control
+`t`     | count         | Trace instructions one at a time | count defaults to 1
 
 
-#### Memory and register display
+##### Notes
 
-Cmd  | Args       | Does
----  | ---        | ---
-`s`  |            | Show stack as bytes and as words
-`r`  |            | Display R0 to R31, SP and SREG
-`rn` |            | Display register n
-`x`  |            | Display X register (r27:r26 as a word)
-`y`  |            | Display Y register (r29:r28 as a word)
-`z`  |            | Display Z register (r31:r30 as a word)
-`d`  | `addr len` | Hex dump of data memory (registers, io and ram) as bytes
-`dw` | `addr len` | Hex dump of data memory (registers, io and ram) as words
-`e`  | `addr len` | Hex dump of eeprom as bytes
-`ew` | `addr len` | Hex dump of eeprom as words
-`f`  | `addr len` | Hex dump of flash memory as bytes
-`fw` | `addr len` | Hex dump of flash memory as words
-
-For the dump commands, addr defaults to where the previous dump finished, and
-len defaults to 128 for flash memory dumps and 32 for ram and eprom dumps.
+ - Breakpoint functionality uses the breakpoint hardware built into all debugWIRE devices. Although there is only one breakpoint available, it has the advantage that it does not involve modifying the program flash: it causes no flash wear.
+ - The ```g``` command starts the device executing normally. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
+ 
+(Todo - timers on/off)
 
 
 #### Disassembly
@@ -140,16 +296,56 @@ The dwdebug prompt is normally a dissassembly of the current instruction (at PC)
 Keep pressing 'u' without parameters to continue disassembling beyond the current
 instruction.
 
+If the program was loaded from an ELF format file, the disassembly will be annotated with line numbers and symbols.
 
-#### Execution
+For example:
 
-Cmd | Args   | Does
---- | ---    | ---
-`b` | `addr` | Sets the one and only DebugWIRE hardware breakpoint address.
-`p` | `addr` | Sets PC (addr is an instruction address)
-`s` | `addr` | Sets SP
-`g` |        | Start executing. The processor will continue until it hits a breakpoint instruction or the breakpoint set with the `b` command.
-`t` |        | Trace - execute 1 instruction
-`t` | count  | Execute count instructions. Each instruction executed is shown.
+```
+$ ../dwdebug device COM4 7840
 
+Connected to DebugWIRE device on USB serial port COM4 at baud rate 7840
+Device recognised as ATtiny85
+0000: c00e  rjmp  001e (+15)            > l bellpush.elf
+Loading 158 flash bytes from ELF text segment.
+Unchanged   $0000 - $003f
+Unchanged   $0040 - $007f
+Unchanged   $0080 - $00bf
+
+interrupt_vectors:
+bellpush.s[46]      0000: c00e  rjmp  reset (+15)           > u
+bellpush.s[47]      0002: 9518  reti
+bellpush.s[48]      0004: c026  rjmp  bellpush (+39)
+bellpush.s[49]      0006: 9518  reti
+bellpush.s[50]      0008: 9518  reti
+bellpush.s[51]      000a: 9518  reti
+bellpush.s[52]      000c: 9518  reti
+bellpush.s[53]      000e: 9518  reti
+bellpush.s[54]      0010: 9518  reti                        > u
+bellpush.s[55]      0012: 9518  reti
+bellpush.s[56]      0014: c025  rjmp  cycle (+38)
+bellpush.s[57]      0016: 9518  reti
+bellpush.s[58]      0018: 9518  reti
+bellpush.s[59]      001a: 9518  reti
+bellpush.s[60]      001c: 9518  reti
+
+reset:
+bellpush.s[66]      001e: e70f  ldi   r16, $7f
+bellpush.s[67]      0020: bf0d  out   SPL ($3d), r16        > u
+bellpush.s[69]      0022: e000  ldi   r16, bellpush.o ($0)
+bellpush.s[70]      0024: bf0e  out   SPH ($3e), r16
+bellpush.s[81]      0026: e108  ldi   r16, PORTB ($18)
+bellpush.s[82]      0028: bb07  out   DDRB ($17), r16
+bellpush.s[84]      002a: e007  ldi   r16, $7
+bellpush.s[85]      002c: bb08  out   PORTB ($18), r16
+bellpush.s[87]      002e: e001  ldi   r16, $1
+bellpush.s[88]      0030: bb05  out   PCMSK ($15), r16      > u
+bellpush.s[90]      0032: e200  ldi   r16, $20
+bellpush.s[91]      0034: bf0b  out   GIMSK ($3b), r16
+bellpush.s[96]      0036: e002  ldi   r16, $2
+bellpush.s[97]      0038: bd0a  out   TCCR0A ($2a), r16
+bellpush.s[99]      003a: e004  ldi   r16, $4
+bellpush.s[100]     003c: bf03  out   TCCR0B ($33), r16
+bellpush.s[102]     003e: e207  ldi   r16, CYCLETIME ($27)
+bellpush.s[103]     0040: bd09  out   OCR0A ($29), r16      >
+```
 
