@@ -36,7 +36,7 @@ int target_write_addr(u32 addr, u8 *buf, u16 len)
     if (addr < 0x800000) {
         WriteFlash(addr, buf, len);
     } else {
-        DwWriteAddr(addr, len, buf);
+        DwWriteAddr(addr % 65536, len, buf);
     }
 
     return 0;
@@ -47,7 +47,7 @@ int target_read_addr(u32 addr, u8 *buf, u16 len)
     if (addr < 0x800000) {
         DwReadFlash(addr, len, buf);
     } else {
-        DwReadAddr(addr, len, buf);
+        DwReadAddr(addr % 65536, len, buf);
     }
 
     return 0;
