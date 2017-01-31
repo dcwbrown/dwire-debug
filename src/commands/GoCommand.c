@@ -10,7 +10,7 @@ void DeviceBreak() {
 
 void KeyboardBreak() {
   Wsl("Keyboard requested break."); SkipEoln();
-  SerialBreak(SerialPort, 100);
+  SerialBreak(SerialPort, BreakLength);
   DwReconnect();
 }
 

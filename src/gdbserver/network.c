@@ -44,9 +44,11 @@ void handle_client(int connfd)
     while (1) {
         r = read_command(connfd, cmd, sizeof(cmd));
         if (r < 1) {
-            Ws("Error reading command. Error code: "); Wd(r,1); Wsl("!");
+            Ws("Error reading command. Error code: "); Wd(r,1); Fail("!");
         }
-        Ws("Got command: "); Ws(cmd); Wl();
+        Ws("Got: "); Ws(cmd); Wl();
+
+        if (cmd[0] == 'k') break;  // gdb quitting
 
         handle_command(connfd, cmd);
     }

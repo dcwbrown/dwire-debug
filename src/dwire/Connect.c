@@ -1,6 +1,3 @@
-int BreakLength = 0;
-
-
 #ifdef windows
 
   char *DosDevices = 0;

@@ -2,4 +2,4 @@
 #include "util.c"
 #include "rsp.c"
 #include "network.c"
-#include "gdb.c"
+#include "GdbserverCommand.c"

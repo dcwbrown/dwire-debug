@@ -3,8 +3,11 @@
 
 // FT232 connection
 
-char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
-FileHandle SerialPort = 0;
+char       UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
+FileHandle SerialPort              = 0;
+int        BreakLength             = 0;
+
+
 
 
 // Current device state

@@ -57,7 +57,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
   {"verbose",     "Set verbose mode",       0, VerboseCommand},
-  {"gdbserver",   "Start server for GDB",   1, GDB_RSP},
+  {"gdbserver",   "Start server for GDB",   1, GdbserverCommand},
   {"",            0,                        0, EmptyCommand},
 };
 

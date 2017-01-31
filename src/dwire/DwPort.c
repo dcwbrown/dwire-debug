@@ -63,7 +63,6 @@ void DwSync() { // Used after reset/go/break
 }
 
 
-//void DwBreak() {SerialBreak(SerialPort, 400); DwSync();}
 
 
 void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
@@ -214,8 +213,8 @@ void DwConnect() {
 }
 
 void DwReset() {
-  SerialBreak(SerialPort, 100);
-  DwWrite(ByteArrayLiteral(7)); DwSync();
+  SerialBreak(SerialPort, BreakLength);
+  DwSync();
   DwReconnect();
 }
 

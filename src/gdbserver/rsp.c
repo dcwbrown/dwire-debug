@@ -99,16 +99,16 @@ void send_message(int fd, const char *txt)
 
 void cmd_read_registers(int fd)
 {
-    char buf[36*2 + 1];
-    u8   regs[36];
+    Registers regs;
+    char      buf[countof(regs)*2 + 1];
 
     target_read_registers(regs);
 
-    for (int i=0; i<36; i++) {
+    for (int i=0; i<countof(regs); i++) {
         buf[2*i]   = HexChar(regs[i] / 16);
         buf[2*i+1] = HexChar(regs[i] % 16);
     }
-    buf[36*2] = 0;
+    buf[countof(regs)*2] = 0;
 
     write_resp(fd, buf);
 }
@@ -126,14 +126,11 @@ void cmd_memory_read(int fd, const char *cmd)
     target_read_addr(addr, buf, len);
 
     for (i = 0; i < len; i++) {
-        out[i*2] = (int)((buf[i] & 0xf0) >> 4) + '0';
-        if (out[i*2] > '9')
-            out[i*2] += 7;
-        out[i*2+1] = (int)(buf[i] & 0xf) + '0';
-        if (out[i*2+1] > '9')
-            out[i*2+1] += 7;
+        out[i*2]   = HexChar(buf[i] / 16);
+        out[i*2+1] = HexChar(buf[i] % 16);
     }
     out[2*i] = '\0';
+
     write_resp(fd, out);
 }
 
@@ -168,7 +165,7 @@ void cmd_write_registers(int fd, const char *cmd)
         buf[i/2] = hex_to_byte(cmd+i);
     }
 
-    target_write_registers(buf, 0, len/2 < 32 ? len/2 : 32); //TODO: special registers
+    target_write_registers(buf, len/2);
 
     write_resp(fd, "OK");
 }
