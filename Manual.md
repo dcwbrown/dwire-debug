@@ -1,26 +1,38 @@
-DwDebug Manual
-------
+# DwDebug manual
 
 
 ![Simple out of circuit hardware](https://github.com/dcwbrown/dwire-debug/blob/master/simple-hardware.jpg?raw=true)
 
+#### Contents
 
-### Goals
+&nbsp;&nbsp;&nbsp;&nbsp;[**Goals**](#Goals)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Command line and parameters**](#Command-line-and-parameters)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Connecting to the debugWIRE device**](#Connecting-to-the-debugWIRE-device)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Loading a program to flash**](#Loading-a-program-to-flash)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**User interface**](#User-interface)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Command format**](#Command-format)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Interaction**](#Interaction)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Data, flash, register, and stack display commands**](#Data-flash-register-and-stack-display-commands)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Running the program**](#Running-the-program)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Disassembly**](#Disassembly)<br>
+
+
+
+#### Goals
 
  - Provide a simple debugger for Atmel devices which support the debugWIRE protocol.
- - Use simple and cheap hardware - an FT232R USB to serial adapter.
+ - Use simple and cheap hardware - an FT232R USB to serial adapter and a diode.
  - Work independently of Atmel Studio.
  - Support Linux and Windows (via mingw on cygwin).
- 
- 
+
+
 #### Command line and parameters
 
 The dwire-debug executable is `dwdebug.exe` on Windows and `dwdebug` on Linux.
 
-Command line parameter text is parsed as commands in exactly the same way as
-commands read from standard input.
+The dwdebug command parser reads text first from the command line and then from standard input.
 
-Multiple commands my be entered on one line by separating them with a comma ','.
+Commands are separated by comma or by end of line.
 
 For example
 
@@ -28,7 +40,7 @@ For example
 dwdebug f0,q
 ```
 
-Finds and connects to a dwire device, dumps the first 128 bytes of flash, and quits:
+Finds and connects to a dwire device, dumps the first 128 bytes of flash, and quits before reading from standard input:
 
 ```
 $ ./dwdebug f0,q
@@ -47,13 +59,11 @@ $
 ```
 
 
-#### Connecting to the debugWIRE device.
+#### Connecting to the debugWIRE device
 
-The ```device``` command can be used to specify both the port and baud rate. 
+The ```device``` command can be used to specify both the port and baud rate, or to initiate a scan for a suitable device.
 
-Alternatively, if no parameters are specified, dwdebug will scan usb connected serial ports for a device and will attempt to determine the baud rate.
-
-Use the ```device``` command with no parameters to find the first connected device. For
+Use the ```device``` command with no parameters to find the first connected device and its baud rate. For
 example (here on Windows):
 
 ```
@@ -82,11 +92,11 @@ Dwdebug can load flash from either a pure binary file, or an ELF formatted file.
 DwDebug minimises flash wear as follows:
 
  - Flash pages that already contain the data being loaded are not touched.
- 
+
  - Flash pages are not erased unless the data being loaded contains '1' bits where the flash conatins '0's.
- 
+
  - When loading a page that differs from flash and is all 0xFF, the flash page will only be erased (which by itself leaves the flash as all 0xFFs.)
- 
+
 When loading an ELF file, DwDebug extracts line number and symbol information and uses these to annotate the disassembly. See the dissamble command below for more details.
 
 
@@ -223,7 +233,7 @@ SREG i t h s v n z c    PC 0015  SP 015f   X 0000   Y c000   Z 001a
 0015: f7e9  brne  0013 (-2 words)       >
 ````
 
-#### Data, flash, register, and stack display commands.
+#### Data, flash, register, and stack display commands
 
 Data and flash may be displayed by byte or by word.
 
@@ -279,7 +289,7 @@ Command | Argument      | Does | Notes
 
  - Breakpoint functionality uses the breakpoint hardware built into all debugWIRE devices. Although there is only one breakpoint available, it has the advantage that it does not involve modifying the program flash: it causes no flash wear.
  - The ```g``` command starts the device executing normally. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
- 
+
 (Todo - timers on/off)
 
 
@@ -297,6 +307,8 @@ Keep pressing 'u' without parameters to continue disassembling beyond the curren
 instruction.
 
 If the program was loaded from an ELF format file, the disassembly will be annotated with line numbers and symbols.
+
+To produce a suitable ELF file, use the `-gstabs` parameter on the avr-as command.
 
 For example:
 
