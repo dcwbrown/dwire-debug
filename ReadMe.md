@@ -19,15 +19,26 @@ version.
 Built and tested on Windows 8.1 and Ubuntu 15.04. Requires only standard system
 libraries/dlls.
 
+##### Manual
+
+See: [Manual](https://github.com/dcwbrown/dwire-debug/blob/master/Manual.md)
+
+
 ##### Building dwire-debug
 
-Build on linux with a conventionaly gcc/make setup. The binary produced is
+Build on linux with a conventional gcc/make setup. The binary produced is
 'dwdebug'.
 
-Build on Windows with MinGW-w64. I install 32 bit cygwin and use cygwin setup
-to add all the mingw64-i686 packages. The binary produced is 'dwdebug.exe'.
+Build on Windows with MinGW-w64 under cygwin. I install 32 bit cygwin and use
+cygwin setup to add all the mingw64-i686 packages. The binary produced is
+'dwdebug.exe'.
 
-In both cases the binaries use only to standard system APIs.
+In both cases the binaries use only standard system APIs.
+
+File chooser: If the `load` command is used without a parameter, dwdebug
+will display the windows or GTK file chooser. However if built on linux
+without GTK build support installed, the `load` command requires a
+filename parameter.
 
 ##### Stand-alone
 
@@ -51,7 +62,7 @@ to the DebugWIRE port is noticeably faster.
 
 ##### FT232R hardware
 
-The debugger uses any FT232R USB serial adapter with RX connected directly to
+The debugger uses an FT232R USB serial adapter with RX connected directly to
 the DebugWIRE port, and TX connected through a diode. I used an £8.26 Foxnovo
 FT232R based UART from amazon.co.uk. This board has jumper selectable 3.3V/5V
 operation and provides power rails, making it easy to program and debug an
@@ -64,9 +75,9 @@ would work.)
 
 ##### Wiring the FT232R adapter
 
-Connect the diode's cathode (the end marked with a line) to the UART txd line,
-and connect the diode's anode to the rxd line and to the DebugeWire pin (pin 1
-on an ATtiny45).
+Connect the diode's cathode (the end marked with a line around it) to the UART
+txd line, and connect the diode's anode to the rxd line and to the DebugeWire
+pin (e.g. pin 1 on an ATtiny45).
 
 For an out of circuit connection, set the adapter to whichever voltage matches
 the voltage range supported by the AVR device. For an ATtiny45, either voltage

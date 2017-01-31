@@ -177,7 +177,9 @@ The ```h``` command displays simple help:
 
 Most commands are a single letter while a few require a full word to be typed.
 
-No space is required between single letter commands and their parameter.
+Parameters are separated by spaces.
+
+No space is required between a command and its first parameter.
 
 Numbers are recognised in most contemporary formats:
 
