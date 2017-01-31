@@ -6,15 +6,15 @@
 #### Contents
 
 &nbsp;&nbsp;&nbsp;&nbsp;[**Goals**](#Goals)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Command line and parameters**](#Command-line-and-parameters)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Connecting to the debugWIRE device**](#Connecting-to-the-debugWIRE-device)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Loading a program to flash**](#Loading-a-program-to-flash)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**User interface**](#User-interface)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Command format**](#Command-format)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Interaction**](#Interaction)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Data, flash, register, and stack display commands**](#Data-flash-register-and-stack-display-commands)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Running the program**](#Running-the-program)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Disassembly**](#Disassembly)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Command line and parameters**](#command-line-and-parameters)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Connecting to the debugWIRE device**](#connecting-to-the-debugwire-device)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Loading a program to flash**](#L#loading-a-program-to-flash)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**User interface**](#user-interface)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Command format**](#command-format)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Interaction**](#interaction)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Data, flash, register, and stack display commands**](#data-flash-register-and-stack-display-commands)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Running the program**](#running-the-program)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Disassembly**](#disassembly)<br>
 
 
 
