@@ -1,8 +1,10 @@
+int BreakLength = 0;
+
+
 #ifdef windows
 
   char *DosDevices = 0;
   char *CurrentDevice = 0;
-  int   BreakLength = 0;
 
   void LoadDosDevices() {
     if (DosDevices == (char*)-1) {CurrentDevice=0; return;}

@@ -96,7 +96,7 @@ void DumpInputState();
   int  Read  (FileHandle handle, void *buffer, int length)       {DWORD bytesRead = 0; return ReadFile(handle, buffer, length, &bytesRead, 0) ? bytesRead : 0;}
   int  Write (FileHandle handle, const void *buffer, int length) {DWORD lengthWritten; WriteFile(handle, buffer, length, &lengthWritten,0); return lengthWritten;}
   void Close (FileHandle handle)                                 {CloseHandle(handle);}
-  int Socket(int domain, int type, int protocol) {return WSASocket(domain, type, protocol, 0,0,0);}
+  int Socket(int domain, int type, int protocol)                 {return WSASocket(domain, type, protocol, 0,0,0);}
 #else
   typedef int FileHandle;
   FileHandle Open  (const char *filename) {
@@ -106,27 +106,23 @@ void DumpInputState();
   }
   void Seek  (FileHandle handle, long offset)                    {lseek(handle, offset, SEEK_SET);}
   int  Read  (FileHandle handle,       void *buffer, int length) {return read(handle, buffer, length);}
-  void Write (FileHandle handle, const void *buffer, int length) {write(handle, buffer, length);}
+  int  Write (FileHandle handle, const void *buffer, int length) {return write(handle, buffer, length);}
   void Close (FileHandle handle)                                 {close(handle);}
   int  Interactive(FileHandle handle)                            {return isatty(handle);}
-  void PrintLastError(const char *msg) {perror(msg);}
+  void PrintLastError(const char *msg)                           {perror(msg);}
+  int  Socket(int domain, int type, int protocol)                {return socket(domain, type, protocol);}
 #endif
 
 #undef  SetFilePointer
 #define SetFilePointer "Do not use SetFilePointer, use Seek."
 #undef  ReadFile
-#define ReadFile "Do not use ReadFile, use Read."
+#define ReadFile i     "Do not use ReadFile, use Read."
 #undef  WriteFile
-#define WriteFile "Do not use WriteFile, use Write."
-
-#undef socket
-#define socket "Do not use socket, use Socket."
-
-#undef read
-#define read(...) "Do not use read, use Read."
-
-#undef write
-#define write(...) "Do not use write, use Write."
+#define WriteFile      "Do not use WriteFile, use Write."
+#define socket         "Do not use socket, use Socket."
+#define read           "Do not use read, use Read."
+#define write          "Do not use write, use Write."
+#define perror         "Do not use perror, use PrintLastError."
 
 
 FileHandle Input  = 0;
