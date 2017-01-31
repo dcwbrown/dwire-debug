@@ -8,7 +8,7 @@
 &nbsp;&nbsp;&nbsp;&nbsp;[**Goals**](#Goals)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;[**Command line and parameters**](#command-line-and-parameters)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;[**Connecting to the debugWIRE device**](#connecting-to-the-debugwire-device)<br>
-&nbsp;&nbsp;&nbsp;&nbsp;[**Loading a program to flash**](#L#loading-a-program-to-flash)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[**Loading a program to flash**](#loading-a-program-to-flash)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;[**User interface**](#user-interface)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;[**Command format**](#command-format)<br>
 &nbsp;&nbsp;&nbsp;&nbsp;[**Interaction**](#interaction)<br>
@@ -237,11 +237,14 @@ SREG i t h s v n z c    PC 0015  SP 015f   X 0000   Y c000   Z 001a
 
 Data and flash may be displayed by byte or by word.
 
+Command | Does
+------- | ----
+`d`     | Display data memory content by byte
+`dw`    | Display data memory content by word
+`f`     | Display flash memory content by byte
+`fw`    | Display flash memory content by word
+
 Data addressing is as used by processor data access instruction. That is, the first 32 bytes of the data address space correspond to the registers r0 .. r32. Subsequent data address space contains the io register set, followed by RAM.
-
-To dump data memory, use the ```d``` command (by byte) or the ```dw``` command (by word).
-
-To dump flash memory, use the ```f``` command (by byte) or the ```fw``` command (by word).
 
 Each command accepts none, one or two space separated parameters: being the start address and length.
 
@@ -255,6 +258,11 @@ For example, to display the first 16 bytes of flash by word:
 0000: c00e  rjmp  001e (+15)            > fw0 10
 0000:   c00e  9518   c026  9518    9518  9518   9518  9518    ....&...........  >
 ```
+
+Command | Does
+------- | ----
+`r`     | Display all processor registers (not IO registers)
+`s`     | Display 16 bytes of stack
 
 As well as appearing at address 0 in the data display, the registers may be displayed in an annotated layout with the ```r``` command:
 
@@ -287,8 +295,9 @@ Command | Argument      | Does | Notes
 
 ##### Notes
 
+ - Remember that push leaves SP one byte below the pushed data, therefore the `s` command displays memory starting at SP+1.
  - Breakpoint functionality uses the breakpoint hardware built into all debugWIRE devices. Although there is only one breakpoint available, it has the advantage that it does not involve modifying the program flash: it causes no flash wear.
- - The ```g``` command starts the device executing normally. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
+ - The ```g``` command starts execution at PC. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
 
 (Todo - timers on/off)
 
