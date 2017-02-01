@@ -84,6 +84,31 @@ Device recognised as ATtiny84
 0000: c00e  rjmp  001e (+15)            >
 ```
 
+You can use the `verbose` command to show the port and baud rate hunting in action:
+
+```
+$ ./dwdebug verbose,device
+Trying COM1, baud rate 150000, break length 0050. Cannot set this baud rate, probably not an FT232.
+Trying COM4, baud rate 150000, break length 0050, skipping [00], received 00000000, scale 20%
+Trying COM4, baud rate 030000, break length 0050, skipping [0], received 01111000: 8 010110000, scale 40%
+Trying COM4, baud rate 012000, break length 0050, skipping [0], received 10010010: 7 032000000, scale 85%
+Trying COM4, baud rate 010200, break length 0050, skipping [0], received 01001011: 8 042000000, scale 85%
+Trying COM4, baud rate 008670, break length 0050, skipping [0], received 10100101: 7 051000000, scale 95%
+Trying COM4, baud rate 008236, break length 0050, skipping [0], received 01010101: expected result.
+Finding upper bound.
+Trying COM4, baud rate 008400, break length 0012, skipping [0], received 11010101: 6 060000000
+Finding lower bound.
+Trying COM4, baud rate 008071, break length 0012, skipping [0], received 01010101: expected result.
+Trying COM4, baud rate 007909, break length 0012, skipping [0], received 01010101: expected result.
+Trying COM4, baud rate 007750, break length 0012, skipping [0], received 01010101: expected result.
+Trying COM4, baud rate 007595, break length 0012, skipping [0], received 01010101: expected result.
+Trying COM4, baud rate 007443, break length 0012, skipping [0], received 01010101: expected result.
+Trying COM4, baud rate 007294, break length 0012, skipping [0], received 10010101: 7 051000000
+, skipping [0]
+Connected to DebugWIRE device on USB serial port COM4 at baud rate 7839
+Device recognised as ATtiny85
+0000: c00e  rjmp  001e (+15)            >
+```
 
 #### Loading a program to flash
 
@@ -103,7 +128,7 @@ When loading an ELF file, DwDebug extracts line number and symbol information an
 
 #### User interface
 
-The dwdebug prompt is '>' which is displayed to the right of output. This way a sequencce of dump or unassemble commands form a continuous listing. For example:
+The dwdebug prompt is '>' which is displayed to the right of output. This way a sequence of dump or unassemble commands form a continuous listing. For example:
 
 ```
 $ ./dwdebug device ttyUSB0 8060
@@ -134,15 +159,7 @@ Device recognised as ATtiny84
 0140:   4e 48 27 c2  39 2c 37 07   ca 82 a2 c1  d4 20 8e 31   NH'.9,7...... .1
 0150:   86 04 92 d2  a5 46 af c1   ae 3b ec b8  1d 61 56 38   .....F...;...aV8
 0160:   0e 0e 40 18  14 55 28 51   8c 10 64 f4  8e d5 33 45   ..@..U(Q..d...3E
-0170:   df 0e 00 e2  8e 1c 4d 73   9b 68 90 84  02 52 26 c1   ......Ms.h...R&.  > d
-0180:   48 1c de e0  2c 27 ee 7a   ac 24 15 e3  36 03 0a 71   H...,'.z.$..6..q
-0190:   4a 1f 51 84  0e 10 7f d5   eb b5 46 e0  09 25 e2 db   J.Q.......F..%..
-01a0:   a6 b5 22 98  e7 58 0e 70   ce d4 12 27  6e 49 2b f6   .."..X.p...'nI+.
-01b0:   a4 25 4c e6  28 aa 22 d6   ce 10 0a 86  fe 80 69 53   .%L.(.".......iS
-01c0:   42 88 84 64  67 61 c6 42   e6 44 01 54  c8 6d 03 19   B..dga.B.D.T.m..
-01d0:   82 86 96 62  4e 65 8b 44   4c 77 b0 44  96 c7 49 70   ...bNe.DLw.D..Ip
-01e0:   2e 8c 58 aa  8e 4d 35 61   8e 37 a6 80  11 15 e7 9d   ..X..M5a.7......
-01f0:   c6 95 12 dc  0e 52 71 f0   e6 2c 5a e5  28 2c b3 54   .....Rq..,Z.(,.T  >
+0170:   df 0e 00 e2  8e 1c 4d 73   9b 68 90 84  02 52 26 c1   ......Ms.h...R&.  >
 ```
 
 The ```h``` command displays simple help:
@@ -179,14 +196,15 @@ Most commands are a single letter while a few require a full word to be typed.
 
 Parameters are separated by spaces.
 
-No space is required between a command and its first parameter.
+No space is required between a command and its first parameter. Use spaces to
+separate multiple parameters.
 
 Numbers are recognised in most contemporary formats:
 
 Base         |  Examples
 ---          |  ---
-hexadecimal  |  1234, 1234h, $1234, 0x1234
-decimal      |  1234, 1234d, #1234
+hexadecimal  |  `1234`, `1234h`, `$1234`, `0x1234`
+decimal      |  `1234`, `1234d`, `#1234`
 
 `addr` and `len` arguments default to hexadecial. The trace instruction
 `count` parameter, and register numbers default to decimal.
@@ -372,3 +390,6 @@ bellpush.s[102]     003e: e207  ldi   r16, CYCLETIME ($27)
 bellpush.s[103]     0040: bd09  out   OCR0A ($29), r16      >
 ```
 
+There is no separate command to load symbols without loading flash. Just use
+the load command, it does not erase and write flash when the content is already
+present.
