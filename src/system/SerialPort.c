@@ -11,11 +11,13 @@
 #if windows
   char portfilename[] = "//./COMnnn";
 
-  void MakeSerialPort(char *portname, int baudrate) {
+  void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
     strncpy(portfilename+4, portname, sizeof(portfilename)-5);
     portfilename[sizeof(portfilename)-1] = 0;
-    SerialPort = CreateFile(portfilename, GENERIC_WRITE | GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
-    if (SerialPort==INVALID_HANDLE_VALUE) {
+    //Wc('<'); Flush();
+    *SerialPort = CreateFile(portfilename, GENERIC_WRITE | GENERIC_READ, 0,0, OPEN_EXISTING, 0,0);
+    //Wc('>'); Flush();
+    if (*SerialPort==INVALID_HANDLE_VALUE) {
       DWORD winError = GetLastError();
       Ws("Couldn't open ");
       Ws(portname);
@@ -31,24 +33,20 @@
     dcb.Parity   = NOPARITY;
     dcb.StopBits = ONESTOPBIT;
 
-    if (!SetCommState(SerialPort, &dcb)) {
+    if (!SetCommState(*SerialPort, &dcb)) {
       // This is probably not an FT232
-      CloseHandle(SerialPort); SerialPort = 0; return;
+      CloseHandle(*SerialPort); *SerialPort = 0; return;
     }
 
-    WinOK(SetCommTimeouts(SerialPort, &(COMMTIMEOUTS){300,300,1,300,1}));
+    WinOK(SetCommTimeouts(*SerialPort, &(COMMTIMEOUTS){300,300,1,300,1}));
   }
-
-  void CloseSerialPort() {if (SerialPort) {CloseHandle(SerialPort); SerialPort = 0;}}
 #else
-  #include <stropts.h>
-  #include <asm/termios.h>
-  void MakeSerialPort(char *portname, int baudrate) {
+  void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
     char fullname[256] = "/dev/";
     strncat(fullname, portname, 250); fullname[255] = 0;
-    if ((SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
+    if ((*SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
     struct termios2 config = {0};
-    if (ioctl(SerialPort, TCGETS2, &config)) {Close(SerialPort); SerialPort = 0; return;}
+    if (ioctl(*SerialPort, TCGETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     config.c_cflag     = CS8 | BOTHER | CLOCAL;
     config.c_iflag     = IGNPAR | IGNBRK;
     config.c_oflag     = 0;
@@ -57,27 +55,25 @@
     config.c_ospeed    = baudrate;
     config.c_cc[VMIN]  = 200;         // Nonblocking read of up to 255 bytes
     config.c_cc[VTIME] = 5;           // 0.5 seconds timeout
-    if (ioctl(SerialPort, TCSETS2, &config)) {Close(SerialPort); SerialPort = 0; return;}
+    if (ioctl(*SerialPort, TCSETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     usleep(10000); // Allow 10ms for USB to settle.
-    ioctl(SerialPort, TCFLSH, TCIOFLUSH);
+    ioctl(*SerialPort, TCFLSH, TCIOFLUSH);
   }
-
-  void CloseSerialPort() {if (SerialPort) {Close(SerialPort); SerialPort = 0;}}
 #endif
 
 
-void SerialWrite(const u8 *bytes, int length) {
-  Write(SerialPort, bytes, length);
+void SerialWrite(FileHandle port, const u8 *bytes, int length) {
+  Write(port, bytes, length);
 }
 
-void SerialRead(u8 *buf, int len) {
+void SerialRead(FileHandle port, u8 *buf, int len) {
   int totalRead = 0;
   do {
-    int lengthRead = Read(SerialPort, buf+totalRead, len-totalRead);
+    int lengthRead = Read(port, buf+totalRead, len-totalRead);
     if (lengthRead == 0) {
       Ws("SerialRead expected ");
       Wd(len,1); Ws(" bytes, received ");
-      Wd(totalRead,1); Ws(" bytes from "); Ws(UsbSerialPortName);
+      Wd(totalRead,1); Ws(" bytes ");
       if (totalRead) {Wl(); for (int i=0; i<totalRead; i++) {Wx(buf[i],2); Ws("  ");}}
       Fail("");
     }
@@ -85,24 +81,24 @@ void SerialRead(u8 *buf, int len) {
   } while(totalRead < len);
 }
 
-void SerialBreak(int period) {
+void SerialBreak(FileHandle port, int period) {
 if (period < 1) period = 1;
 #ifdef windows
-  WinOK(SetCommBreak(SerialPort));
+  WinOK(SetCommBreak(port));
   Sleep(period);
-  WinOK(ClearCommBreak(SerialPort));
+  WinOK(ClearCommBreak(port));
 #else
-  ioctl(SerialPort, TCFLSH, TCIOFLUSH);
-  ioctl(SerialPort, TIOCSBRK);
+  ioctl(port, TCFLSH, TCIOFLUSH);
+  ioctl(port, TIOCSBRK);
   usleep(period*1000);
-  ioctl(SerialPort, TIOCCBRK);
+  ioctl(port, TIOCCBRK);
 #endif
 }
 
-void SerialDump() {
+void SerialDump(FileHandle port) {
   u8 byte;
   while (1) {
-    if (Read(SerialPort, &byte, 1)) {Wx(byte,2); Wc(' ');}
+    if (Read(port, &byte, 1)) {Wx(byte,2); Wc(' ');}
     else                            {Wsl("."); return;}
   }
 }

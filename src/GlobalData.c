@@ -1,12 +1,24 @@
 // GlobalData.c
 
-char UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
-FileHandle SerialPort = 0;
+
+// FT232 connection
+
+char       UsbSerialPortName[256]  = {0}; // e.g. 'COM6' or '/dev/ttyUSB0'
+FileHandle SerialPort              = 0;
+int        BreakLength             = 0;
+
+
+
+
+// Current device state
 
 int PC  = 0;  // PC as a flash address, twice the value used over the dwire interface
 int BP  =-1;  // BP as a flash address, twice the value used over the dwire interface
 u8  R30 = 0;
 u8  R31 = 0;
+
+
+// Device specific characteristics
 
 struct {
   int   signature;
@@ -51,6 +63,15 @@ enum {MaxFlashPageSize = 128, MaxFlashSize = 32768, MaxSRamSize = 2048};
 
 int DeviceType = -1;
 
+
+// Current loaded file
+
+FileHandle CurrentFile          = 0;
+char       CurrentFilename[500] = "";
+
+
+// Representation of symbols and line numbers loaded from ELF files
+
 int   HasLineNumbers           = 0;
 int   LineNumber[MaxFlashSize] = {0};
 char *FileName[MaxFlashSize]   = {0};
@@ -68,8 +89,7 @@ int FBaddr = 0;
 int FWaddr = 0;
 int Uaddr  = 0;
 
-//int Prompted = 0; // Set to 1 by dump commands. TODO - Use OutputPosition instead.
 
-int        QuitRequested        = 0;
-FileHandle CurrentFile          = 0;
-char       CurrentFilename[500] = "";
+// UI state
+
+int QuitRequested = 0;

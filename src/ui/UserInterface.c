@@ -57,6 +57,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"help",        "Help",                   0, HelpCommand},
   {"device",      "Device connection port", 0, DeviceCommand},
   {"verbose",     "Set verbose mode",       0, VerboseCommand},
+  {"gdbserver",   "Start server for GDB",   1, GdbserverCommand},
   {"",            0,                        0, EmptyCommand},
 };
 
@@ -115,7 +116,7 @@ void Prompt() {
 void UI() {
   PreloadInput(GetCommandParameters());
   while (1) {
-    if (QuitRequested) {CloseSerialPort(); return;}
+    if (QuitRequested) {Close(SerialPort); SerialPort = 0; return;}
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
     if (IsInteractive) {
       if (setjmp(FailPoint)) {SkipWhile(NotEoln); SkipEoln();}
