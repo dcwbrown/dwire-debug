@@ -77,7 +77,7 @@ Device recognised as ATtiny85
 The ```device``` command can be given the port name and baud rate, saving the time taken by the baudrate determination algorithm. For example (here on Linux):
 
 ```
-$ ./dwdebug device ttyUSB0 8060
+$ ./dwdebug device 0 8060
 
 Connected to DebugWIRE device on USB serial port ttyUSB0 at baud rate 8060
 Device recognised as ATtiny84
@@ -131,7 +131,7 @@ When loading an ELF file, DwDebug extracts line number and symbol information an
 The dwdebug prompt is '>' which is displayed to the right of output. This way a sequence of dump or unassemble commands form a continuous listing. For example:
 
 ```
-$ ./dwdebug device ttyUSB0 8060
+$ ./dwdebug device 0 8060
 
 Connected to DebugWIRE device on USB serial port ttyUSB0 at baud rate 8060
 Device recognised as ATtiny84
@@ -165,28 +165,28 @@ Device recognised as ATtiny84
 The ```h``` command displays simple help:
 
 ```
-0200: ffff                              > h
-  b       - Set breakpoint
-  bc      - Clear breakpoint
-  d       - Dump data bytes
-  dw      - Dump data words
-  f       - Dump flash bytes
-  fw      - Dump flash words
-  l       - Load file
-  g       - Go
-  p       - PC set / query
-  q       - Quit
-  r       - Display registers
-  s       - Stack
-  t       - Trace
-  u       - Unassemble
-  h       - Help
-  reset   - Reset processor
-  help    - Help
-  device  - Device connection port
-  verbose - Set verbose mode
-  gdbserver- Start server for GDB
-0200: ffff                              >
+  b         - Set breakpoint
+  bc        - Clear breakpoint
+  d         - Dump data bytes
+  dw        - Dump data words
+  f         - Dump flash bytes
+  fw        - Dump flash words
+  l         - Load file
+  g         - Go
+  p         - PC set / query
+  q         - Quit
+  r         - Display registers
+  s         - Stack
+  t         - Trace
+  te        - Timer enable
+  td        - Timer disable
+  u         - Unassemble
+  h         - Help
+  reset     - Reset processor
+  help      - Help
+  device    - Device connection port
+  verbose   - Set verbose mode
+  gdbserver - Start server for GDB
 ```
 
 
@@ -311,6 +311,8 @@ Command | Argument      | Does | Notes
 `bc`    |               | Clear execution breakpoint |
 `g`     |               | Go: begin or continue execution at current PC | Stops at breakpoint, or press return to regain control
 `t`     | count         | Trace instructions one at a time | count defaults to 1
+`te`    |               | Timer enable |
+`td`    |               | Timer disable |
 
 
 ##### Notes
@@ -319,7 +321,9 @@ Command | Argument      | Does | Notes
  - Breakpoint functionality uses the breakpoint hardware built into all debugWIRE devices. Although there is only one breakpoint available, it has the advantage that it does not involve modifying the program flash: it causes no flash wear.
  - The ```g``` command starts execution at PC. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
 
-(Todo - timers on/off)
+By default, device timers are disabled when running the program. This may make sense for early debugging when interrupts or other behaviour dependent on timers may make the debugging process more difficult.
+
+Device timers are enabled with the `te` command. With timers enabled, timers will count while the device is running, and therefore may cause interrupts.
 
 
 #### Disassembly

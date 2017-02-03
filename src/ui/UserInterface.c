@@ -72,7 +72,7 @@ int IsInteractive = 0;
 
 void HelpCommand() {
   for (int i=0; Commands[i].help; i++) {
-    Ws("  "); Ws(Commands[i].name); Wt(10); Ws("- "); Wsl(Commands[i].help);
+    Ws("  "); Ws(Commands[i].name); Wt(12); Ws("- "); Wsl(Commands[i].help);
   }
 }
 
