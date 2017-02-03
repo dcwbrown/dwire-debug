@@ -240,8 +240,10 @@ void DwTrace() { // Execute one instruction
 
 
 void DwGo() { // Begin executing.
+  u8 context = TimerEnable ? 0x40 : 0x60;
   int p = PC/2;
   int b = BP/2;
+
   DwWrite(ByteArrayLiteral(
     0x66,                      // Register or memory access mode
     0xD0, 0, 30,               // Set up to set registers starting from r30
@@ -250,12 +252,16 @@ void DwGo() { // Begin executing.
     R30, R31                   // Cached value of r30 and r31
   ));
 
-  if (BP < 0) DwWrite(ByteArrayLiteral(
-    0x60, 0xD0, hi(p), lo(p),  // Address to restart execution at
-    0x30                       // Continue execution (go)
-  )); else DwWrite(ByteArrayLiteral(
-    0xD1, hi(b), lo(b),        // Set breakpoint for execution to stop at
-    0x61, 0xD0, hi(p), lo(p),  // Address to restart execution at (with BP enable)
+  if (BP >= 0) {
+    DwWrite(ByteArrayLiteral(
+      0xD1, hi(b), lo(b)       // Set breakpoint for execution to stop at
+    ));
+    context |= 0x01;
+  }
+
+  DwWrite(ByteArrayLiteral(
+    context,
+    0xD0, hi(p), lo(p),        // Address to restart execution at (with BP enable)
     0x30                       // Continue execution (go)
   ));
 }
