@@ -11,13 +11,15 @@
 
 void HelpCommand();
 
-void PCommand()       {PC = ReadInstructionAddress("PC");}
-void BPCommand()      {BP = ReadInstructionAddress("BP");}
-void BCCommand()      {BP = -1;}
-void QuitCommand()    {QuitRequested = 1;}
-void FailCommand()    {Fail("FailCommand ...");}
-void EmptyCommand()   {Sb(); if (!DwEoln()) {HelpCommand();}}
-void VerboseCommand() {Verbose = 1;}
+void PCommand()            {PC = ReadInstructionAddress("PC");}
+void BPCommand()           {BP = ReadInstructionAddress("BP");}
+void BCCommand()           {BP = -1;}
+void QuitCommand()         {QuitRequested = 1;}
+void FailCommand()         {Fail("FailCommand ...");}
+void EmptyCommand()        {Sb(); if (!DwEoln()) {HelpCommand();}}
+void VerboseCommand()      {Verbose = 1;}
+void TimerEnableCommand()  {TimerEnable = 1;}
+void TimerDisableCommand() {TimerEnable = 0;}
 
 
 void DisassemblyPrompt() {
@@ -51,6 +53,8 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"r",           "Display registers",      1, RegistersCommand},
   {"s",           "Stack",                  1, StackCommand},
   {"t",           "Trace",                  1, TraceCommand},
+  {"te",          "Timer enable",           1, TimerEnableCommand},
+  {"td",          "Timer disable",          1, TimerDisableCommand},
   {"u",           "Unassemble",             1, UnassembleCommand},
   {"h",           "Help",                   0, HelpCommand},
   {"reset",       "Reset processor",        1, DwReset},
@@ -68,7 +72,7 @@ int IsInteractive = 0;
 
 void HelpCommand() {
   for (int i=0; Commands[i].help; i++) {
-    Ws("  "); Ws(Commands[i].name); Wt(10); Ws("- "); Wsl(Commands[i].help);
+    Ws("  "); Ws(Commands[i].name); Wt(12); Ws("- "); Wsl(Commands[i].help);
   }
 }
 

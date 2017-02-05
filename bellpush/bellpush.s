@@ -124,7 +124,8 @@ reset:
 
 ;         Sleep until pin change or timer/counter interrupt (approx 10ms)
 
-sleep:    rjmp   sleep
+sleep:    in     r10,TCNT0   ; Temporary for testing timer enable in the debugger
+          rjmp   sleep
 
 
 

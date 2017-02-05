@@ -17,6 +17,8 @@ int BP  =-1;  // BP as a flash address, twice the value used over the dwire inte
 u8  R30 = 0;
 u8  R31 = 0;
 
+int TimerEnable = 0;
+
 
 // Device specific characteristics
 
