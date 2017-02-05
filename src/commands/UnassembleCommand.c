@@ -22,7 +22,7 @@ void UnassembleCommand() {
   while (1) {
     Uaddr += DisassembleInstruction(Uaddr, &buf[Uaddr-firstByte]);
     count--;
-    if (count <= 0  ||  Uaddr >= FlashSize()/2) {return;}
+    if (count <= 0  ||  Uaddr >= FlashSize()) {return;}
     Wl();
   }
 }

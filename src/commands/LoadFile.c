@@ -70,8 +70,7 @@ struct stab {
 
 char SourceFilename[300] = {0};
 
-void LoadElf(int ElfFlashImageOffset, int ElfFlashImageLength,
-             int ElfFlashMemAddr, int ElfFlashMemLength);
+u8 *ElfProgramHeaders = 0;
 
 
 int IsLoadableElf() {
@@ -102,35 +101,32 @@ int IsLoadableElf() {
   if (elfProgramHeaderSize < sizeof(struct ElfProgramHeader))       {Fail("Cannot load ELF with incomplete program header table.");}
   if (elfProgramHeaderSize > sizeof(struct ElfProgramHeader) * 100) {Fail("Cannot load ELF with unreasonable long program header table.");}
 
-  u8 *programHeaders = Allocate(elfProgramHeaderSize);
+  ElfProgramHeaders = Allocate(elfProgramHeaderSize);
   Seek(CurrentFile, ElfHeader.phoff);
-  int lengthRead = Read(CurrentFile, programHeaders, elfProgramHeaderSize);
+  int lengthRead = Read(CurrentFile, ElfProgramHeaders, elfProgramHeaderSize);
   if (lengthRead != elfProgramHeaderSize) {Fail("Cannot load ELF - failed to load program header table.");}
 
-  for (int i=0; i<ElfHeader.phnum; i++) {
-    struct ElfProgramHeader *header = (struct ElfProgramHeader *) (programHeaders + (i*ElfHeader.phentsize));
-
-    //Ws("Segment type "); Wd(header->type,1);
-    //Ws(", offset ");     Wd(header->offset,1);
-    //Ws(", vaddr $");     Wx(header->vaddr,1);
-    //Ws(", paddr $");     Wx(header->paddr,1);
-    //Ws(", filesize $");  Wx(header->filesize,1);
-    //Ws(", memsize $");   Wx(header->memsize,1);
-    //Ws(", flags ");      Wd(header->flags,1);
-    //Ws(", align ");      Wd(header->align,1);
-    //Wl();
-
-    if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
-      LoadElf(header->offset, header->filesize, header->vaddr, header->memsize);
-    }
-  }
+  //  for (int i=0; i<ElfHeader.phnum; i++) {
+  //    struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
+  //
+  //    Ws("Segment type "); Wd(header->type,1);
+  //    Ws(", offset ");     Wd(header->offset,1);
+  //    Ws(", vaddr $");     Wx(header->vaddr,1);
+  //    Ws(", paddr $");     Wx(header->paddr,1);
+  //    Ws(", filesize $");  Wx(header->filesize,1);
+  //    Ws(", memsize $");   Wx(header->memsize,1);
+  //    Ws(", flags ");      Wd(header->flags,1);
+  //    Ws(", align ");      Wd(header->align,1);
+  //    Wl();
+  //    }
+  //  }
 
   // Section header table
 
   int elfSectionHeaderSize = ElfHeader.shnum * ElfHeader.shentsize;
 
   if (elfSectionHeaderSize < sizeof(struct ElfSectionHeader))       {Fail("Cannot load ELF with incomplete section header table.");}
-  if (elfSectionHeaderSize > sizeof(struct ElfSectionHeader) * 200) {Fail("Cannot load ELF with unreasonable long section header table.");}
+  if (elfSectionHeaderSize > sizeof(struct ElfSectionHeader) * 200) {Fail("Cannot load ELF with unreasonably long section header table.");}
 
   u8 *sectionHeaders = Allocate(elfSectionHeaderSize);
   Seek(CurrentFile, ElfHeader.shoff);
@@ -173,7 +169,7 @@ int IsLoadableElf() {
 
     if (memcmp(sectionNames + header->name, ".symtab",  8) == 0) {symbolTableIndex = i;}
     if (memcmp(sectionNames + header->name, ".strtab",  8) == 0) {symbolNameTableIndex = i;}
-    if (memcmp(sectionNames + header->name, ".stab",    8) == 0) {stabTableIndex = i;}
+    if (memcmp(sectionNames + header->name, ".stab",    6) == 0) {stabTableIndex = i;}
     if (memcmp(sectionNames + header->name, ".stabstr", 8) == 0) {stabstrTableIndex = i;}
   }
 
@@ -312,23 +308,34 @@ int IsLoadableElf() {
 
 u8 FlashBuffer[MaxFlashSize] = {0};
 
-void LoadElf(int ElfFlashImageOffset, int ElfFlashImageLength,
-             int ElfFlashMemAddr, int ElfFlashMemLength) {
-  if (!ElfFlashImageOffset)                    {Fail("No flash memory image found in ELF file.");}
-  if (ElfFlashImageLength > ElfFlashMemLength) {Fail("ELF file error: filesize>memsize.");}
-  if (ElfFlashMemLength > FlashSize())         {Fail("Flash memory image is too large for this device.");}
 
-  Seek(CurrentFile, ElfFlashImageOffset);
-  int length = Read(CurrentFile, FlashBuffer, ElfFlashImageLength);
-  if (length < ElfFlashImageLength) {Fail("Failed to read memory image from ELF.");}
+void LoadElfSegments() {
+  for (int i=0; i<ElfHeader.phnum; i++) {
+    struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
+    if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
 
-  if (ElfFlashMemLength > ElfFlashImageLength) {
-    memset(FlashBuffer+ElfFlashImageLength, 0, ElfFlashMemLength-ElfFlashImageLength);
+      if (!header->offset)                               {Fail("Flash memory image missing in ELF file.");}
+      if (header->filesize > header->memsize)            {Fail("ELF file error: filesize>memsize.");}
+      if (header->vaddr + header->memsize > FlashSize()) {Fail("Flash segment extends beyond available flash on this device.");}
+
+      Seek(CurrentFile, header->offset);
+      int length = Read(CurrentFile, FlashBuffer, header->filesize);
+      if (length < header->filesize) {Fail("Failed to read memory image from ELF.");}
+
+      if (header->memsize > header->filesize) {
+        memset(FlashBuffer+header->filesize, 0, header->memsize-header->filesize);
+      }
+
+      Ws("Loading "); Wd(header->memsize,1);
+      Ws(" flash bytes from ELF text segment "); Wd(i,1);
+      Ws(" to addresses $"); Wx(header->vaddr,1);
+      Ws(" through $"); Wx(header->vaddr+header->memsize-1,1); Wsl(".");
+      WriteFlash(header->vaddr, FlashBuffer, header->memsize);
+    }
   }
-
-  Ws("Loading "); Wd(ElfFlashMemLength,1); Wsl(" flash bytes from ELF text segment.");
-  WriteFlash(ElfFlashMemAddr, FlashBuffer, ElfFlashMemLength);
 }
+
+
 
 
 
@@ -364,5 +371,5 @@ void LoadFileCommand() {
 
   if (!CurrentFile) {Fail("Could not open specified file.");}
 
-  if (!IsLoadableElf()) {LoadBinary();}
+  if (IsLoadableElf()) {LoadElfSegments();} else {LoadBinary();}
 }
