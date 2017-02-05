@@ -70,16 +70,11 @@ struct stab {
 
 char SourceFilename[300] = {0};
 
-int ElfFlashImageOffset = 0;
-int ElfFlashImageLength = 0;
-int ElfFlashMemLength   = 0;
+void LoadElf(int ElfFlashImageOffset, int ElfFlashImageLength,
+             int ElfFlashMemAddr, int ElfFlashMemLength);
 
 
 int IsLoadableElf() {
-
-  ElfFlashImageOffset = 0;
-  ElfFlashImageLength = 0;
-  ElfFlashMemLength   = 0;
 
   int length = Read(CurrentFile, &ElfHeader, sizeof(ElfHeader));
   Seek(CurrentFile, 0);
@@ -126,11 +121,7 @@ int IsLoadableElf() {
     //Wl();
 
     if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
-      if (header->vaddr != 0) {Fail("Elf file specifies non zero load address.");}    // Not expected - what would it mean?
-      if (ElfFlashImageOffset) {Fail("Elf file provides multiple binary segments.");} // Not expected - what would it mean?
-      ElfFlashImageOffset = header->offset;
-      ElfFlashImageLength = header->filesize;
-      ElfFlashMemLength   = header->memsize;
+      LoadElf(header->offset, header->filesize, header->vaddr, header->memsize);
     }
   }
 
@@ -321,7 +312,8 @@ int IsLoadableElf() {
 
 u8 FlashBuffer[MaxFlashSize] = {0};
 
-void LoadElf() {
+void LoadElf(int ElfFlashImageOffset, int ElfFlashImageLength,
+             int ElfFlashMemAddr, int ElfFlashMemLength) {
   if (!ElfFlashImageOffset)                    {Fail("No flash memory image found in ELF file.");}
   if (ElfFlashImageLength > ElfFlashMemLength) {Fail("ELF file error: filesize>memsize.");}
   if (ElfFlashMemLength > FlashSize())         {Fail("Flash memory image is too large for this device.");}
@@ -335,7 +327,7 @@ void LoadElf() {
   }
 
   Ws("Loading "); Wd(ElfFlashMemLength,1); Wsl(" flash bytes from ELF text segment.");
-  WriteFlash(0, FlashBuffer, ElfFlashMemLength);
+  WriteFlash(ElfFlashMemAddr, FlashBuffer, ElfFlashMemLength);
 }
 
 
@@ -372,5 +364,5 @@ void LoadFileCommand() {
 
   if (!CurrentFile) {Fail("Could not open specified file.");}
 
-  if (IsLoadableElf()) {LoadElf();} else {LoadBinary();}
+  if (!IsLoadableElf()) {LoadBinary();}
 }
