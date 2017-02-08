@@ -469,13 +469,21 @@ int Winstruction(int i, int code) {
   return 0;
 }
 
-
+char *SkipPath(char *name) { // Return pointer to name with any leading path skipped
+  char *p     = name;
+  char *start = name;
+  while (*p) {
+    if (((*p == '/') || (*p == '\\'))  &&  *(p+1)) {start = p+1;}
+    p++;
+  }
+  return start;
+}
 
 int DisassembleInstruction(int addr, u8 *buf) { // Returns instruction length in words
   Assert((addr & 1) == 0);
   if (CodeSymbol[addr]) {Wl(); Ws(CodeSymbol[addr]); Wsl(":");}
   if (HasLineNumbers) {
-    if (FileName[addr])   {Ws(FileName[addr]);}
+    if (FileName[addr])   {Ws(SkipPath(FileName[addr]));}
     if (LineNumber[addr]) {Wc('['); Wd(LineNumber[addr],1); Wc(']');}
     Wt(20);
   }

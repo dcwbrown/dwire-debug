@@ -319,7 +319,8 @@ Command | Argument      | Does | Notes
 
  - Remember that push leaves SP one byte below the pushed data, therefore the `s` command displays memory starting at SP+1.
  - Breakpoint functionality uses the breakpoint hardware built into all debugWIRE devices. Although there is only one breakpoint available, it has the advantage that it does not involve modifying the program flash: it causes no flash wear.
- - The ```g``` command starts execution at PC. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
+ - The `g` command starts execution at PC. Control will return automatically to DwDebug if the breakpoint address is reached. To break in to a running program, press the return key.
+ - To start execution at another address use the `p` command before the `g` command.
 
 By default, device timers are disabled when running the program. This may make sense for early debugging when interrupts or other behaviour dependent on timers may make the debugging process more difficult.
 
