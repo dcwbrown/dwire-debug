@@ -213,10 +213,10 @@ void DwConnect() {
 }
 
 void DwReset() {
-  SerialBreak(SerialPort, BreakLength);
+  //SerialBreak(SerialPort, BreakLength);
+  DwWrite(ByteArrayLiteral(0x07));
   DwSync();
   DwReconnect();
-  PC = 0;
 }
 
 
