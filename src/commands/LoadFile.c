@@ -333,6 +333,9 @@ void LoadElfSegments() {
       WriteFlash(header->vaddr, FlashBuffer, header->memsize);
     }
   }
+
+  // Set PC to start address of first ELF segment
+  PC = ((struct ElfProgramHeader*)ElfProgramHeaders)->vaddr;
 }
 
 
@@ -347,6 +350,7 @@ void LoadBinary() {
 
   Ws("Loading "); Wd(length,1); Wsl(" flash bytes from binary image file.");
   WriteFlash(0, FlashBuffer, length);
+  PC = 0;
 }
 
 
