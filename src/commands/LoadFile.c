@@ -312,11 +312,11 @@ u8 FlashBuffer[MaxFlashSize] = {0};
 void LoadElfSegments() {
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
-    if (header->type == 1  &&  header->vaddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
+    if (header->type == 1  &&  header->paddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
 
       if (!header->offset)                               {Fail("Flash memory image missing in ELF file.");}
       if (header->filesize > header->memsize)            {Fail("ELF file error: filesize>memsize.");}
-      if (header->vaddr + header->memsize > FlashSize()) {Fail("Flash segment extends beyond available flash on this device.");}
+      if (header->paddr + header->memsize > FlashSize()) {Fail("Flash segment extends beyond available flash on this device.");}
 
       Seek(CurrentFile, header->offset);
       int length = Read(CurrentFile, FlashBuffer, header->filesize);
@@ -328,14 +328,14 @@ void LoadElfSegments() {
 
       Ws("Loading "); Wd(header->memsize,1);
       Ws(" flash bytes from ELF text segment "); Wd(i,1);
-      Ws(" to addresses $"); Wx(header->vaddr,1);
-      Ws(" through $"); Wx(header->vaddr+header->memsize-1,1); Wsl(".");
-      WriteFlash(header->vaddr, FlashBuffer, header->memsize);
+      Ws(" to addresses $"); Wx(header->paddr,1);
+      Ws(" through $"); Wx(header->paddr+header->memsize-1,1); Wsl(".");
+      WriteFlash(header->paddr, FlashBuffer, header->memsize);
     }
   }
 
   // Set PC to start address of first ELF segment
-  PC = ((struct ElfProgramHeader*)ElfProgramHeaders)->vaddr;
+  PC = ((struct ElfProgramHeader*)ElfProgramHeaders)->paddr;
 }
 
 
