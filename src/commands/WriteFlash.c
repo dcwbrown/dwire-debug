@@ -64,6 +64,12 @@ void ProgramFlashPage(u16 a, const u8 *buf) {
 
 
 
+void ShowPageStatus(u16 a, char *msg) {
+  Ws("$"); Wx(a,4); Ws(" - $"); Wx(a+PageSize()-1,4);
+  Wc(' '); Ws(msg); Ws(".                "); Wr();
+}
+
+
 void WriteFlashPage(u16 a, const u8 *buf) {
   // Uses r0, r1, r29, r30, r31
 
@@ -73,7 +79,7 @@ void WriteFlashPage(u16 a, const u8 *buf) {
   DwReadFlash(a, PageSize(), page);
 
   if (memcmp(buf, page, PageSize()) == 0) {
-    Ws("Unchanged   $"); Wx(a,4); Ws(" - $"); Wx(a+PageSize()-1,4); Wl(); // Wc('\r'); Flush();
+    ShowPageStatus(a, "unchanged");
     return;
   }
 
@@ -83,19 +89,17 @@ void WriteFlashPage(u16 a, const u8 *buf) {
   }
 
   if (erase) {
-    Ws("Erasing     $"); Wx(a,4); Ws(" - $"); Wx(a+PageSize()-1,4); Wl(); // Wc('\r'); Flush();
+    ShowPageStatus(a, "erasing");
     EraseFlashPage(a);
   }
 
   memset(page, 0xff, PageSize());
   if (memcmp(buf, page, PageSize()) == 0) {
-    //Ws("Skipping write of fully $ff page at $"); Wx(a,4); Wl();
     return;
   }
 
-  Ws("Programming $"); Wx(a,4); Ws(" - $"); Wx(a+PageSize()-1,4); Wl(); // Wc('\r'); Flush();
-  //Ws("Programming page at $"); Wx(a,4); Wl();
-  ProgramFlashPage(a, buf);
+ ShowPageStatus(a, "programming");
+ ProgramFlashPage(a, buf);
 }
 
 
@@ -106,6 +110,8 @@ u8 pageBuffer[MaxFlashPageSize] = {0};
 void WriteFlash(u16 addr, const u8 *buf, int length) {
 
   Assert(addr + length <= FlashSize());
+  Assert(length >= 0);
+  if (length == 0) return;
 
   u8 r0and1[2];
   u8 r29;
@@ -155,7 +161,7 @@ void WriteFlash(u16 addr, const u8 *buf, int length) {
     WriteFlashPage(addr, pageBuffer);
   }
 
-  //Ws("                           \r");
+  Ws("                                       \r");
 
   DwWriteRegisters(r0and1, 0, 2);
   DwWriteRegisters(&r29,  29, 1);

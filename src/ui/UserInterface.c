@@ -97,7 +97,7 @@ void ParseAndHandleCommand() {
   if (Eof()) {if (IsInteractive) {Wl();}  QuitCommand();}
   else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
-  SkipWhile(NotDwEoln); if (Eoln()) {SkipEoln();} else {SkipCh();}
+  SkipWhile(NotDwEoln); SkipWhile(IsDwEoln);
 }
 
 

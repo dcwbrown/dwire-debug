@@ -326,16 +326,18 @@ void LoadElfSegments() {
         memset(FlashBuffer+header->filesize, 0, header->memsize-header->filesize);
       }
 
-      Ws("Loading "); Wd(header->memsize,1);
-      Ws(" flash bytes from ELF text segment "); Wd(i,1);
-      Ws(" to addresses $"); Wx(header->paddr,1);
-      Ws(" through $"); Wx(header->paddr+header->memsize-1,1); Wsl(".");
-      WriteFlash(header->paddr, FlashBuffer, header->memsize);
+      if (header->memsize > 0) {
+        Ws("Loading "); Wd(header->memsize,1);
+        Ws(" flash bytes from ELF text segment "); Wd(i,1);
+        Ws(" to addresses $"); Wx(header->paddr,1);
+        Ws(" through $"); Wx(header->paddr+header->memsize-1,1); Wsl(".");
+        WriteFlash(header->paddr, FlashBuffer, header->memsize);
+      }
     }
   }
 
-  // Set PC to start address of first ELF segment
-  PC = ((struct ElfProgramHeader*)ElfProgramHeaders)->paddr;
+  // Set PC to entry point defined in ELF header.
+  PC = ElfHeader.entry;
 }
 
 

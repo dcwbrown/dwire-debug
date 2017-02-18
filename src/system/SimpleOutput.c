@@ -23,7 +23,7 @@ void Flush() {
 void Wc(char c) {
   if (OutputPosition >= sizeof OutputBuffer) {Flush();}
   OutputBuffer[OutputPosition++] = c;
-  if (c == '\n') {
+  if (c == '\n'  ||  c == '\r') {
     Flush();
     HorizontalPosition = 0;
   } else {
@@ -52,6 +52,10 @@ void Wl() {
   #else
     Wc('\n');
   #endif
+}
+
+void Wr() {
+  Wc('\r');
 }
 
 void Wsl(const char *s) {Ws(s); Wl();}
