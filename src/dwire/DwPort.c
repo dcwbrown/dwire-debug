@@ -266,7 +266,7 @@ void DwGo() { // Begin executing.
 }
 
 
-#if 0
+/*
 
 /// DebugWire protocol notes
 
@@ -419,4 +419,4 @@ D2 BF C7 23 out SPMCSR,r28 = 11 = RWWSRE
 D2 95 E8 33 spm
 <00 55> 83 <55>
 
-#endif
+*/
