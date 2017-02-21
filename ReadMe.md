@@ -94,7 +94,15 @@ overvoltage to the AVR.
 
 The ATtiny must have DebugWIRE (DWEN) enabled. DWEN is not enabled in chips
 as shipped from Atmel, and (not surprisingly) cannot be enabled through
-DebugWIRE. Therefore the chips must have the DWEN fuse programmed (set to 0)
-using a conventional Atmel programmer - I use an AVR Dragon. Once this is
-done dwire-debug is sufficient for both programming and debugging.
+DebugWIRE.
 
+For a chip as supplied by Atmel, ISP programming will be sufficient to enable
+debugWIRE. You can use any ISP programming solution, for example:
+
+ - ISP software includes the open source Avrdude or the official Atmel Studio.
+ - ISP hardware includes the open source Arduino ISP, or Atmel's Dragon or AVR-ICE.
+
+Once the DWEN fuse has been programmed (set to zero), disconnect the ISP.
+
+Now the FT232 connected to just ground and the device reset pin and controlled
+by dwire-debug is sufficient for both programming and debugging.

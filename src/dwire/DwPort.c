@@ -268,159 +268,10 @@ void DwGo() { // Begin executing.
 
 #if 0
 
-u16 GetPC()  {DwByte(0xF0); return DwReadWord();}
-u16 GetBP()  {DwByte(0xF1); return DwReadWord();}
-u16 GetIR()  {DwByte(0xF2); return DwReadWord();}
-u16 GetSR()  {DwByte(0xF3); return DwReadWord();}
+/// DebugWire protocol notes
 
-u16 PC = 0;
-u16 BP = 0;
-u16 IR = 0;
-u16 SR = 0;
+See RikusW's excellent work at http://www.ruemohr.org/docs/debugwire.html.
 
-
-
-void ShowControlRegisters() {
-  ws("Control registers: PC "); wx(PC,4);
-  ws(", BP ");       wx(BP,4);
-  ws(", IR ");       wx(IR,4);
-  ws(", SR ");       wx(SR,4);
-  wl();
-}
-
-#ifdef windows
-  void __chkstk_ms(void) {}
-#endif
-
-
-
-
-
-
-// Data memory
-//
-// The data array tracks the AtTiny45 data memory:
-//    Data[$00-$01F]: 32 bytes of r0-r31
-//    Data[$20-$05F]: 64 bytes of I/O registers
-//    Data[$60-$15F]: 256 bytes of static RAM
-
-
-u8 DataMemory[32+64+256] = {};  // 32 bytes r0-r31, 64 bytes of IO registers, 256 bytes of RAM.
-int RamLoaded = 0;
-
-enum { // IO register address in data memory
-  DdrB  = 0x37,
-  PortB = 0x38,
-  Dwdr  = 0x42, // (Inaccesible)
-  SpL   = 0x5D,
-  SpH   = 0x5E,
-  Sreg  = 0x5F
-};
-
-
-
-void LoadRAM() {
-  u8 cmd[] = {
-    0xD0, 0,0x1e, 0xD1, 0,0x20,  // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-    0xC2, 5, 0x20, 0x60,0,       // Set Z to address of start of SRAM in data memory
-    0xD0, 0,0, 0xD1, 2,0,        // Set PC=0, BP=2*length
-    0xC2, 0, 0x20                // Read 256 bytes from memory
-  };
-  DwWrite(cmd, sizeof cmd);
-  SerialReadBytes(&DataMemory[0x60], 256);
-  RamLoaded = 1;
-}
-
-
-void StoreRegisters() {
-  u8 cmd[] = {
-    0x66,                   // Access registers/memory mode
-    0xD0, 0,0, 0xD1, 0,32,  // Set PC=0, BP=32 (i.e. address all registers)
-    0xC2, 5, 0x20           // Start register write
-  };
-  DwWrite(cmd, sizeof(cmd));
-  DwWrite(DataMemory, 32);
-}
-
-
-//void StoreRAM() {
-//  u8 cmd[] = {
-//    0xD0, 0,0x1e, 0xD1, 0,0x20,  // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-//    0xC2, 5, 0x20, 0x60,0,       // Set Z to address of start of SRAM in data memory
-//    0xD0, 0,0, 0xD1, 2,0,        // Set PC=0, BP=2*length
-//    0xC2, 4, 0x20                // Write 256 bytes to memory
-//  };
-//  DwWrite(cmd, sizeof cmd);
-//  SerialWriteBytes(&DataMemory[0x60], 256);
-//}
-
-
-
-void ReadFlash(const u8 *buf, u16 first, u16 length) {
-  u8 cmd[] = {
-    0xD0, 0,0x1e, 0xD1, 0,0x20,                  // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-    0xC2, 5, 0x20, lo(first),hi(first),          // Write first to Z
-    0xD0, 0,0, 0xD1, hi(2*length),lo(2*length),  // Set PC=0, BP=2*length
-    0xC2, 2, 0x20                                // Read length bytes from flash starting at first
-  };
-  DwWrite(cmd, sizeof cmd);
-  SerialReadBytes(buf, length);
-}
-
-enum {FlashSize=4096};
-u8 FlashBytes[FlashSize] = {};
-
-void LoadAllFlash() {
-  int chunksize = 256;
-  for (int i=0; i<sizeof(FlashBytes)/chunksize; i++) {
-    ReadFlash(&FlashBytes[i*chunksize], i*chunksize, chunksize);
-  }
-}
-
-void LoadFlashBytes(u16 first, u16 limit) {
-  u16 length = limit-first;
-  u8 cmd[] = {
-    0xD0, 0,0x1e, 0xD1, 0,0x20,                  // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-    0xC2, 5, 0x20, lo(first),hi(first),          // Write first to Z
-    0xD0, 0,0, 0xD1, hi(2*length),lo(2*length),  // Set PC=0, BP=2*length
-    0xC2, 2, 0x20                                // Read length bytes from flash starting at first
-  };
-  DwWrite(cmd, sizeof cmd);
-  SerialReadBytes(&FlashBytes[first], length);
-}
-
-u16 FlashWord(u16 addr) {
-  return FlashBytes[2*addr] + (FlashBytes[2*addr + 1] << 8);
-}
-
-
-#endif
-
-
-//void ReadFlash(u16 first, u16 limit) {
-//  SetRegisterPair(0x1e, first);  // Write start address to register pair R30/R31 (aka Z)
-//  // Read Flash starting at Z
-//  SetPC(0); SetBP(2*(limit-first)); SetMode(2); DwGo();
-//  for (int i=first; i<limit; i++) {wDumpByte(i, DwSerialRead());}
-//  wDumpEnd();
-//  RestoreControlRegisters();
-//}
-
-
-//void SetSRAMByte(u16 addr, u8 value) {
-//  SetRegisterPair(0x1e, addr);
-//  SetPC(1); SetBP(3); SetMode(4); DwGo();
-//  DwByte(value);
-//  RestoreControlRegisters();
-//}
-
-
-/// DebugWire protocol
-
-
-
-
-/*
 
 DebugWire command byte interpretation:
 
@@ -567,4 +418,5 @@ D2 E1 C1 23 ldi r28,0x11
 D2 BF C7 23 out SPMCSR,r28 = 11 = RWWSRE
 D2 95 E8 33 spm
 <00 55> 83 <55>
-*/
+
+#endif
