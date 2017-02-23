@@ -219,6 +219,10 @@ void DwReset() {
   DwReconnect();
 }
 
+void DwDisable() {
+  DwWrite(ByteArrayLiteral(0x06));
+}
+
 
 void DwTrace() { // Execute one instruction
   int p = PC/2;

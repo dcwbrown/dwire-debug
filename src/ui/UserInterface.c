@@ -15,6 +15,7 @@ void PCommand()            {PC = ReadInstructionAddress("PC");}
 void BPCommand()           {BP = ReadInstructionAddress("BP");}
 void BCCommand()           {BP = -1;}
 void QuitCommand()         {QuitRequested = 1;}
+void DisableCommand()      {DwDisable(); QuitRequested = 1;}
 void FailCommand()         {Fail("FailCommand ...");}
 void EmptyCommand()        {Sb(); if (!DwEoln()) {HelpCommand();}}
 void VerboseCommand()      {Verbose = 1;}
@@ -40,29 +41,30 @@ void TraceCommand() {
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
-  {"b",           "Set breakpoint",         1, BPCommand},
-  {"bc",          "Clear breakpoint",       1, BCCommand},
-  {"d",           "Dump data bytes",        1, DumpDataBytesCommand},
-  {"dw",          "Dump data words",        1, DumpDataWordsCommand},
-  {"f",           "Dump flash bytes",       1, DumpFlashBytesCommand},
-  {"fw",          "Dump flash words",       1, DumpFlashWordsCommand},
-  {"l",           "Load file",              1, LoadFileCommand},
-  {"g",           "Go",                     1, GoCommand},
-  {"p",           "PC set / query",         1, PCommand},
-  {"q",           "Quit ",                  0, QuitCommand},
-  {"r",           "Display registers",      1, RegistersCommand},
-  {"s",           "Stack",                  1, StackCommand},
-  {"t",           "Trace",                  1, TraceCommand},
-  {"te",          "Timer enable",           1, TimerEnableCommand},
-  {"td",          "Timer disable",          1, TimerDisableCommand},
-  {"u",           "Unassemble",             1, UnassembleCommand},
-  {"h",           "Help",                   0, HelpCommand},
-  {"reset",       "Reset processor",        1, DwReset},
-  {"help",        "Help",                   0, HelpCommand},
-  {"device",      "Device connection port", 0, DeviceCommand},
-  {"verbose",     "Set verbose mode",       0, VerboseCommand},
-  {"gdbserver",   "Start server for GDB",   1, GdbserverCommand},
-  {"",            0,                        0, EmptyCommand},
+  {"b",           "Set breakpoint",                         1, BPCommand},
+  {"bc",          "Clear breakpoint",                       1, BCCommand},
+  {"d",           "Dump data bytes",                        1, DumpDataBytesCommand},
+  {"dw",          "Dump data words",                        1, DumpDataWordsCommand},
+  {"f",           "Dump flash bytes",                       1, DumpFlashBytesCommand},
+  {"fw",          "Dump flash words",                       1, DumpFlashWordsCommand},
+  {"l",           "Load file",                              1, LoadFileCommand},
+  {"g",           "Go",                                     1, GoCommand},
+  {"p",           "PC set / query",                         1, PCommand},
+  {"q",           "Quit ",                                  0, QuitCommand},
+  {"r",           "Display registers",                      1, RegistersCommand},
+  {"s",           "Stack",                                  1, StackCommand},
+  {"t",           "Trace",                                  1, TraceCommand},
+  {"te",          "Timer enable",                           1, TimerEnableCommand},
+  {"td",          "Timer disable",                          1, TimerDisableCommand},
+  {"u",           "Unassemble",                             1, UnassembleCommand},
+  {"h",           "Help",                                   0, HelpCommand},
+  {"reset",       "Reset processor",                        1, DwReset},
+  {"qdd",         "Quit and temporarily disable debugWIRE", 1, DisableCommand},
+  {"help",        "Help",                                   0, HelpCommand},
+  {"device",      "Device connection port",                 0, DeviceCommand},
+  {"verbose",     "Set verbose mode",                       0, VerboseCommand},
+  {"gdbserver",   "Start server for GDB",                   1, GdbserverCommand},
+  {"",            0,                                        0, EmptyCommand},
 };
 
 
