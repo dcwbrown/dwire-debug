@@ -118,7 +118,7 @@ DwDebug minimises flash wear as follows:
 
  - Flash pages that already contain the data being loaded are not touched.
 
- - Flash pages are not erased unless the data being loaded contains '1' bits where the flash conatins '0's.
+ - Flash pages are not erased unless the data being loaded contains '1' bits where the flash contains '0's.
 
  - When loading a page that differs from flash and is all 0xFF, the flash page will only be erased (which by itself leaves the flash as all 0xFFs.)
 
