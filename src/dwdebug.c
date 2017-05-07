@@ -1,7 +1,8 @@
 //        dwdebug - debugger for DebugWIRE on ATtiny45.
 
-
 #include "system/system.c"
+//#include "../../../library/opendevice.c"
+//#include "../../../library/littleWire.c"
 #include "GlobalData.c"
 #include "dwire/dwire.c"
 #include "commandline/commandline.c"

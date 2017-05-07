@@ -2,16 +2,15 @@
 
 
 
-void DeviceBreak() {
-  Wsl("\rDevice reached breakpoint.                                        ");
-  DwSync();
-  DwReconnect();
-}
+//void DeviceBreak() {
+//  Wsl("\rDevice reached breakpoint.                                        ");
+//  DwSync();
+//  DwReconnect();
+//}
 
 void KeyboardBreak() {
-  Wsl("Keyboard requested break."); SkipEoln();
-  SerialBreak(SerialPort, BreakLength);
-  DwSync();
+  Ws("Keyboard requested break. "); SkipEoln();
+  DwBreakAndSync();
   DwReconnect();
 }
 
@@ -21,15 +20,22 @@ void KeyboardBreak() {
 
   void GoWaitLoop(FileHandle fd) {
     while (1) {
-      // See if there's anything ready at the serial port
-      u8 ch;
-      int lengthRead = Read(SerialPort, &ch, 1);  // Note - waits for the comm timeout
-      if (lengthRead) {
-        // Device has hit a breakpoint
-        Assert(ch == 0);
-        DeviceBreak();
+      //  // See if there's anything ready at the serial port
+      //  u8 ch;
+      //  int lengthRead = Read(SerialPort, &ch, 1);  // Note - waits for the comm timeout
+      //  if (lengthRead) {
+      //    // Device has hit a breakpoint
+      //    Assert(ch == 0);
+      //    DeviceBreak();
+      //    break;
+      //  }
+
+      if (dwReachedBreakpoint()) {
+        Wsl("\rDevice reached breakpoint.                                        ");
+        DwReconnect();
         break;
       }
+
       // See if there's a user pressing a key
       if (Interactive(Input)) {
         DWORD bytesAvailable;
@@ -60,7 +66,7 @@ void KeyboardBreak() {
       timeout = (struct timeval){10,0}; // 10 seconds
       if(select(max(fd, SerialPort)+1, &readfds, 0, &excpfds, &timeout) > 0) {
         // Something became available
-        if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
+        //if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
         if (FD_ISSET(fd,         &readfds)) {KeyboardBreak(); break;}
         if (FD_ISSET(fd,         &excpfds)) {KeyboardBreak(); break;}
       } else {

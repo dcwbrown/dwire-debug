@@ -15,7 +15,8 @@ void PCommand()            {PC = ReadInstructionAddress("PC");}
 void BPCommand()           {BP = ReadInstructionAddress("BP");}
 void BCCommand()           {BP = -1;}
 void QuitCommand()         {QuitRequested = 1;}
-void DisableCommand()      {DwDisable(); QuitRequested = 1;}
+void DisableCommand()      {DwDisable(); Exit(0);}
+void QuitPauseCommand()    {Exit(0);}
 void FailCommand()         {Fail("FailCommand ...");}
 void EmptyCommand()        {Sb(); if (!DwEoln()) {HelpCommand();}}
 void VerboseCommand()      {Verbose = 1;}
@@ -41,40 +42,45 @@ void TraceCommand() {
 
 
 struct {char *name; char *help; int requiresConnection; void (*handler)();} Commands[] = {
-  {"b",           "Set breakpoint",                         1, BPCommand},
-  {"bc",          "Clear breakpoint",                       1, BCCommand},
-  {"d",           "Dump data bytes",                        1, DumpDataBytesCommand},
-  {"dw",          "Dump data words",                        1, DumpDataWordsCommand},
-  {"f",           "Dump flash bytes",                       1, DumpFlashBytesCommand},
-  {"fw",          "Dump flash words",                       1, DumpFlashWordsCommand},
-  {"l",           "Load file",                              1, LoadFileCommand},
-  {"g",           "Go",                                     1, GoCommand},
-  {"p",           "PC set / query",                         1, PCommand},
-  {"q",           "Quit ",                                  0, QuitCommand},
-  {"r",           "Display registers",                      1, RegistersCommand},
-  {"s",           "Stack",                                  1, StackCommand},
-  {"t",           "Trace",                                  1, TraceCommand},
-  {"te",          "Timer enable",                           1, TimerEnableCommand},
-  {"td",          "Timer disable",                          1, TimerDisableCommand},
-  {"u",           "Unassemble",                             1, UnassembleCommand},
-  {"h",           "Help",                                   0, HelpCommand},
-  {"reset",       "Reset processor",                        1, DwReset},
-  {"qdd",         "Quit and temporarily disable debugWIRE", 1, DisableCommand},
-  {"help",        "Help",                                   0, HelpCommand},
-  {"device",      "Device connection port",                 0, DeviceCommand},
-  {"verbose",     "Set verbose mode",                       0, VerboseCommand},
-  {"gdbserver",   "Start server for GDB",                   1, GdbserverCommand},
-  {"",            0,                                        0, EmptyCommand},
+  {"b",           "Set breakpoint",                                1, BPCommand},
+  {"bc",          "Clear breakpoint",                              1, BCCommand},
+  {"d",           "Dump data bytes",                               1, DumpDataBytesCommand},
+  {"dw",          "Dump data words",                               1, DumpDataWordsCommand},
+  {"wd",          "Write data bytes",                              1, WriteDataBytesCommand},
+  {"e",           "Dump EEPROM bytes",                             1, DumpEEPROMBytesCommand},
+  {"ew",          "Dump EEPROM words",                             1, DumpEEPROMWordsCommand},
+  {"we",          "Write EEPROM bytes",                            1, WriteEEPROMBytesCommand},
+  {"f",           "Dump flash bytes",                              1, DumpFlashBytesCommand},
+  {"fw",          "Dump flash words",                              1, DumpFlashWordsCommand},
+  {"wf",          "Write flash bytes",                             1, WriteFlashBytesCommand},
+  {"l",           "Load file",                                     1, LoadFileCommand},
+  {"g",           "Go",                                            1, GoCommand},
+  {"p",           "PC set / query",                                1, PCommand},
+  {"qr",          "Quit with device running",                      1, QuitCommand},
+  {"qs",          "Quit with device stopped",                      0, QuitPauseCommand},
+  {"qi",          "Quit in ISP mode until next power cycle",       1, DisableCommand},
+  {"r",           "Display registers",                             1, RegistersCommand},
+  {"s",           "Stack",                                         1, StackCommand},
+  {"t",           "Trace",                                         1, TraceCommand},
+  {"te",          "Timer enable",                                  1, TimerEnableCommand},
+  {"td",          "Timer disable",                                 1, TimerDisableCommand},
+  {"u",           "Unassemble",                                    1, UnassembleCommand},
+  {"h",           "Help",                                          0, HelpCommand},
+  {"reset",       "Reset processor",                               1, DwReset},
+  {"config",      "Display fuses and lock bits",                   1, DumpConfig},
+  {"help",        "Help",                                          0, HelpCommand},
+  {"verbose",     "Set verbose mode",                              0, VerboseCommand},
+  {"gdbserver",   "Start server for GDB",                          1, GdbserverCommand},
+  {"",            0,                                               0, EmptyCommand},
 };
 
 
-enum {unconnected, connected} State = unconnected;
 int IsInteractive = 0;
 
 
 void HelpCommand() {
   for (int i=0; Commands[i].help; i++) {
-    Ws("  "); Ws(Commands[i].name); Wt(12); Ws("- "); Wsl(Commands[i].help);
+    Ws("  "); Ws(Commands[i].name); Wt(12); Ws("- "); Ws(Commands[i].help); Wsl(".");
   }
 }
 
@@ -82,7 +88,6 @@ void HelpCommand() {
 void HandleCommand(const char *cmd) {
   for (int i=0; i<countof(Commands); i++) {
     if (!strcmp(cmd, Commands[i].name)) {
-      if (State == unconnected  &&  Commands[i].requiresConnection) {ConnectSerialPort(0);}
       Commands[i].handler();
       return;
     }
@@ -105,12 +110,7 @@ void ParseAndHandleCommand() {
 
 void Prompt() {
   if (BufferTotalContent() == 0  &&  IsInteractive) {
-    if (OutputPosition == 0) {
-      switch(State) {
-        case unconnected: Ws("Unconnected.");   break;
-        case connected:   DisassemblyPrompt();  break;
-      }
-    }
+    if (OutputPosition == 0) {DisassemblyPrompt();}
     Wt(HasLineNumbers ? 60 : 40); Ws("> "); Flush();
     HorizontalPosition = 0;  // Let SimpleOutput know user returned to column 1
   } else {
@@ -120,15 +120,15 @@ void Prompt() {
 
 
 void UI() {
+  DwConnect();
   PreloadInput(GetCommandParameters());
   while (1) {
-    if (QuitRequested) {DwGo(); Close(SerialPort); SerialPort = 0; return;}
+    if (QuitRequested) {DwGo(); /*usb_close(Port); Port = 0; */ return;}
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
     if (IsInteractive) {
       if (setjmp(FailPoint)) {SkipWhile(NotEoln); SkipEoln();}
     }
     Prompt();
     ParseAndHandleCommand();
-    if (State == unconnected  &&  SerialPort) {State = connected;}
   }
 }

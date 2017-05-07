@@ -1,44 +1,5 @@
+#if 0
 #ifdef windows
-
-  char *DosDevices = 0;
-  char *CurrentDevice = 0;
-
-  void LoadDosDevices() {
-    if (DosDevices == (char*)-1) {CurrentDevice=0; return;}
-    int size = 24576;
-    int used = 0;
-    while (1) {
-      DosDevices = Allocate(size);
-      used = QueryDosDevice(0, DosDevices, size);
-      if (used) {break;}
-      int error = GetLastError();
-      Free(DosDevices);
-      if (error != ERROR_INSUFFICIENT_BUFFER) {break;}
-      size *= 2;
-    }
-    if (used) {CurrentDevice = DosDevices;}
-  }
-
-  void AdvanceCurrentDevice() {
-    while (*CurrentDevice) {CurrentDevice++;}
-    CurrentDevice++;
-    if (!*CurrentDevice) {CurrentDevice = 0;}
-  }
-
-  void NextUsbSerialPort() {
-    if (!DosDevices) {LoadDosDevices();}
-    while (CurrentDevice  &&  strncmp("COM", CurrentDevice, 3)) {AdvanceCurrentDevice();}
-    if (CurrentDevice) {
-      strncpy(UsbSerialPortName, CurrentDevice, 6);
-      UsbSerialPortName[6] = 0;
-      AdvanceCurrentDevice();
-    } else {
-      UsbSerialPortName[0] = 0;
-      Free(DosDevices);
-      DosDevices = 0;
-      CurrentDevice = 0;
-    }
-  }
 
 #else
 
@@ -306,3 +267,4 @@ void ConnectSerialPort(int baud) {
     }
   }
 }
+#endif

@@ -1,4 +1,5 @@
 #include "SystemServices.c"
+#include "SystemUSB.c"
 #include "SimpleOutput.c"
 #include "SimpleInput.c"
 #include "SerialPort.c"

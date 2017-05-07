@@ -13,6 +13,7 @@
   #include <setjmp.h>
   #undef min
   #undef max
+  void delay(unsigned int ms) {Sleep(ms);}
 #else
   #include <sys/types.h>
   #include <sys/socket.h>
@@ -33,6 +34,7 @@
     #include <gtk/gtk.h>
   #endif
   #include <setjmp.h>
+  void delay(unsigned int ms) {usleep(ms*1000);}
 #endif
 
 
@@ -50,7 +52,7 @@ typedef signed   long long s64;
 
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
 #define ArrayAddressAndLength(array) array, sizeof(array)
-#define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
+#define Bytes(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 int min(int a, int b) {return a<b ? a : b;}
 int max(int a, int b) {return a>b ? a : b;}

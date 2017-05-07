@@ -1,79 +1,233 @@
 /// DebugPort.c
 
-void ConnectSerialPort();
+// DebugWire output command flag bits:
+//
+//     00000001    1     Send break
+//     00000010    2     Set timing parameter
+//     00000100    4     Send bytes
+//     00001000    8     Wait for start bit
+//     00010000   16     Read bytes
+//     00100000   32     Read pulse widths
+//
+// Supported combinations
+//    33 - Send break and read pulse widths
+//     2 - Set timing parameters
+//     4 - Send bytes
+//    20 - Send bytes and read response (normal command)
+//    28 - Send bytes, wait and read response (e.g. after programming, run to BP)
+//    36 - Send bytes and receive 0x55 pulse widths
+//
+// Note that the wait for start bit loop also monitors the dwState wait for start
+// bit flag, and is arranged so that sending a 33 (send break and read pulse widths)
+// will abort a pending wait.
 
-void DwSerialWrite(const u8 *bytes, int length) {
-  if (!SerialPort) {ConnectSerialPort();}
-  SerialWrite(SerialPort, bytes, length);
+
+
+#define USB_TIMEOUT 5000
+#define OUT_TO_LW   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_OUT
+#define IN_FROM_LW  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN
+
+
+void PortFail(char *msg) {usb_close(Port); Port = 0; Fail(msg);}
+
+
+static uint32_t cyclesPerPulse;
+
+int SetDwireBaud() { // returns 1 iff success
+  int status;
+  int tries;
+  int i;
+  uint16_t times[64];
+
+  tries = 0;  status = 0;
+  while ((tries < 5)  &&  (status <= 0)) {
+    tries++;
+    delay(20);
+    // Read back timings
+    status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, (char*)times, sizeof(times), USB_TIMEOUT);
+    //Ws("Read back timimgs status: "); Wd(status,1); Wsl(".");
+  }
+  if (status < 18) {return 0;}
+  uint32_t measurementCount = status / 2;
+
+  //Ws("  Pulse times:");
+  //for (i=0; i<measurementCount; i++) {Wc(' '); Wd(times[i],1);}
+  //Wsl(".");
+
+  // Average measurements and determine baud rate as pulse time in device cycles.
+
+  cyclesPerPulse = 0;
+  for (i=measurementCount-9; i<measurementCount; i++) cyclesPerPulse += times[i];
+
+  // Pulse cycle time for each measurement is 6*measurement + 8 cyclesPerPulse.
+  cyclesPerPulse = (6*cyclesPerPulse) / 9  +  8;
+
+  // Determine timing loop iteration counts for sending and receiving bytes
+
+  times[0] = (cyclesPerPulse-8)/4;  // dwBitTime
+
+  // Send timing parameters to digispark
+  status = usb_control_msg(Port, OUT_TO_LW, 60, 2, 0, (char*)times, 2, USB_TIMEOUT);
+  if (status < 0) {PortFail("Failed to set debugWIRE port baud rate");}
+
+  return 1;
 }
-#define SerialWrite "Don't use SerialWrite, use DwSerialWrite"
-
-void DwSerialRead(u8 *buf, int len) {
-  if (!SerialPort) {ConnectSerialPort();}
-  SerialRead(SerialPort, buf, len);
-}
-#define SerialRead "Don't use SerialRead, use DwSerialRead"
 
 
 
 
-
-
-
-/// DebugWire port access
-
-void DwExpect(const u8 *bytes, int len) {
-  u8 actual[len];
-  DwSerialRead(actual, len);
-  for (int i=0; i<len; i++) {
-    if (actual[i] != bytes[i]) {
-      Ws("WriteDebug, byte "); Wd(i+1,1); Ws(" of "); Wd(len,1);
-      Ws(": Read "); Wx(actual[i],2); Ws(" expected "); Wx(bytes[i],2); Wl(); Fail("");
+void DwBreakAndSync() {
+  for (int tries=0; tries<25; tries++) {
+    // Tell digispark to send a break and capture any returned pulse timings
+    //Wsl("Commanding digispark break and capture.");
+    int status = usb_control_msg(Port, OUT_TO_LW, 60, 33, 0, 0, 0, USB_TIMEOUT);
+    if (status >= 0) {
+      delay(120); // Wait while digispark sends break and reads back pulse timings
+      // Get any pulse timings back from digispark
+      if (SetDwireBaud()) {
+        Ws("Connected at "); Wd(16500000 / cyclesPerPulse, 1); Wsl(" baud.");
+        return;
+      }
     }
+    Wc('.'); Flush();
+  }
+  Wl(); PortFail("Digispark/LittleWire could not capture pulse timings after 25 break attempts.");
+}
+
+
+
+
+void ConnectPort() {
+  FindLittlewires();
+  if (LittleWireDeviceCount <= 0) Fail("No LittleWire devices available.");
+  Port = usb_open(LittleWireDevices[0]);
+  if (!Port) {Fail("Couldn't connect to digispark.");}
+  DwBreakAndSync();
+}
+
+
+
+int dwReachedBreakpoint() {
+  char dwBuf[10];
+  int status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
+  //if (status < 0) {
+  //  Ws("dwReachedBreakpoint: dwBuf read returned "); Wd(status,1);
+  //  Ws(", dwBuf[0] = $"); Wx(dwBuf[0],2); Wsl(".");
+  //}
+  return status >= 0  &&  dwBuf[0] != 0;
+}
+
+
+// Low level send to device.
+
+// state = 0x04 - Just send the bytes
+// state = 0x14 - Send bytes and read response bytes
+// state = 0x24 - Send bytes and record response pulse widths
+
+void dwUSBSendBytes(u8 state, char *out, int outlen) {
+
+  if (!Port) ConnectPort();
+
+  int tries  = 0;
+  int status = usb_control_msg(Port, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
+
+  while ((tries < 50) && (status <= 0)) {
+    // Wait for previous operation to complete
+    tries++;
+    delay(20);
+    status = usb_control_msg(Port, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
+  }
+  if (status < outlen) {Ws("Failed to send bytes to AVR, status "); Wd(status,1); PortFail("");}
+  delay(3); // Wait at least until digispark starts to send the data.
+}
+
+
+// Buffer accumulating debugWIRE data to be sent to the device.
+// We buffer data in order to minimise the number of USB transactions used,
+// but we also guarantee that a debugWIRE read transaction includes at leasr
+// one byte of data to be sent first.
+
+char OutBufBytes[128];
+int  OutBufLength = 0;
+
+void dwBufferFlush(u8 state) {
+  if (OutBufLength > 0) {
+    dwUSBSendBytes(state, OutBufBytes, OutBufLength);
+    OutBufLength = 0;
   }
 }
 
 
-void DwWrite(const u8 *bytes, int len) {
-  DwSerialWrite(bytes, len);
-  DwExpect(bytes, len);
+// Exposed APIs:
+//
+//   DwSend  - send bytes; (Bytes are buffered and will be sent on next
+//                          DwFlush, DwReceive or DwCapture call.)
+//   DwFlush - Flush buffer to device
+
+void DwSend(const u8 *out, int outlen) {
+  while (OutBufLength + outlen > sizeof(OutBufBytes)) {
+    // Total (buffered and passed here) execeeds maximum transfer length (128
+    // bytes = OutBuf size). Send buffered and new data until there remains
+    // between 1 and 128 bytes still to send in the buffer.
+    int lenToCopy = sizeof(OutBufBytes)-OutBufLength;
+    memcpy(OutBufBytes+OutBufLength, out, lenToCopy);
+    dwUSBSendBytes(0x04, OutBufBytes, sizeof(OutBufBytes));
+    OutBufLength = 0;
+    out += lenToCopy;
+    outlen -= lenToCopy;
+  }
+  Assert(OutBufLength + outlen <= sizeof(OutBufBytes));
+  memcpy(OutBufBytes+OutBufLength, out, outlen);
+  OutBufLength += outlen;
+  // Remainder stays in buffer to be sent with next read request, or on a
+  // flush call.
 }
+
+
+void DwFlush() {
+  dwBufferFlush(0x14);
+}
+
+
+int DwReceive(u8 *in, int inlen) {
+  Assert(inlen <= 128);
+  int tries  = 0;
+  int status = 0;
+
+  dwBufferFlush(0x14);
+
+  while ((tries < 50) && (status <= 0)) {
+    tries++;
+    delay(20);
+    // Read back dWIRE bytes
+    status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, (char*)in, inlen, USB_TIMEOUT);
+  }
+  return status;
+}
+
+int DwReadByte() {u8 byte = 0; DwReceive(&byte, 1); return byte;}
+int DwReadWord() {u8 buf[2] = {0}; DwReceive(buf, 2); return (buf[0] << 8) | buf[1];}
+
+
+void DwSync() {
+  dwBufferFlush(0x24);
+  if (!SetDwireBaud()) {PortFail("Could not read back timings following transfer and sync command");}
+}
+
+void DwWait() {
+  dwBufferFlush(0x0C);  // Send bytes and wait for dWIRE line state change
+}
+
+
+
+
+
+
 
 
 u8 hi(int w) {return (w>>8)&0xff;}
 u8 lo(int w) {return (w   )&0xff;}
 
-
-void DwWriteWord(int word) {
-  DwWrite(ByteArrayLiteral(hi(word), lo(word)));
-}
-
-
-int DwReadByte() {u8 byte   = 0;   DwSerialRead(&byte, 1); return byte;}
-int DwReadWord() {u8 buf[2] = {0}; DwSerialRead(buf, 2);   return (buf[0] << 8) | buf[1];}
-
-
-
-
-void DwSync() { // Used after reset/go/break
-  u8 byte = 0;
-  while ((byte = DwReadByte()) == 0x00) {/*Ws("0 "); Flush();*/}     // Eat 0x00 bytes generated by line at break (0v)
-  while (byte == 0xFF) {/*Ws("FF "); Flush();*/ byte = DwReadByte();}  // Eat 0xFF bytes generated by line going high following break.
-  if (byte != 0x55) {Ws("Didn't receive 0x55 on reconnection, got "); Wx(byte,2); Fail("");}
-}
-
-
-
-
-void CheckDevice() {if (DeviceType<0) {Fail("Device not recognised.");}}
-int  IoregSize()   {CheckDevice(); return Characteristics[DeviceType].ioregSize;}
-int  SramSize()    {CheckDevice(); return Characteristics[DeviceType].sramSize;}
-int  EepromSize()  {CheckDevice(); return Characteristics[DeviceType].eepromSize;}
-int  FlashSize()   {CheckDevice(); return Characteristics[DeviceType].flashSize;}   // In bytes
-int  PageSize()    {CheckDevice(); return Characteristics[DeviceType].pageSize;}    // In bytes
-int  DWDRreg()     {CheckDevice(); return Characteristics[DeviceType].DWDR;}
-int  DWDRaddr()    {CheckDevice(); return Characteristics[DeviceType].DWDR + 0x20;} // IO regs come after the 32 regs r0-r31
-int  DataLimit()   {CheckDevice(); return 32 + IoregSize() + SramSize();}
 
 void SetSizes(int signature) {
   int i=0; while (Characteristics[i].signature  &&  Characteristics[i].signature != signature) {i++;}
@@ -90,51 +244,70 @@ void SetSizes(int signature) {
 
 
 
-void DwReadRegisters(u8 *registers, int first, int count) {
-  //wsl("Read Registers.");
-  // Read Registers (destroys PC and BP)
-  DwWrite(ByteArrayLiteral(
-    0x66,                 // Access registers/memory mode
-    0xD0, 0, first,       // Set PC = first
-    0xD1, 0, first+count, // Set BP = limit
-    0xC2, 1, 0x20         // Start register read
-  ));
-  DwSerialRead(registers, count);
-}
+void DwSetPC(u16 pc) {DwSend(Bytes(0xD0, hi(pc)|0x10, lo(pc)));}
+void DwSetBP(u16 bp) {DwSend(Bytes(0xD1, hi(bp)|0x10, lo(bp)));}
+
+void DwInst(u16 inst) {DwSend(Bytes(0xD2, hi(inst), lo(inst), 0x23));}
+
+void DwIn(u8 reg, u16 ioreg)  {DwInst(0xB000 | ((ioreg << 5) & 0x600) | ((reg << 4) & 0x01F0) | (ioreg & 0x000F));}
+void DwOut(u16 ioreg, u8 reg) {DwInst(0xB800 | ((ioreg << 5) & 0x600) | ((reg << 4) & 0x01F0) | (ioreg & 0x000F));}
 
 
-void DwWriteRegisters(u8 *registers, int first, int count) {
-  //wsl("Write Registers.");
-  // Write Registers (destroys PC and BP)
-  DwWrite(ByteArrayLiteral(
-    0x66,                 // Access registers/memory mode
-    0xD0, 0, first,       // Set PC = first
-    0xD1, 0, first+count, // Set BP = limit
-    0xC2, 5, 0x20         // Start register write
-  ));
-  DwWrite(registers, count);
+
+// Register access
+//
+
+
+void DwGetRegs(int first, u8 *regs, int count) {
+  if (count == 1) {
+    DwOut(DWDRreg(), first);
+  } else {
+    DwSetPC(first);
+    DwSetBP(first+count);
+    DwSend(Bytes(0x66, 0xC2, 1, 0x20)); // Start register read
+  }
+  DwReceive(regs, count);
 }
+
+void DwSetReg(int reg, u8 val) {DwIn(reg, DWDRreg()); DwSend(Bytes(val));}
+
+void DwSetRegs(int first, const u8 *regs, int count) {
+  if (count <= 3) {
+    while (count > 0) {DwSetReg(first, *regs); first++; regs++; count--;}
+  } else {
+    DwSetPC(first);
+    DwSetBP(first+count);
+    DwSend(Bytes(0x66, 0xC2, 0x05, 0x20)); // Start register write
+    DwSend(regs, count);
+  }
+}
+
+void DwSetZ(u16 z) {DwSetRegs(30, (u8*)&z, 2);}
+
+
+
+// Data area access
+//
 
 
 void DwUnsafeReadAddr(int addr, int len, u8 *buf) {
   // Do not read addresses 30, 31 or DWDR as these interfere with the read process
-  DwWrite(ByteArrayLiteral(
-    0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,       // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-    0xC2, 5, 0x20, lo(addr), hi(addr),      // Write SRAM address of first IO register to Z
-    0xD0, 0,0, 0xD1, hi(len*2), lo(len*2),  // Set PC=0, BP=2*length
-    0xC2, 0, 0x20                           // Start the read
-  ));
-  DwSerialRead(buf, len);
+  DwSetZ(addr);
+  DwSetPC(0);
+  DwSetBP(2*len);
+  DwSend(Bytes(0x66, 0xC2, 0x00, 0x20)); // Start data area read
+  DwReceive(buf, len);
 }
 
 void DwReadAddr(int addr, int len, u8 *buf) {
-  // Read range before r30
-  int len1 = min(len, 30-addr);
+  // Read range before r28
+  int len1 = min(len, 28-addr);
   if (len1 > 0) {DwUnsafeReadAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
 
-  // Registers 30 and 31 are cached - use the cached values.
-  if (addr == 30  &&  len > 0) {buf[0] = R30; addr++; len--; buf++;}
-  if (addr == 31  &&  len > 0) {buf[0] = R31; addr++; len--; buf++;}
+  // Some registers are cached - use the cached values.
+  while (addr >= 28  &&  addr <= 31  &&  len > 0) {
+    *buf = R[addr];  addr++;  len--;  buf++;
+  }
 
   // Read range from 32 to DWDR
   int len2 = min(len, DWDRaddr()-addr);
@@ -143,131 +316,86 @@ void DwReadAddr(int addr, int len, u8 *buf) {
   // Provide dummy 0 value for DWDR
   if (addr == DWDRaddr()  &&  len > 0) {buf[0] = 0; addr++; len--; buf++;}
 
-  // Read anything beyond DWDR
+  // Read anything beyond DWDR no more than 128 bytes at a time
+  while (len > 128) {DwUnsafeReadAddr(addr, 128, buf); addr+=128; len -=128; buf+=128;}
   if (len > 0) {DwUnsafeReadAddr(addr, len, buf);}
 }
 
 
-void DwUnsafeWriteAddr(int addr, int len, const u8 *buf) {
-  // Do not write addresses 30, 31 or DWDR as these interfere with the write process
-  DwWrite(ByteArrayLiteral(
-    0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,           // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-    0xC2, 5, 0x20, lo(addr), hi(addr),          // Write SRAM address of first IO register to Z
-    0xD0, 0,1, 0xD1, hi(len*2+1), lo(len*2+1),  // Set PC=0, BP=2*length
-    0xC2, 4, 0x20                               // Start the write
-  ));
-  DwWrite(buf, len);
-}
-
 void DwWriteAddr(int addr, int len, const u8 *buf) {
-  // Write range before r30
-  int len1 = min(len, 30-addr);
-  if (len1 > 0) {DwUnsafeWriteAddr(addr, len1, buf); addr+=len1; len-=len1; buf+=len1;}
-
-  // Registers 30 and 31 are cached - update the cached values.
-  if (addr == 30  &&  len > 0) {R30 = buf[0]; addr++; len--; buf++;}
-  if (addr == 31  &&  len > 0) {R31 = buf[0]; addr++; len--; buf++;}
-
-  // Write range from 32 to DWDR
-  int len2 = min(len, DWDRaddr()-addr);
-  if (len2 > 0) {DwUnsafeWriteAddr(addr, len2, buf); addr+=len2; len-=len2; buf+=len2;}
-
-  // (Ignore anything for DWDR - as the DebugWIRE port it is in use and wouldn't retain a value anyway)
-  if (addr == DWDRaddr()  &&  len > 0) {addr++; len--; buf++;}
-
-  // Write anything beyond DWDR
-  if (len > 0) {DwUnsafeWriteAddr(addr, len, buf);}
-}
-
-
-void DwReadFlash(int addr, int len, u8 *buf) {
+  DwSetZ(addr);
+  DwSetBP(3);
+  DwSend(Bytes(0x66, 0xC2, 0x04)); // Set data area write mode
   int limit = addr + len;
-  if (limit > FlashSize()) {Fail("Attempt to read beyond end of flash.");}
   while (addr < limit) {
-    int length = min(limit-addr, 256); // Read no more than 256 bytes at a time.
-    //Ws("ReadFlashBlock at $"); Wx(addr,1); Ws(", length $"); Wx(length,1); Wl();
-    DwWrite(ByteArrayLiteral(
-      0x66, 0xD0, 0,0x1e, 0xD1, 0,0x20,           // Set PC=0x001E, BP=0x0020 (i.e. address register Z)
-      0xC2, 5, 0x20, lo(addr),hi(addr),           // Write addr to Z
-      0xD0, 0,0, 0xD1, hi(2*length),lo(2*length), // Set PC=0, BP=2*len
-      0xC2, 2, 0x20                               // Read length bytes from flash starting at first
-    ));
-    DwSerialRead(buf, length);
-    addr += length;
-    buf  += length;
+    if (addr < 28  ||  (addr > 31  &&  addr != DWDRaddr())) {
+      DwSetPC(1);
+      DwSend(Bytes(0x20, *buf)); // Write one byte to data area and increment Z
+    } else {
+      if (addr >= 28  &&  addr <= 31) {R[addr] = *buf;}
+      DwSetZ(addr+1);
+    }
+    addr++;
+    buf++;
   }
 }
 
 
+
+// Start / stop
+//
+
+
 void DwReconnect() {
-  DwWrite(ByteArrayLiteral(0xF0)); PC = 2*(DwReadWord()-1);
-  u8 buf[2];
-  DwReadRegisters(buf, 30, 2);
-  R30 = buf[0];
-  R31 = buf[1];
+  DwSend(Bytes(0xF0));  // Request current PC
+  PC = (2 * (DwReadWord() - 1) % FlashSize());
+  DwGetRegs(28, R+28, 4); // Cache r28 through r31
 }
 
 void DwConnect() {
+  DwSend(Bytes(0xF3));  // Request signature
+  SetSizes(DwReadWord());
   DwReconnect();
-  DwWrite(ByteArrayLiteral(0xF3)); SetSizes(DwReadWord());
 }
 
 void DwReset() {
-  //SerialBreak(SerialPort, BreakLength);
-  DwWrite(ByteArrayLiteral(0x07));
+  DwSend(Bytes(0x07));  // dWIRE reset
   DwSync();
   DwReconnect();
 }
 
 void DwDisable() {
-  DwWrite(ByteArrayLiteral(0x06));
+  DwSend(Bytes(0x06));
+  DwFlush();
 }
 
 
 void DwTrace() { // Execute one instruction
-  int p = PC/2;
-  DwWrite(ByteArrayLiteral(
-    0x66,                      // Register or memory access mode
-    0xD0, 0, 30,               // Set up to set registers starting from r30
-    0xD1, 0, 32,               // Register limit is 32 (i.e. stop at r31)
-    0xC2, 5, 0x20,             // Select reigster write mode and start
-    R30, R31,                  // Cached value of r30 and r31
-    0x60, 0xD0, hi(p), lo(p),  // Address to restart execution at
-    0x31                       // Continue execution (single step)
-  ));
-
-  //SerialDump();
-
-  DwSync(); DwReconnect();
+  DwSetRegs(28, R, 4);       // Restore cached registers
+  DwSetPC(PC/2);             // Trace start address
+  DwSend(Bytes(0x60, 0x31)); // Single step
+  DwSync();
+  DwReconnect();
 }
 
 
 void DwGo() { // Begin executing.
-  u8 context = TimerEnable ? 0x40 : 0x60;
-  int p = PC/2;
-  int b = BP/2;
-
-  DwWrite(ByteArrayLiteral(
-    0x66,                      // Register or memory access mode
-    0xD0, 0, 30,               // Set up to set registers starting from r30
-    0xD1, 0, 32,               // Register limit is 32 (i.e. stop at r31)
-    0xC2, 5, 0x20,             // Select reigster write mode and start
-    R30, R31                   // Cached value of r30 and r31
-  ));
-
-  if (BP >= 0) {
-    DwWrite(ByteArrayLiteral(
-      0xD1, hi(b), lo(b)       // Set breakpoint for execution to stop at
-    ));
-    context |= 0x01;
+  DwSetRegs(28, R, 4);  // Restore cached registers
+  DwSetPC(PC/2);        // Execution start address
+  if (BP < 0) {         // Prepare to start execution with no breakpoint set
+    DwSend(Bytes(TimerEnable ? 0x40 : 0x60)); // Set execution context
+  } else {              // Prpare to start execution with breakpoint set
+    DwSetBP(BP/2);      // Breakpoint address
+    DwSend(Bytes(TimerEnable ? 0x41 : 0x61)); // Set execution context including breakpoint enable
   }
-
-  DwWrite(ByteArrayLiteral(
-    context,
-    0xD0, hi(p), lo(p),        // Address to restart execution at
-    0x30                       // Continue execution (go)
-  ));
+  DwSend(Bytes(0x30)); // Continue execution (go)
+  DwWait();
 }
+
+
+
+
+
 
 
 /*
@@ -305,29 +433,30 @@ t: disable timers
 
 83      10 d0 xx dd   Clock div
 
-C2      11 00 00 10   Set read/write mode (folowed by SRAM 0, Regs 1, Flash 2)
+C2      11 00 00 10   Set read/write mode (folowed by 0/4 SRAM, 1/5 regs, 2 flash)
 
 w:  word operation (low byte only if 0)
 cc: control regs: 0: PC, 1: BP, 2: IR, 3: Sig.
-Cx/Dx   11 0w xx cc   Set control reg
-Ex/Fx   11 1w xx cc   Read control reg
+Cx/Dx   11 0w xx cc   Set control reg  (Cx for byte register, Dx for word register)
+Ex/Fx   11 1w xx cc   Read control reg (Ex for byte register, Fx for word register)
 
 
 Modes:
 
-0 (SRAM) repeating instructions:
-
+SRAM repeating instructions:
+C2 00                   C2 04
 ld  r16,Z+       or     in r16,DWDR
 out DWDR,r16     or     st Z+,r16
 
-1 (Regs) repeating instructions
+Regs repeating instructions
+C2 01            or     C2 05
 out DWDR,r0      or     in r0,DWDR
 out DWDR,r1      or     in r1,DWDR
 out DWDR,r2      or     in r2,DWDR
 ...                     ....
 
-2 (Flash) repeating instructions
-
+Flash repeating instructions
+C2 03
 lpm r?,Z+        or    ?unused
 out SWDR,r?      or    ?unused
 
@@ -337,33 +466,41 @@ out SWDR,r?      or    ?unused
 
 
 
-40/60   0   0   0   0   0   GO                         Set GO context  (No bp?)
-41/61   0   0   0   0   1   Run to cursor              Set run to cursor context (Run to hardware BP?)
-43/63   0   0   0   1   1   Step out                   Set step out context (Run to return instruction?)
-44/64   0   0   1   0   0   Write flash page           Set up for single step using loaded instruction
-46/66   0   0   1   1   0   Use virtual instructions   Set up for read/write using repeating simulated instructions
-59/79   1   1   0   0   1   Step in/autostep           Set step-in / autostep context or when resuming a sw bp (Execute a single instruction?)
-5A/7A   1   1   0   1   0   Single step                Set single step context
-        ^   ^   ^   ^   ^
-        |   |   |   '---'------ 00 no break, 01 Break at BP, 10 ?, 11 ? break at return?
-        |   |   '-------------- PC represents Flash (0) or virtual space (1)
-        '---'------------------
+40/60   0 1  x  0 0  0  0 0   GO                         Set GO context  (No bp?)
+41/61   0 1  x  0 0  0  0 1   Run to cursor              Set run to cursor context (Run to hardware BP?)
+43/63   0 1  x  0 0  0  1 1   Step out                   Set step out context (Run to return instruction?)
+44/64   0 1  x  0 0  1  0 0   Write flash page           Set up for single step using loaded instruction
+46/66   0 1  x  0 0  1  1 0   Use virtual instructions   Set up for read/write using repeating simulated instructions
+59/79   0 1  x  1 1  0  0 1   Step in/autostep           Set step-in / autostep context or when resuming a sw bp (Execute a single instruction?)
+5A/7A   0 1  x  1 1  0  1 0   Single step                Set single step context
+             |  | |  |  | |
+             |  | |  |  '-'------ 00 no break
+             |  | |  |  '-'------ 01 break when PC = BP, or single step resuming a sw bp
+             |  | |  |  '-'------ 10 Used for executing from virtual space OR single step
+             |  | |  |  '-'------ 11 break at return?
+             |  | |  '----------- Instructions will load from flash (0) or virtual space (1)
+             |  '-'-------------- 00 Not single step
+             |  '-'-------------- 01 ?
+             |  '-'-------------- 10 ?
+             |  '-'-------------- 11 Single step or maybe, use IR instead of (PC) for first instruction
+             '------------------- Run with timers disabled
 
 
-
-
-20      0 0 0   go start reading/writing SRAM/Flash based on low byte of PC
-21      0 0 1   single step read/write a single register
-23      0 1 1   single step an instruction loaded with D2
-30      1 0 0   go normal execution
-31      1 0 1   single step (Rikusw says PC increments twice?)
-32      1 1 0   go using loaded instruction
-33      1 1 1   single step using slow loaded instruction (specifically spm)
-                      will generate break and 0x55 output when complete.
-        ^ ^ ^
-        | | '---- Single step - stop after 1 instruction
-        | '------ Execute (at least initially) instruction loaded with D2.
-        '-------- Use Flash (1) or virtual memory selected by C2 (0)
+20      0 0 1 0 0 0 0 0    go start reading/writing reg/SRAM/Flash based on IR and low byte of PC
+21      0 0 1 0 0 0 0 1    single step read/write a single register
+22      0 0 1 0 0 0 1 0    MAYBE go starting with instruction in IR followed by virtual instrucion?
+23      0 0 1 0 0 0 1 1    single step an instruction in IR (loaded with D2)
+30      0 0 1 1 0 0 0 0    go normal execution
+31      0 0 1 1 0 0 0 1    single step (Rikusw says PC increments twice?)
+32      0 0 1 1 0 0 1 0    go using loaded instruction
+33      0 0 1 1 0 0 1 1    single step using slow loaded instruction (specifically spm)
+              |     | |    will generate break and 0x55 output when complete.
+              |     | |
+              |     | '--- Single step - stop after 1 instruction
+              |-----'----- 00 Execute from virtual space
+              |-----'----- 01 Execute from loaded IR
+              |-----'----- 10 Execute from flash
+              |-----'----- 11 Execute from loaded IR and generate break on completion (specifically fro SPM)
 
 
 Resume execution:              60/61/79/7A 30
@@ -422,5 +559,33 @@ D2 E1 C1 23 ldi r28,0x11
 D2 BF C7 23 out SPMCSR,r28 = 11 = RWWSRE
 D2 95 E8 33 spm
 <00 55> 83 <55>
+
+Reading Eeprom
+
+66 D0 00 1C D1 00 20 C2 05 20 --01 01 00 00-- --Set YZ--
+64 D2 BD F2 23 D2 BD E1 23 D2 BB CF 23 D2 B4 00 23 D2 BE 01 23 xx
+
+66 D0 00 1C D1 00 20 C2 05 20 --01 01 00 00-- --Set YZ--
+64
+D2 BD F2 23 out EEARH,r31
+D2 BD E1 23 out EEARL,r30
+D2 BB CF 23 out EECR,r28 = 01 = EERE
+D2 B4 00 23 in r0,EEDR
+D2 BE 01 23 out DWDR,r0
+xx -- Byte from target
+
+
+Writing Eeprom
+
+66 D0 00 1A D1 00 20 C2 05 20 --04 02 01 01 10 00-- --Set XYZ--
+64 D2 BD F2 23 D2 BD E1 23 D2 B6 01 23 xx D2 BC 00 23 D2 BB AF 23 D2 BB BF 23
+
+64
+D2 BD F2 23 out EEARH,r31 = 00
+D2 BD E1 23 out EEARL,r30 = 10
+D2 B6 01 23 xx in r0,DWDR = xx - byte to target
+D2 BC 00 23 out EEDR,r0
+D2 BB AF 23 out EECR,r26 = 04 = EEMWE
+D2 BB BF 23 out EECR,r27 = 02 = EEWE
 
 */

@@ -81,6 +81,14 @@ void Wx(u64 i, int w) {
   while (n) {Wc(r[--n]);}
 }
 
+void Whexbuf(const u8 *buf, int len) {
+  Wx(buf[0], 2);
+  for (int i=1; i<len; i++) {
+    Wc(' ');
+    Wx(buf[i], 2);
+  }
+}
+
 
 // Verbose mode only versions
 

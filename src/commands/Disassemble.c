@@ -1,5 +1,8 @@
 // Disassembler
 
+
+int next; // Next instruction word value, for 2 word instructions.
+
 /// AVR disassembly
 
 //  0000 0000 0000 0000  N0P
@@ -137,20 +140,20 @@ int Winst7(int i, int code) {Ws("andi  "); Wreg(((code >> 4) & 0xF) + 16); Ws(",
 int Winst90(int i, int code) { // 90xx and 91xx
   int dst = (code >> 4) & 0x1f;
   switch (code & 0xf) {
-    case 0x0: Ws("lds   "); Wreg(dst); Ws(", ");   return 1; break;
-    case 0x1: Ws("ld    "); Wreg(dst); Ws(", Z+"); return 0; break;
-    case 0x2: Ws("ld    "); Wreg(dst); Ws(", -Z"); return 0; break;
-    case 0x4: Ws("lpm   "); Wreg(dst); Ws(", Z");  return 0; break;
-    case 0x5: Ws("lpm   "); Wreg(dst); Ws(", Z+"); return 0; break;
-    case 0x6: Ws("elpm  "); Wreg(dst); Ws(", Z");  return 0; break;
-    case 0x7: Ws("elpm  "); Wreg(dst); Ws(", Z+"); return 0; break;
-    case 0x9: Ws("ld    "); Wreg(dst); Ws(", Y+"); return 0; break;
-    case 0xA: Ws("ld    "); Wreg(dst); Ws(", -Y"); return 0; break;
-    case 0xC: Ws("ld    "); Wreg(dst); Ws(", X");  return 0; break;
-    case 0xD: Ws("ld    "); Wreg(dst); Ws(", X+"); return 0; break;
-    case 0xE: Ws("ld    "); Wreg(dst); Ws(", -X"); return 0; break;
-    case 0xF: Ws("pop   "); Wreg(dst);             return 0; break;
-    default:  Ws("???   ");                        return 0; break;
+    case 0x0: Ws("lds   "); Wreg(dst); Ws(", $");  Wx(next,4); return 1; break;
+    case 0x1: Ws("ld    "); Wreg(dst); Ws(", Z+");             return 0; break;
+    case 0x2: Ws("ld    "); Wreg(dst); Ws(", -Z");             return 0; break;
+    case 0x4: Ws("lpm   "); Wreg(dst); Ws(", Z");              return 0; break;
+    case 0x5: Ws("lpm   "); Wreg(dst); Ws(", Z+");             return 0; break;
+    case 0x6: Ws("elpm  "); Wreg(dst); Ws(", Z");              return 0; break;
+    case 0x7: Ws("elpm  "); Wreg(dst); Ws(", Z+");             return 0; break;
+    case 0x9: Ws("ld    "); Wreg(dst); Ws(", Y+");             return 0; break;
+    case 0xA: Ws("ld    "); Wreg(dst); Ws(", -Y");             return 0; break;
+    case 0xC: Ws("ld    "); Wreg(dst); Ws(", X");              return 0; break;
+    case 0xD: Ws("ld    "); Wreg(dst); Ws(", X+");             return 0; break;
+    case 0xE: Ws("ld    "); Wreg(dst); Ws(", -X");             return 0; break;
+    case 0xF: Ws("pop   "); Wreg(dst);                         return 0; break;
+    default:  Ws("???   ");                                    return 0; break;
   }
   return 0;
 }
@@ -164,16 +167,16 @@ int Winst90(int i, int code) { // 90xx and 91xx
 int Winst92(int i, int code) { // 92xx and 93xx
   int dst = (code >> 4) & 0x1f;
   switch (code & 0xf) {
-    case 0x0: Ws("sts   "); Wreg(dst); Ws(", ");   return 1; break;
-    case 0x1: Ws("st    "); Wreg(dst); Ws(", Z+"); return 0; break;
-    case 0x2: Ws("st    "); Wreg(dst); Ws(", -Z"); return 0; break;
-    case 0x9: Ws("st    "); Wreg(dst); Ws(", Y+"); return 0; break;
-    case 0xA: Ws("st    "); Wreg(dst); Ws(", -Y"); return 0; break;
-    case 0xC: Ws("st    "); Wreg(dst); Ws(", X");  return 0; break;
-    case 0xD: Ws("st    "); Wreg(dst); Ws(", X+"); return 0; break;
-    case 0xE: Ws("st    "); Wreg(dst); Ws(", -X"); return 0; break;
-    case 0xF: Ws("push  "); Wreg(dst);             return 0; break;
-    default:  Ws("???   ");                        return 0; break;
+    case 0x0: Ws("sts   "); Wreg(dst); Ws(", $");  Wx(next,4); return 1; break;
+    case 0x1: Ws("st    "); Wreg(dst); Ws(", Z+");             return 0; break;
+    case 0x2: Ws("st    "); Wreg(dst); Ws(", -Z");             return 0; break;
+    case 0x9: Ws("st    "); Wreg(dst); Ws(", Y+");             return 0; break;
+    case 0xA: Ws("st    "); Wreg(dst); Ws(", -Y");             return 0; break;
+    case 0xC: Ws("st    "); Wreg(dst); Ws(", X");              return 0; break;
+    case 0xD: Ws("st    "); Wreg(dst); Ws(", X+");             return 0; break;
+    case 0xE: Ws("st    "); Wreg(dst); Ws(", -X");             return 0; break;
+    case 0xF: Ws("push  "); Wreg(dst);                         return 0; break;
+    default:  Ws("???   ");                                    return 0; break;
   }
   return 0;
 }
@@ -258,9 +261,11 @@ int Winst94(int i, int code) { // 94xx and 95xx
       }
       Wreg((code >> 4) & 0x1f);
     } else { // jmp, call
-      //  1001 010k kkkk 110k  JMP *
-      //  1001 010k kkkk 111k  CALL *
-      Ws((code & 2) ? "call  $" : "jmp   $"); Wx(((code >> 3) & 0x3E) | (code & 1),2); return 1;
+      //  1001 010k kkkk 110k    kkkk kkkk kkkk kkkk  JMP *
+      //  1001 010k kkkk 111k    kkkk kkkk kkkk kkkk  CALL *
+      Ws((code & 2) ? "call  $" : "jmp   $");
+      int addrhi = ((code >> 3) & 0x3E) | (code & 1);
+      Wx(((addrhi<<16)+next)*2,6); return 1;
     }
   }
   return 0;
@@ -490,7 +495,8 @@ int DisassembleInstruction(int addr, u8 *buf) { // Returns instruction length in
   Wx(addr, 4); Ws(": ");
   int code = (buf[1] << 8) | buf[0];
   Wx(code, 4); Ws("  ");     // Instruction code
-  if (Winstruction(addr, code)) {Wc('$'); Wx((buf[3] << 8) | buf[2], 4); return 4;}
+  next = (buf[3] << 8) | buf[2];
+  if (Winstruction(addr, code)) return 4;
   return 2;
 }
 
