@@ -1,3 +1,12 @@
+# LittleWire/DigiSpark branch
+
+This branch is for the development of a version of dwire-debug that supports both FT232 and DigiSpark programmed with an
+extended version of LittleWire.
+
+------
+------
+------
+#
 # dwire-debug
 
 Simple stand-alone programmer and debugger for DebugWIRE processors connected
