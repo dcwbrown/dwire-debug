@@ -30,10 +30,8 @@
   #include <dirent.h>
   #include <stropts.h>
   #include <asm/termios.h>
-  #ifndef NOFILEDIALOG
-    #include <gtk/gtk.h>
-  #endif
   #include <setjmp.h>
+  #include <dlfcn.h>
   void delay(unsigned int ms) {usleep(ms*1000);}
 #endif
 

@@ -1,11 +1,11 @@
 // GlobalData.c
 
 
-// LittleWire connection
-
-usb_dev_handle *Port = 0;
+// Serial or USB device
 
 
+usb_dev_handle *DigiSparkPort = 0;
+FileHandle      SerialPort    = 0;
 
 
 // Current device state

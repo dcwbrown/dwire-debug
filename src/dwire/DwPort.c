@@ -28,7 +28,7 @@
 #define IN_FROM_LW  USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN
 
 
-void PortFail(char *msg) {usb_close(Port); Port = 0; Fail(msg);}
+void PortFail(char *msg) {usb_close(DigiSparkPort); DigiSparkPort = 0; Fail(msg);}
 
 
 static uint32_t cyclesPerPulse;
@@ -44,7 +44,7 @@ int SetDwireBaud() { // returns 1 iff success
     tries++;
     delay(20);
     // Read back timings
-    status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, (char*)times, sizeof(times), USB_TIMEOUT);
+    status = usb_control_msg(DigiSparkPort, IN_FROM_LW, 60, 0, 0, (char*)times, sizeof(times), USB_TIMEOUT);
     //Ws("Read back timimgs status: "); Wd(status,1); Wsl(".");
   }
   if (status < 18) {return 0;}
@@ -67,7 +67,7 @@ int SetDwireBaud() { // returns 1 iff success
   times[0] = (cyclesPerPulse-8)/4;  // dwBitTime
 
   // Send timing parameters to digispark
-  status = usb_control_msg(Port, OUT_TO_LW, 60, 2, 0, (char*)times, 2, USB_TIMEOUT);
+  status = usb_control_msg(DigiSparkPort, OUT_TO_LW, 60, 2, 0, (char*)times, 2, USB_TIMEOUT);
   if (status < 0) {PortFail("Failed to set debugWIRE port baud rate");}
 
   return 1;
@@ -80,8 +80,17 @@ void DwBreakAndSync() {
   for (int tries=0; tries<25; tries++) {
     // Tell digispark to send a break and capture any returned pulse timings
     //Wsl("Commanding digispark break and capture.");
-    int status = usb_control_msg(Port, OUT_TO_LW, 60, 33, 0, 0, 0, USB_TIMEOUT);
-    if (status >= 0) {
+    int status = usb_control_msg(DigiSparkPort, OUT_TO_LW, 60, 33, 0, 0, 0, USB_TIMEOUT);
+    if (status < 0) {
+      if (status == -1) {
+        Wsl("Access denied sending USB message to DigiSpark. Run dwdebug as root, or add a udev rule such as");
+        Wsl("file /etc/udev/rules.d/60-usbtiny.rules containing:");
+        Wsl("SUBSYSTEM==\"usb\", ATTR{idVendor}==\"1781\", ATTR{idProduct}==\"0c9f\", GROUP=\"plugdev\", MODE=\"0666\"");
+        PortFail("And make sure that you are a member of the plugdev group.");
+      } else {
+        Ws("Digispark did not accept 'break and capture' command. Error code "); Wd(status,1); PortFail(".");
+      }
+    } else {
       delay(120); // Wait while digispark sends break and reads back pulse timings
       // Get any pulse timings back from digispark
       if (SetDwireBaud()) {
@@ -100,8 +109,8 @@ void DwBreakAndSync() {
 void ConnectPort() {
   FindLittlewires();
   if (LittleWireDeviceCount <= 0) Fail("No LittleWire devices available.");
-  Port = usb_open(LittleWireDevices[0]);
-  if (!Port) {Fail("Couldn't connect to digispark.");}
+  DigiSparkPort = usb_open(LittleWireDevices[0]);
+  if (!DigiSparkPort) {Fail("Couldn't connect to digispark.");}
   DwBreakAndSync();
 }
 
@@ -109,7 +118,7 @@ void ConnectPort() {
 
 int dwReachedBreakpoint() {
   char dwBuf[10];
-  int status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
+  int status = usb_control_msg(DigiSparkPort, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
   //if (status < 0) {
   //  Ws("dwReachedBreakpoint: dwBuf read returned "); Wd(status,1);
   //  Ws(", dwBuf[0] = $"); Wx(dwBuf[0],2); Wsl(".");
@@ -126,16 +135,16 @@ int dwReachedBreakpoint() {
 
 void dwUSBSendBytes(u8 state, char *out, int outlen) {
 
-  if (!Port) ConnectPort();
+  if (!DigiSparkPort) ConnectPort();
 
   int tries  = 0;
-  int status = usb_control_msg(Port, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
+  int status = usb_control_msg(DigiSparkPort, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
 
   while ((tries < 50) && (status <= 0)) {
     // Wait for previous operation to complete
     tries++;
     delay(20);
-    status = usb_control_msg(Port, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
+    status = usb_control_msg(DigiSparkPort, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
   }
   if (status < outlen) {Ws("Failed to send bytes to AVR, status "); Wd(status,1); PortFail("");}
   delay(3); // Wait at least until digispark starts to send the data.
@@ -200,7 +209,7 @@ int DwReceive(u8 *in, int inlen) {
     tries++;
     delay(20);
     // Read back dWIRE bytes
-    status = usb_control_msg(Port, IN_FROM_LW, 60, 0, 0, (char*)in, inlen, USB_TIMEOUT);
+    status = usb_control_msg(DigiSparkPort, IN_FROM_LW, 60, 0, 0, (char*)in, inlen, USB_TIMEOUT);
   }
   return status;
 }

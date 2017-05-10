@@ -2,11 +2,11 @@
 
 
 
-//void DeviceBreak() {
-//  Wsl("\rDevice reached breakpoint.                                        ");
-//  DwSync();
-//  DwReconnect();
-//}
+void DeviceBreak() {
+  Wsl("\rDevice reached breakpoint.                                        ");
+  if (SerialPort) DwSync();
+  DwReconnect();
+}
 
 void KeyboardBreak() {
   Ws("Keyboard requested break. "); SkipEoln();
@@ -30,11 +30,7 @@ void KeyboardBreak() {
       //    break;
       //  }
 
-      if (dwReachedBreakpoint()) {
-        Wsl("\rDevice reached breakpoint.                                        ");
-        DwReconnect();
-        break;
-      }
+      if (dwReachedBreakpoint()) {DeviceBreak(); break;}
 
       // See if there's a user pressing a key
       if (Interactive(Input)) {
@@ -64,9 +60,9 @@ void KeyboardBreak() {
       FD_SET(fd, &readfds);  // either stdin or GDB command socket
       FD_SET(SerialPort, &readfds);
       timeout = (struct timeval){10,0}; // 10 seconds
-      if(select(max(fd, SerialPort)+1, &readfds, 0, &excpfds, &timeout) > 0) {
+      if (select(max(fd, SerialPort)+1, &readfds, 0, &excpfds, &timeout) > 0) {
         // Something became available
-        //if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
+        if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
         if (FD_ISSET(fd,         &readfds)) {KeyboardBreak(); break;}
         if (FD_ISSET(fd,         &excpfds)) {KeyboardBreak(); break;}
       } else {
