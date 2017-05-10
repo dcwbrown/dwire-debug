@@ -1,11 +1,56 @@
-#if 0
+char SerialDevices[256][20];
+int  SerialDeviceCount = 0;
+
+char *UsbSerialPortName = 0;  // Currently selected port.
+int BreakLength;
+
+
 #ifdef windows
+
+  char *LoadDosDevices() {
+    char *DosDevices = 0;
+    int   size       = 24576;
+    int   used       = 0;
+    while (1) {
+      DosDevices = Allocate(size);
+      used = QueryDosDevice(0, DosDevices, size);
+      if (used) {break;}
+      int error = GetLastError();
+      Free(DosDevices);
+      DosDevices = 0;
+      if (error != ERROR_INSUFFICIENT_BUFFER) {break;}
+      size *= 2;
+    }
+    return DosDevices;
+  }
+
+  void FindSerials() {
+    char *DosDevices = LoadDosDevices();
+    char *CurrentDevice = DosDevices;
+    SerialDeviceCount = 0;
+
+    while (*CurrentDevice) {
+      if (strncmp("COM", CurrentDevice, 3) == 0) {
+        strncpy(SerialDevices[SerialDeviceCount], CurrentDevice, 6);
+        SerialDevices[SerialDeviceCount][6] = 0;
+        SerialDeviceCount++;
+      }
+      while (*CurrentDevice) {CurrentDevice++;}  // Skip over device string
+      CurrentDevice++;                           // SKip over one zero terminator
+    }
+
+    Free(DosDevices);
+  }
 
 #else
 
   DIR *DeviceDir = 0;
 
-  void NextUsbSerialPort() {
+scrungle plonge ** implememt FindSerials loop **
+
+  void FindSerials() {
+    SerialDeviceCount = 0;
+
     UsbSerialPortName[0] = 0;
     if (!DeviceDir) {DeviceDir = opendir("/dev");
     if (!DeviceDir) {return;}}
@@ -20,7 +65,28 @@
 #endif
 
 
+int SerialReceive(u8 *in, int inlen) {
+  SerialRead(SerialPort, in, inlen);
+  return inlen;
+}
 
+void SerialExpect(const u8 *bytes, int len) {
+  u8 actual[len];
+  SerialReceive(actual, len);
+  for (int i=0; i<len; i++) {
+    if (actual[i] != bytes[i]) {
+      Ws("WriteDebug, byte "); Wd(i+1,1); Ws(" of "); Wd(len,1);
+      Ws(": Read "); Wx(actual[i],2); Ws(" expected "); Wx(bytes[i],2); Wl(); Fail("");
+    }
+  }
+}
+
+void SerialSend(const u8 *out, int outlen) {
+  Write(SerialPort, out, outlen);
+  SerialExpect(out, outlen);
+}
+
+void SerialFlush() {}
 
 int ReadByte() {
   u8 byte = 0;
@@ -32,15 +98,11 @@ int ReadByte() {
 
 
 
-void DwBreak() {
-  SerialBreak(SerialPort, BreakLength);
-}
 
 
-int GetBreakResponseByte(int verbose) {
+int GetSyncByte(int verbose) {
   int byte  = 0;
 
-  DwBreak();
   byte = ReadByte();
   if (byte != 0) {Ws(", warning, byte read after break is non-zero.");}
 
@@ -148,7 +210,8 @@ int TryBaudRate(int baudrate) {
     return 0;
   }
 
-  int byte = GetBreakResponseByte(Verbose);
+  SerialBreak(SerialPort, BreakLength);
+  int byte = GetSyncByte(Verbose);
 
   Close(SerialPort);
   SerialPort = 0;
@@ -237,13 +300,14 @@ void TryConnectSerialPort(int baud) {
     if (baud) {
       BreakLength = 100000 / baud;
       MakeSerialPort(UsbSerialPortName, baud, &SerialPort);
-      int byte = GetBreakResponseByte(0);
+      SerialBreak(SerialPort, BreakLength);
+      int byte = GetSyncByte(0);
       if (byte != 0x55) {Close(SerialPort); SerialPort = 0;}
     }
     if (SerialPort) {
       Ws("Connected to DebugWIRE device on USB serial port "); Ws(UsbSerialPortName);
       Ws(" at baud rate "); Wd(baud, 1); Wl();
-      DwConnect();
+      //DwConnect();
     }
   }
 
@@ -254,17 +318,26 @@ void TryConnectSerialPort(int baud) {
 
 
 // Implement ConnectSerialPort called from DwPort.c
-void ConnectSerialPort(int baud) {
+void Serial_Open(char *portname, int baud) {
   SerialPort = 0;
-  if (UsbSerialPortName[0]) {
-    TryConnectSerialPort(baud);
-    if (!SerialPort) {Ws("Couldn't connect to DebugWIRE device on "); Fail(UsbSerialPortName);}
-  } else {
-    while (!SerialPort) {
-      NextUsbSerialPort();
-      if (!UsbSerialPortName[0]) {Fail("Couldn't find a DebugWIRE device.");}
-      TryConnectSerialPort(0);
-    }
+  UsbSerialPortName = portname;
+  TryConnectSerialPort(baud);
+  if (!SerialPort) {Ws("Couldn't connect to DebugWIRE device on "); Fail(UsbSerialPortName);}
+}
+
+
+void SerialSync() {
+  if (GetSyncByte(0) != 0x55) {
+    Wsl("Expected 0x55 sync byte not received. Trying to re-sync.");
+    TryConnectSerialPort(0);
+    if (!SerialPort) {Ws("Couldn't reconnect to DebugWIRE device on "); Fail(UsbSerialPortName);}
   }
 }
-#endif
+
+void SerialBreakAndSync() {
+  SerialBreak(SerialPort, BreakLength);
+  SerialSync();
+}
+
+void SerialWait() {}
+
