@@ -14,7 +14,7 @@ void unconnected() {Fail("Unexpected error, device port not connected.");}
 
 
 void (*DwBreakAndSync)()                  = (void*)unconnected;
-int  (*dwReachedBreakpoint)()             = (void*)unconnected;
+int  (*DwReachedBreakpoint)()             = (void*)unconnected;
 void (*DwSend)(const u8 *out, int outlen) = (void*)unconnected;
 void (*DwFlush)()                         = (void*)unconnected;
 int  (*DwReceive)(u8 *in, int inlen)      = (void*)unconnected;
@@ -30,7 +30,7 @@ void ConnectPort() {
     if (!DigiSparkPort) {Fail("Couldn't connect to digispark.");}
 
     DwBreakAndSync      = DigiSparkBreakAndSync;
-    dwReachedBreakpoint = DigiSparkReachedBreakpoint;
+    DwReachedBreakpoint = DigiSparkReachedBreakpoint;
     DwSend              = DigiSparkSend;
     DwFlush             = DigiSparkFlush;
     DwReceive           = DigiSparkReceive;

@@ -65,10 +65,10 @@ void DumpConfig() {
   Ws("EEPROM:   000.."); Wx(EepromSize()-1, 3); Ws("  ("); Wd(EepromSize(),1); Wsl(" bytes).");
 
   // Dump uninterpreted fuse and lock bit values
-  ReadConfigBits(0, &cb);    Ws("Fuses: low "); Wx(cb,2);     Flush();
-  ReadConfigBits(3, &hfuse); Ws(", high ");           Wx(hfuse,2);  Flush();
-  ReadConfigBits(2, &efuse); Ws(", extended ");       Wx(efuse,2);  Flush();
-  ReadConfigBits(1, &cb);    Ws(", lock bits ");      Wx(cb,2);     Wsl(".");
+  ReadConfigBits(0, &cb);    Ws("Fuses: low ");  Wx(cb,2);     Wflush();
+  ReadConfigBits(3, &hfuse); Ws(", high ");      Wx(hfuse,2);  Wflush();
+  ReadConfigBits(2, &efuse); Ws(", extended ");  Wx(efuse,2);  Wflush();
+  ReadConfigBits(1, &cb);    Ws(", lock bits "); Wx(cb,2);     Wsl(".");
 
   // Interpret boot sector information
   if (BootFlags()) {
@@ -138,12 +138,18 @@ void LoadPageBuffer(u16 a, const u8 *buf) {
 
 
 void ProgramPage(u16 a) {
+  DwSend(Bytes(0x66));
   DwSetRegs(29, Bytes(PGWRT, lo(a), hi(a))); // r29 = op (page write), Z = first byte address of page
   DwSetPC(BootSect());                       // Set PC that allows access to all of flash
   DwSend(Bytes(0x64));                       // Set up for single step mode
   DwOut(SPMCSR(), 29);                       // out SPMCSR,r29 (PGWRT)
-  DwInst(0x95E8);                            // spm
-  while ((ReadSPMCSR() & 0x1F) != 0) {Wc('.'); Flush();} // Wait while programming busy
+  if (BootSect()) {
+    DwInst(0x95E8);                          // spm
+    while ((ReadSPMCSR() & 0x1F) != 0) {Wc('.'); Wflush();} // Wait while programming busy
+  } else {
+    DwSend(Bytes(0xD2, 0x95, 0xE8, 0x33));   // spm and break
+    DwSync();
+  }
 }
 
 

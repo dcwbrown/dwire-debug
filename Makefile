@@ -20,7 +20,7 @@ CC = gcc
 all: run
 
 run: $(BINARY)
-	./$(BINARY) f0,qs
+	./$(BINARY) f0
 
 install:
 	cp -p $(BINARY) /usr/local/bin

@@ -9,7 +9,7 @@ void DeviceBreak() {
 }
 
 void KeyboardBreak() {
-  Ws("Keyboard requested break. "); SkipEoln();
+  Wsl("Keyboard requested break. "); SkipEoln();
   DwBreakAndSync();
   DwReconnect();
 }
@@ -20,17 +20,19 @@ void KeyboardBreak() {
 
   void GoWaitLoop(FileHandle fd) {
     while (1) {
-      //  // See if there's anything ready at the serial port
-      //  u8 ch;
-      //  int lengthRead = Read(SerialPort, &ch, 1);  // Note - waits for the comm timeout
-      //  if (lengthRead) {
-      //    // Device has hit a breakpoint
-      //    Assert(ch == 0);
-      //    DeviceBreak();
-      //    break;
-      //  }
+      if (DigiSparkPort  &&  DigiSparkReachedBreakpoint()) {DeviceBreak(); break;}
 
-      if (dwReachedBreakpoint()) {DeviceBreak(); break;}
+      if (SerialPort) { // See if there's anything ready at the serial port
+        u8 ch;
+        int lengthRead = Read(SerialPort, &ch, 1);  // Note - waits for the comm timeout
+        if (lengthRead) {
+          // Device has hit a breakpoint
+          Assert(ch == 0);
+          Assert(SerialOutBufLength == 0);
+          DeviceBreak();
+          break;
+        }
+      }
 
       // See if there's a user pressing a key
       if (Interactive(Input)) {
@@ -55,6 +57,7 @@ void KeyboardBreak() {
     fd_set excpfds;
     struct timeval timeout;
     while (1) {
+      if (DigiSparkPort  &&  DigiSparkReachedBreakpoint()) {DeviceBreak(); break;}
       FD_ZERO(&readfds);
       FD_ZERO(&excpfds);
       FD_SET(fd, &readfds);  // either stdin or GDB command socket
@@ -83,7 +86,7 @@ void GoCommand() {
   // Wait for input from either the serial port or the keyboard.
 
   Ws("Running. ");
-  if (Interactive(Input)) {Ws("Press return key to force break. Waiting ..."); Flush();}
+  if (Interactive(Input)) {Ws("Press return key to force break. Waiting ..."); Wflush();}
 
 
   // Wait for either serial port or keyboard input

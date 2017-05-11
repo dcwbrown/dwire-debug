@@ -97,7 +97,7 @@ void DigiSparkBreakAndSync() {
         return;
       }
     }
-    Wc('.'); Flush();
+    Wc('.'); Wflush();
   }
   Wl(); PortFail("Digispark/LittleWire could not capture pulse timings after 25 break attempts.");
 }
@@ -143,33 +143,33 @@ void digisparkUSBSendBytes(u8 state, char *out, int outlen) {
 // but we also guarantee that a debugWIRE read transaction includes at leasr
 // one byte of data to be sent first.
 
-char OutBufBytes[128];
-int  OutBufLength = 0;
+char DigiSparkOutBufBytes[128];
+int  DigiSparkOutBufLength = 0;
 
 void digisparkBufferFlush(u8 state) {
-  if (OutBufLength > 0) {
-    digisparkUSBSendBytes(state, OutBufBytes, OutBufLength);
-    OutBufLength = 0;
+  if (DigiSparkOutBufLength > 0) {
+    digisparkUSBSendBytes(state, DigiSparkOutBufBytes, DigiSparkOutBufLength);
+    DigiSparkOutBufLength = 0;
   }
 }
 
 
 
 void DigiSparkSend(const u8 *out, int outlen) {
-  while (OutBufLength + outlen > sizeof(OutBufBytes)) {
-    // Total (buffered and passed here) execeeds maximum transfer length (128
-    // bytes = OutBuf size). Send buffered and new data until there remains
+  while (DigiSparkOutBufLength + outlen > sizeof(DigiSparkOutBufBytes)) {
+    // Total (buffered and passed here) exceeds maximum transfer length (128
+    // bytes = DigiSparkOutBuf size). Send buffered and new data until there remains
     // between 1 and 128 bytes still to send in the buffer.
-    int lenToCopy = sizeof(OutBufBytes)-OutBufLength;
-    memcpy(OutBufBytes+OutBufLength, out, lenToCopy);
-    digisparkUSBSendBytes(0x04, OutBufBytes, sizeof(OutBufBytes));
-    OutBufLength = 0;
+    int lenToCopy = sizeof(DigiSparkOutBufBytes)-DigiSparkOutBufLength;
+    memcpy(DigiSparkOutBufBytes+DigiSparkOutBufLength, out, lenToCopy);
+    digisparkUSBSendBytes(0x04, DigiSparkOutBufBytes, sizeof(DigiSparkOutBufBytes));
+    DigiSparkOutBufLength = 0;
     out += lenToCopy;
     outlen -= lenToCopy;
   }
-  Assert(OutBufLength + outlen <= sizeof(OutBufBytes));
-  memcpy(OutBufBytes+OutBufLength, out, outlen);
-  OutBufLength += outlen;
+  Assert(DigiSparkOutBufLength + outlen <= sizeof(DigiSparkOutBufBytes));
+  memcpy(DigiSparkOutBufBytes+DigiSparkOutBufLength, out, outlen);
+  DigiSparkOutBufLength += outlen;
   // Remainder stays in buffer to be sent with next read request, or on a
   // flush call.
 }

@@ -62,7 +62,7 @@ int max(int a, int b) {return a>b ? a : b;}
 
 /// Simple text writing interface headers.
 
-void Flush();
+void Wflush();
 void Wc(char c);
 void Ws(const char *s);
 void Wl();
@@ -298,7 +298,7 @@ void WWinError(DWORD winError) {
     0,0
   );
   Ws(lastErrorMessage);
-  Flush();
+  Wflush();
   LocalFree(lastErrorMessage);
 }
 

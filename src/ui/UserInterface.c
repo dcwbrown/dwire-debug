@@ -111,7 +111,7 @@ void ParseAndHandleCommand() {
 void Prompt() {
   if (BufferTotalContent() == 0  &&  IsInteractive) {
     if (OutputPosition == 0) {DisassemblyPrompt();}
-    Wt(HasLineNumbers ? 60 : 40); Ws("> "); Flush();
+    Wt(HasLineNumbers ? 60 : 40); Ws("> "); Wflush();
     HorizontalPosition = 0;  // Let SimpleOutput know user returned to column 1
   } else {
     if (OutputPosition) {Wl();}

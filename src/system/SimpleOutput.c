@@ -13,7 +13,7 @@ char OutputBuffer[100]  = {0};
 int  OutputPosition     = 0;
 int  HorizontalPosition = 0;
 
-void Flush() {
+void Wflush() {
   if (OutputPosition) {
     Write(Output, OutputBuffer, OutputPosition);
     OutputPosition = 0;
@@ -21,15 +21,15 @@ void Flush() {
 }
 
 void Wc(char c) {
-  if (OutputPosition >= sizeof OutputBuffer) {Flush();}
+  if (OutputPosition >= sizeof OutputBuffer) {Wflush();}
   OutputBuffer[OutputPosition++] = c;
   if (c == '\n'  ||  c == '\r') {
-    Flush();
+    Wflush();
     HorizontalPosition = 0;
   } else {
     HorizontalPosition++;
   }
-  if (Verbose) Flush();
+  if (Verbose) Wflush();
 }
 
 
@@ -39,7 +39,7 @@ void Wt(int tab) {
     OutputBuffer[OutputPosition++] = ' ';
     HorizontalPosition++;
   }
-  if (Verbose) Flush();
+  if (Verbose) Wflush();
 }
 
 void Ws(const char *s) {
