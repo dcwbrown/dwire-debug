@@ -388,14 +388,10 @@ void SerialSync() {
 }
 
 void SerialBreakAndSync() {
-  //  Wsl(" -- SerialBreakAndSync starting.");
   Assert(SerialOutBufLength == 0);
   BreakLength = 100000 / SerialBaud;
-  //  Wsl(" -- SerialBreakAndSync calling SerialBreak.");
   SerialBreak(SerialPort, BreakLength);
-  //  Wsl(" -- SerialBreakAndSync calling SerialSync.");
   SerialSync();
-  //  Wsl(" -- SerialBreakAndSync complete.");
 }
 
 void SerialWait() {SerialFlush();}
@@ -431,7 +427,6 @@ void ConnectSerialPort(struct SPort *p) {
     p->handle = SerialPort;
     p->baud   = SerialBaud;
   }
-  //  Ws(" -- SerialPort $"); Wx((int)SerialPort,1); Wl();
   Ws("\r                                        \r");
   if (!SerialPort) p->port.kind = 0; // Couldn't use this port
 }

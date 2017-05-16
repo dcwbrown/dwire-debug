@@ -190,23 +190,10 @@ void DescribePort(int i) {
   Wd(Ports[i]->index,1); Ws(" at ");
   if (Ports[i]->kind == 's') Wd(SerialBaud,1); else Wd(16500000 / CyclesPerPulse,1);
   Wsl(" baud.");
-
-  //  Ws(" -- [");        Wd(i,1);
-  //  Ws("] kind '");     Wc(Ports[i]->kind);
-  //  Ws("', index ");    Wd(Ports[i]->index,1);
-  //  Ws(", character "); Wd(Ports[i]->character,1);
-  //  if (Ports[i]->character >= 0) {Ws(" ("); Ws(Characteristics[Ports[i]->character].name); Ws(")");}
-  //  if (Ports[i]->kind == 'u') {
-  //    Ws(", device $"); Wx((int)((struct UPort*)Ports[i])->device,1);
-  //    Ws(", handle $"); Wx((int)((struct UPort*)Ports[i])->handle,1);
-  //  }
-  //  Wsl(".");
 }
 
 
 void ConnectPort(int i) {
-  //  Ws(" -- ConnectPort "); Wd(i,1);
-  //  Ws(", Ports[i]->kind "); Wd(Ports[i]->kind,1); Wsl(".");
   if (Ports[i]->kind == 0) return; // Connection has already been attempted and there's no device on this port.
 
   if (Ports[i]->kind == 's') {
@@ -217,14 +204,10 @@ void ConnectPort(int i) {
   if (Ports[i]->kind  &&  (Ports[i]->character < 0)) {
     Ports[i]->character = GetDeviceType();
   }
-  //  Ws(" -- ConnectPort "); Wd(i,1); Wsl(" complete.");
 }
 
 
 void DwFindPort(char kind, int index, int baud) {
-  //  Ws(" -- DwFindPort kind "); Wd(kind,1);
-  //  Ws(", index ");             Wd(index,1);
-  //  Ws(", baud ");              Wd(baud,1); Wsl(".");
   int i;
   for (i=0; i<PortCount; i++) {
     if (Ports[i]->kind) {
@@ -238,13 +221,8 @@ void DwFindPort(char kind, int index, int baud) {
   if (Ports[i]->kind) {
     CurrentPort = i;
     ResetDumpStates();
-    //  Wsl(" -- Calling DwReconnect().");
     DwReconnect();
-    //  Wsl(" -- DwReconnect() Returned.");
-    //  Ws(" -- DescribePort: "); DescribePort(i);
-    //  Ws(" -- PC $"); Wx(PC, 4); Ws(", Flash size $"); Wx(FlashSize(), 4); Wsl(".");
   }
-  // Ws(" -- DwFindPort complete, CurrentPort "); Wd(CurrentPort,1); Wsl(".");
 }
 
 

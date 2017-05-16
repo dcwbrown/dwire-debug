@@ -77,7 +77,6 @@ int SetDwireBaud() { // returns 1 iff success
   int i;
   uint16_t times[64];
 
-  // Wsl(" -- SetDwireBaud().");
   tries = 0;  status = 0;  CyclesPerPulse = 0;
 
   while ((tries < 5)  &&  (status <= 0)) {
@@ -85,14 +84,9 @@ int SetDwireBaud() { // returns 1 iff success
     delay(20);
     // Read back timings
     status = usb_control_msg(DigisparkPort, IN_FROM_LW, 60, 0, 0, (char*)times, sizeof(times), USB_TIMEOUT);
-    //  Ws(" -- Read back timimgs status: "); Wd(status,1); Wsl(".");
   }
   if (status < 18) {return 0;}
   uint32_t measurementCount = status / 2;
-
-  //  Ws(" -- Pulse times:");
-  //  for (i=0; i<measurementCount; i++) {Wc(' '); Wd(times[i],1);}
-  //  Wsl(".");
 
   // Average measurements and determine baud rate as pulse time in device cycles.
 
@@ -109,7 +103,6 @@ int SetDwireBaud() { // returns 1 iff success
   status = usb_control_msg(DigisparkPort, OUT_TO_LW, 60, 2, 0, (char*)times, 2, USB_TIMEOUT);
   if (status < 0) {PortFail("Failed to set debugWIRE port baud rate");}
 
-  // Wsl(" -- SetDwireBaud() completed successfully.");
   return 1;
 }
 
@@ -117,10 +110,8 @@ int SetDwireBaud() { // returns 1 iff success
 
 
 void DigisparkBreakAndSync() {
-  // Wsl(" -- DigisparkBreakAndSync().");
   for (int tries=0; tries<25; tries++) {
     // Tell digispark to send a break and capture any returned pulse timings
-    //  Wsl(" -- Commanding digispark break and capture.");
     int status = usb_control_msg(DigisparkPort, OUT_TO_LW, 60, 33, 0, 0, 0, USB_TIMEOUT);
     if (status < 0) {
       if (status == -1) {
@@ -148,10 +139,6 @@ void DigisparkBreakAndSync() {
 int DigisparkReachedBreakpoint() {
   char dwBuf[10];
   int status = usb_control_msg(DigisparkPort, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
-  //  if (status < 0) {
-  //    Ws(" -- DigisparkReachedBreakpoint: dwBuf read returned "); Wd(status,1);
-  //    Ws(", dwBuf[0] = $"); Wx(dwBuf[0],2); Wsl(".");
-  //  }
   return status >= 0  &&  dwBuf[0] != 0;
 }
 
