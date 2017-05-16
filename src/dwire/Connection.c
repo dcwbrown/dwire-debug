@@ -5,12 +5,12 @@ struct Port {
   char kind;      // 's' for serial port (COMx or ttyUSBx), 'u' for a usbtiny port, 0 for no port.
   int  index;     // Serial device number or usbtiny number
   int  character; // Index to Characteristics[]
+  int  baud;
 };
 
 struct SPort {  // Serial port
   struct Port port;
   FileHandle  handle;
-  int         baud;
 };
 
 struct UPort {

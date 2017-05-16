@@ -49,9 +49,10 @@ void FindUsbtinys() {
           Assert(PortCount < countof(Ports));
           Ports[PortCount] = malloc(sizeof(struct UPort));
           Assert(Ports[PortCount]);
-          Ports[PortCount]->kind = 'u';
-          Ports[PortCount]->index = usbtinyindex++;
+          Ports[PortCount]->kind      = 'u';
+          Ports[PortCount]->index     = usbtinyindex++;
           Ports[PortCount]->character = -1;              // Currently undetermined
+          Ports[PortCount]->baud      = 0;               // Currently undetermined
           ((struct UPort*)Ports[PortCount])->handle = 0; // Currently unconnected
           ((struct UPort*)Ports[PortCount])->device = device;
           PortCount++;
@@ -253,5 +254,9 @@ void ConnectUsbtinyPort(struct UPort *p) {
   }
   DigisparkPort = p->handle;
   DigisparkBreakAndSync();
-  if (!DigisparkPort) p->port.kind = 0; // Couldn't use this port
+  if (DigisparkPort) {
+    p->port.baud = 16500000 / CyclesPerPulse;
+  } else {
+    p->port.kind = 0; // Couldn't use this port
+  }
 }
