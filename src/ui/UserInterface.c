@@ -14,15 +14,29 @@ void HelpCommand();
 void PCommand()            {PC = ReadInstructionAddress("PC");}
 void BPCommand()           {BP = ReadInstructionAddress("BP");}
 void BCCommand()           {BP = -1;}
-void QuitCommand()         {QuitRequested = 1;}
-void DisableCommand()      {DwDisable(); Exit(0);}
-void QuitPauseCommand()    {Exit(0);}
+void QuitRunningCommand()  {if (CurrentPort >= 0) DwGo();      Exit(0);}
+void DisableCommand()      {if (CurrentPort >= 0) DwDisable(); Exit(0);}
+void QuitStoppedCommand()  {Exit(0);}
 void FailCommand()         {Fail("FailCommand ...");}
 void EmptyCommand()        {Sb(); if (!DwEoln()) {HelpCommand();}}
 void VerboseCommand()      {Verbose = 1;}
 void TimerEnableCommand()  {TimerEnable = 1;}
 void TimerDisableCommand() {TimerEnable = 0;}
 
+
+void QuitUnconnectedCommand() {
+  if (CurrentPort >= 0) {
+    Wl ();
+    Wsl("A device is connected. Please use one of these quit commands:");
+    Wl ();
+    Wsl("  qr - Quit leaving device running. Executes a go command before exiting.");
+    Wsl("  qs - Quit leaving the device stopped.");
+    Wsl("  qi - Quit in In-System-Programming mode. Use this if you have SCK, MISO and MOSI connected");
+    Wsl("       and want to use SPI programming software such as AVRDUDE.");
+    Fail("");
+  }
+  Exit(0);
+}
 
 void DisassemblyPrompt() {
   u8 buf[4];  // Enough for a 2 word instruction
@@ -54,11 +68,13 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"fw",          "Dump flash words",                              1, DumpFlashWordsCommand},
   {"wf",          "Write flash bytes",                             1, WriteFlashBytesCommand},
   {"l",           "Load file",                                     1, LoadFileCommand},
+  {"ls",          "List available devices",                        0, DwListDevices},
   {"g",           "Go",                                            1, GoCommand},
   {"p",           "PC set / query",                                1, PCommand},
-  {"qr",          "Quit with device running",                      1, QuitCommand},
-  {"qs",          "Quit with device stopped",                      0, QuitPauseCommand},
-  {"qi",          "Quit in ISP mode until next power cycle",       1, DisableCommand},
+  {"q",           "Quit (available only when no device connected)",0, QuitUnconnectedCommand},
+  {"qr",          "Quit with device running",                      0, QuitRunningCommand},
+  {"qs",          "Quit with device stopped",                      0, QuitStoppedCommand},
+  {"qi",          "Quit in ISP mode until next power cycle",       0, DisableCommand},
   {"r",           "Display registers",                             1, RegistersCommand},
   {"s",           "Stack",                                         1, StackCommand},
   {"t",           "Trace",                                         1, TraceCommand},
@@ -67,6 +83,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
   {"u",           "Unassemble",                                    1, UnassembleCommand},
   {"h",           "Help",                                          0, HelpCommand},
   {"reset",       "Reset processor",                               1, DwReset},
+  {"device",      "Connect to named device",                       0, DeviceCommand},
   {"config",      "Display fuses and lock bits",                   1, DumpConfig},
   {"help",        "Help",                                          0, HelpCommand},
   {"verbose",     "Set verbose mode",                              0, VerboseCommand},
@@ -88,6 +105,9 @@ void HelpCommand() {
 void HandleCommand(const char *cmd) {
   for (int i=0; i<countof(Commands); i++) {
     if (!strcmp(cmd, Commands[i].name)) {
+      if (CurrentPort < 0  &&  Commands[i].requiresConnection) {
+        ConnectFirstPort();
+      }
       Commands[i].handler();
       return;
     }
@@ -101,7 +121,7 @@ void ParseAndHandleCommand() {
 
   Sb(); if (IsCommandSeparator(NextCh())) {SkipCh(); Sb();}
 
-  if (Eof()) {if (IsInteractive) {Wl();}  QuitCommand();}
+  if (Eof()) {if (IsInteractive) {Wl();}  QuitRunningCommand();}
   else       {Ra(ArrayAddressAndLength(command)); HandleCommand(command);}
 
   SkipWhile(NotDwEoln); SkipWhile(IsDwEoln);
@@ -110,7 +130,9 @@ void ParseAndHandleCommand() {
 
 void Prompt() {
   if (BufferTotalContent() == 0  &&  IsInteractive) {
-    if (OutputPosition == 0) {DisassemblyPrompt();}
+    if (OutputPosition == 0) {
+      if (CurrentPort >= 0) {DisassemblyPrompt();} else {Ws("Unconnected.");}
+    }
     Wt(HasLineNumbers ? 60 : 40); Ws("> "); Wflush();
     HorizontalPosition = 0;  // Let SimpleOutput know user returned to column 1
   } else {
@@ -120,10 +142,10 @@ void Prompt() {
 
 
 void UI() {
-  DwConnect();
   PreloadInput(GetCommandParameters());
+  FindUsbtinys();
+  FindSerials();
   while (1) {
-    if (QuitRequested) {DwGo(); /*usb_close(Port); Port = 0; */ return;}
     if (BufferTotalContent() == 0) {IsInteractive = Interactive(Input);}
     if (IsInteractive) {
       if (setjmp(FailPoint)) {SkipWhile(NotEoln); SkipEoln();}

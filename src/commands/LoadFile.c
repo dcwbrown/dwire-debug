@@ -1,4 +1,20 @@
+
+
+
+
 // LoadFile.c
+
+
+// Representation of symbols and line numbers loaded from ELF files
+
+int   HasLineNumbers           = 0;
+int   LineNumber[MaxFlashSize] = {0};
+char *FileName[MaxFlashSize]   = {0};
+char *CodeSymbol[MaxFlashSize] = {0};
+char *SramSymbol[MaxSRamSize]  = {0};
+
+
+// ELF format decoding
 
 
 struct {

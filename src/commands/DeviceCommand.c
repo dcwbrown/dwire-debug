@@ -1,19 +1,45 @@
 /// DeviceCommand.c
 
+
+void DeviceFail(char *msg) {
+  Wsl(msg);
+  Wsl("device command format:");
+  Wsl("  device deviceid [baud]");
+  Fail("");
+}
+
+
 void DeviceCommand() {
-  if (SerialPort) {Close(SerialPort);}
+
   Sb();
-  if (IsNumeric(NextCh())) { // Just the port number is being specified
-    #ifdef windows
-      strncpy(UsbSerialPortName, "COM", 3); Rn(UsbSerialPortName+3, sizeof(UsbSerialPortName-3));
-    #else
-      strncpy(UsbSerialPortName, "ttyUSB", 6); Rn(UsbSerialPortName+6, sizeof(UsbSerialPortName-6));
-    #endif
-  } else {// The full port name is being specified
-    Ran(ArrayAddressAndLength(UsbSerialPortName));
+
+  int n    = 1;
+  int baud = 0;
+
+  char devicename[32];
+  Ra(devicename, sizeof(devicename));
+  if (IsNumeric(NextCh())) n = ReadNumber(0);
+  Sb();
+  if (IsNumeric(NextCh())) baud = ReadNumber(0);
+
+  int l = strlen(devicename);
+  if (l <= 0) DeviceFail("Missing deviceid on device command.");
+
+  // Recognise the name part of the prot from as many letters of the following
+  // names as we have been givien, even if it is just one.
+
+  if (    (strncasecmp(devicename, "littlewire", l) == 0)
+      ||  (strncasecmp(devicename, "digispark",  l) == 0)
+      ||  (strncasecmp(devicename, "usbtinyspi", l) == 0)) {
+    DwFindPort('u', n, 0);
+  } else if (    (strncasecmp(devicename, "com",    l) == 0)
+             ||  (strncasecmp(devicename, "ttyusb", l) == 0)) {
+    DwFindPort('s', n, baud);
+  } else {
+    DeviceFail("Unrecognised device id.");
   }
-  Sb();
-  int baud;
-  if (!IsDwEoln(NextCh())) {baud = ReadNumber(0);} else {baud = 0;}
-  ConnectSerialPort(baud);
+
+  if (CurrentPort >= 0) {
+    Ws("Connected to "); DescribePort(CurrentPort);
+  } else Fail("Cannot find requested device.");
 }

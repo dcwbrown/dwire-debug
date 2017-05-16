@@ -1,7 +1,5 @@
-char SerialDevices[256][20];
-int  SerialDeviceCount = 0;
-
-char *UsbSerialPortName = 0;  // Currently selected port.
+char UsbSerialPortName[32];  // Currently selected port.
+int  SerialBaud;
 int BreakLength;
 
 
@@ -27,13 +25,18 @@ int BreakLength;
   void FindSerials() {
     char *DosDevices = LoadDosDevices();
     char *CurrentDevice = DosDevices;
-    SerialDeviceCount = 0;
 
     while (*CurrentDevice) {
       if (strncmp("COM", CurrentDevice, 3) == 0) {
-        strncpy(SerialDevices[SerialDeviceCount], CurrentDevice, 6);
-        SerialDevices[SerialDeviceCount][6] = 0;
-        SerialDeviceCount++;
+        Assert(PortCount < countof(Ports));
+        Ports[PortCount] = malloc(sizeof(struct SPort));
+        Assert(Ports[PortCount]);
+        Ports[PortCount]->kind = 's';
+        Ports[PortCount]->index = strtol(CurrentDevice+3, 0, 10);
+        Ports[PortCount]->character = -1;              // Currently undetermined
+        ((struct SPort*)Ports[PortCount])->handle = 0; // Currently unconnected
+        ((struct SPort*)Ports[PortCount])->baud   = 0; // Currently unconnected
+        PortCount++;
       }
       while (*CurrentDevice) {CurrentDevice++;}  // Skip over device string
       CurrentDevice++;                           // SKip over one zero terminator
@@ -44,22 +47,25 @@ int BreakLength;
 
 #else
 
-  DIR *DeviceDir = 0;
-
-scrungle plonge ** implememt FindSerials loop **
-
   void FindSerials() {
-    SerialDeviceCount = 0;
-
-    UsbSerialPortName[0] = 0;
-    if (!DeviceDir) {DeviceDir = opendir("/dev");
+    DIR *DeviceDir = opendir("/dev");
     if (!DeviceDir) {return;}}
-    while (!UsbSerialPortName[0]) {
-      struct dirent *entry = readdir(DeviceDir);
-      if (!entry) {closedir(DeviceDir); DeviceDir=0; return;}
-      if (!strncmp("ttyUSB", entry->d_name, 6))
-        {strncpy(UsbSerialPortName, entry->d_name, 255); UsbSerialPortName[255] = 0;}
+
+    struct dirent *entry = 0;
+    while ((entry = readdir(DeviceDir)))) {
+      if (!strncmp("ttyUSB", entry->d_name, 6)) {
+        Assert(PortCount < countof(Ports));
+        Ports[PortCount] = malloc(sizeof(struct SPort));
+        Assert(Ports[PortCount]);
+        Ports[PortCount]->kind = 's';
+        Ports[PortCount]->index = strtol(entry->d_name+6, 0, 10);
+        Ports[PortCount]->character = -1;              // Currently undetermined
+        ((struct SPort*)Ports[PortCount])->handle = 0; // Currently unconnected
+        ((struct SPort*)Ports[PortCount])->baud   = 0; // Currently unconnected
+        PortCount++;
+      }
     }
+    closedir(DeviceDir);
   }
 
 #endif
@@ -321,26 +327,26 @@ int FindBaudRate() {
 void TryConnectSerialPort(int baud) {
   jmp_buf oldFailPoint;
   memcpy(oldFailPoint, FailPoint, sizeof(FailPoint));
+  SerialPort = 0;
+  SerialBaud = 0;
 
   if (setjmp(FailPoint)) {
     SerialPort = 0;
+    SerialBaud = 0;
   } else {
-    if (baud == 0) {
-      if (!Verbose) {Ws(UsbSerialPortName); Wc(' ');}
-      baud = FindBaudRate();
-      Wl();}
-    if (baud) {
-      BreakLength = 100000 / baud;
-      MakeSerialPort(UsbSerialPortName, baud, &SerialPort);
+    if (baud <= 0) {SerialBaud = FindBaudRate();}
+    if (SerialBaud) {
+      BreakLength = 100000 / SerialBaud;
+      MakeSerialPort(UsbSerialPortName, SerialBaud, &SerialPort);
       SerialBreak(SerialPort, BreakLength);
       int byte = GetSyncByte(0);
       if (byte != 0x55) {Close(SerialPort); SerialPort = 0;}
     }
-    if (SerialPort) {
-      Ws("Connected to DebugWIRE device on USB serial port "); Ws(UsbSerialPortName);
-      Ws(" at baud rate "); Wd(baud, 1); Wl();
-      //DwConnect();
-    }
+    //  if (SerialPort) {
+    //    Ws("Connected to DebugWIRE device on USB serial port "); Ws(UsbSerialPortName);
+    //    Ws(" at SerialBaud rate "); Wd(SerialBaud, 1); Wl();
+    //    DwConnect();
+    //  }
   }
 
   memcpy(FailPoint, oldFailPoint, sizeof(FailPoint));
@@ -349,13 +355,13 @@ void TryConnectSerialPort(int baud) {
 
 
 
-// Implement ConnectSerialPort called from DwPort.c
-void Serial_Open(char *portname, int baud) {
-  SerialPort = 0;
-  UsbSerialPortName = portname;
-  TryConnectSerialPort(baud);
-  if (!SerialPort) {Ws("Couldn't connect to DebugWIRE device on "); Fail(UsbSerialPortName);}
-}
+//  // Implement ConnectSerialPort called from DwPort.c
+//  void Serial_Open(char *portname, int baud) {
+//    SerialPort = 0;
+//    UsbSerialPortName = portname;
+//    TryConnectSerialPort(baud);
+//    if (!SerialPort) {Ws("Couldn't connect to DebugWIRE device on "); Fail(UsbSerialPortName);}
+//  }
 
 
 int SerialReadByte() {
@@ -382,10 +388,50 @@ void SerialSync() {
 }
 
 void SerialBreakAndSync() {
+  //  Wsl(" -- SerialBreakAndSync starting.");
   Assert(SerialOutBufLength == 0);
+  BreakLength = 100000 / SerialBaud;
+  //  Wsl(" -- SerialBreakAndSync calling SerialBreak.");
   SerialBreak(SerialPort, BreakLength);
+  //  Wsl(" -- SerialBreakAndSync calling SerialSync.");
   SerialSync();
+  //  Wsl(" -- SerialBreakAndSync complete.");
 }
 
 void SerialWait() {SerialFlush();}
 
+
+void SelectSerialHandlers() {
+  DwBreakAndSync = SerialBreakAndSync;
+  DwSend         = SerialSend;
+  DwFlush        = SerialFlush;
+  DwReceive      = SerialReceive;
+  DwSync         = SerialSync;
+  DwWait         = SerialWait;
+}
+
+
+void ConnectSerialPort(struct SPort *p) {
+  Assert(p->port.kind == 's');
+  SelectSerialHandlers();
+
+  #if windows
+    snprintf(UsbSerialPortName, sizeof(UsbSerialPortName), "COM%d", p->port.index);
+  #else
+    snprintf(UsbSerialPortName, sizeof(UsbSerialPortName), "/dev/ttyUSB%d", p->port.index);
+  #endif
+
+  Ws(UsbSerialPortName); Ws(" ");
+  if (p->handle) {
+    SerialPort = p->handle;
+    SerialBaud = p->baud;
+    SerialBreakAndSync();
+  } else {
+    TryConnectSerialPort(p->baud);
+    p->handle = SerialPort;
+    p->baud   = SerialBaud;
+  }
+  //  Ws(" -- SerialPort $"); Wx((int)SerialPort,1); Wl();
+  Ws("\r                                        \r");
+  if (!SerialPort) p->port.kind = 0; // Couldn't use this port
+}

@@ -10,75 +10,12 @@
 
 
 
-void unconnected() {Fail("Unexpected error, device port not connected.");}
-
-
-void (*DwBreakAndSync)()                  = (void*)unconnected;
-int  (*DwReachedBreakpoint)()             = (void*)unconnected;
-void (*DwSend)(const u8 *out, int outlen) = (void*)unconnected;
-void (*DwFlush)()                         = (void*)unconnected;
-int  (*DwReceive)(u8 *in, int inlen)      = (void*)unconnected;
-void (*DwSync)()                          = (void*)unconnected;
-void (*DwWait)()                          = (void*)unconnected;
-
-
-
-void ConnectPort() {
-  FindLittlewires();
-  if (LittleWireDeviceCount > 0) {
-    DigiSparkPort = usb_open(LittleWireDevices[0]);
-    if (!DigiSparkPort) {Fail("Couldn't connect to digispark.");}
-
-    DwBreakAndSync      = DigiSparkBreakAndSync;
-    DwReachedBreakpoint = DigiSparkReachedBreakpoint;
-    DwSend              = DigiSparkSend;
-    DwFlush             = DigiSparkFlush;
-    DwReceive           = DigiSparkReceive;
-    DwSync              = DigiSparkSync;
-    DwWait              = DigiSparkWait;
-
-  } else {
-
-    FindSerials();
-    if (SerialDeviceCount > 0) {
-      Serial_Open(SerialDevices[0], 0);
-      if (!SerialPort) {Fail("Couldn't connect to Serial.");}
-
-      DwBreakAndSync      = SerialBreakAndSync;
-      DwSend              = SerialSend;
-      DwFlush             = SerialFlush;
-      DwReceive           = SerialReceive;
-      DwSync              = SerialSync;
-      DwWait              = SerialWait;
-    }
-  }
-
-  DwBreakAndSync();
-}
-
-
-
 int DwReadByte() {u8 byte = 0; DwReceive(&byte, 1); return byte;}
 int DwReadWord() {u8 buf[2] = {0}; DwReceive(buf, 2); return (buf[0] << 8) | buf[1];}
 
 
 u8 hi(int w) {return (w>>8)&0xff;}
 u8 lo(int w) {return (w   )&0xff;}
-
-
-void SetSizes(int signature) {
-  int i=0; while (Characteristics[i].signature  &&  Characteristics[i].signature != signature) {i++;}
-
-  if (Characteristics[i].signature) {
-    DeviceType = i;
-    Ws("Device recognised as "); Wsl(Characteristics[DeviceType].name);
-  } else {
-    DeviceType = -1;
-    Ws("Unrecognised device signature: "); Wx(signature,4); Fail("");
-  }
-}
-
-
 
 
 void DwSetPC(u16 pc) {DwSend(Bytes(0xD0, hi(pc)|0x10, lo(pc)));}
@@ -189,13 +126,6 @@ void DwReconnect() {
   DwGetRegs(28, R+28, 4); // Cache r28 through r31
 }
 
-void DwConnect() {
-  if (DwSend == (void*)unconnected) {ConnectPort();}
-  DwSend(Bytes(0xF3));  // Request signature
-  SetSizes(DwReadWord());
-  DwReconnect();
-}
-
 void DwReset() {
   DwSend(Bytes(0x07));  // dWIRE reset
   DwSync();
@@ -231,8 +161,113 @@ void DwGo() { // Begin executing.
 }
 
 
+int GetDeviceType() {
+  DwSend(Bytes(0xF3));  // Request signature
+  int signature = DwReadWord();
+  int i=0; while (    Characteristics[i].signature
+                  &&  Characteristics[i].signature != signature) {i++;}
+  return Characteristics[i].signature ? i : -1;
+}
 
 
+void DescribePort(int i) {
+  Assert(i < PortCount);
+  if (Ports[i]->character < 0) {
+    Ws("Unknown device ");
+  } else {
+    Ws(Characteristics[Ports[i]->character].name);
+  }
+  Ws(" on ");
+  if (Ports[i]->kind == 's') {
+    #if windows
+      Ws("COM");
+    #else
+      Ws("/dev/ttyUSB");
+    #endif
+  } else {
+    Ws("usbtiny");
+  }
+  Wd(Ports[i]->index,1); Ws(" at ");
+  if (Ports[i]->kind == 's') Wd(SerialBaud,1); else Wd(16500000 / CyclesPerPulse,1);
+  Wsl(" baud.");
+
+  //  Ws(" -- [");        Wd(i,1);
+  //  Ws("] kind '");     Wc(Ports[i]->kind);
+  //  Ws("', index ");    Wd(Ports[i]->index,1);
+  //  Ws(", character "); Wd(Ports[i]->character,1);
+  //  if (Ports[i]->character >= 0) {Ws(" ("); Ws(Characteristics[Ports[i]->character].name); Ws(")");}
+  //  if (Ports[i]->kind == 'u') {
+  //    Ws(", device $"); Wx((int)((struct UPort*)Ports[i])->device,1);
+  //    Ws(", handle $"); Wx((int)((struct UPort*)Ports[i])->handle,1);
+  //  }
+  //  Wsl(".");
+}
+
+
+void ConnectPort(int i) {
+  //  Ws(" -- ConnectPort "); Wd(i,1);
+  //  Ws(", Ports[i]->kind "); Wd(Ports[i]->kind,1); Wsl(".");
+  if (Ports[i]->kind == 0) return; // Connection has already been attempted and there's no device on this port.
+
+  if (Ports[i]->kind == 's') {
+    ConnectSerialPort((struct SPort*) Ports[i]);
+  } else {
+    ConnectUsbtinyPort((struct UPort*) Ports[i]);
+  }
+  if (Ports[i]->kind  &&  (Ports[i]->character < 0)) {
+    Ports[i]->character = GetDeviceType();
+  }
+  //  Ws(" -- ConnectPort "); Wd(i,1); Wsl(" complete.");
+}
+
+
+void DwFindPort(char kind, int index, int baud) {
+  //  Ws(" -- DwFindPort kind "); Wd(kind,1);
+  //  Ws(", index ");             Wd(index,1);
+  //  Ws(", baud ");              Wd(baud,1); Wsl(".");
+  int i;
+  for (i=0; i<PortCount; i++) {
+    if (Ports[i]->kind) {
+      if (    ((kind == 0)  || (kind  == Ports[i]->kind))
+          &&  ((index == 0) || (index == Ports[i]->index))) {
+        ConnectPort(i);
+        if (Ports[i]->kind) break;
+      }
+    }
+  }
+  if (Ports[i]->kind) {
+    CurrentPort = i;
+    ResetDumpStates();
+    //  Wsl(" -- Calling DwReconnect().");
+    DwReconnect();
+    //  Wsl(" -- DwReconnect() Returned.");
+    //  Ws(" -- DescribePort: "); DescribePort(i);
+    //  Ws(" -- PC $"); Wx(PC, 4); Ws(", Flash size $"); Wx(FlashSize(), 4); Wsl(".");
+  }
+  // Ws(" -- DwFindPort complete, CurrentPort "); Wd(CurrentPort,1); Wsl(".");
+}
+
+
+void DwListDevices() {
+  int i;
+  for (i=0; i<PortCount; i++) {
+    ConnectPort(i);
+  }
+  for (i=0; i<PortCount; i++) {
+    if (Ports[i]->kind) {DescribePort(i);}
+  }
+  CurrentPort = -1;
+}
+
+
+void ConnectFirstPort() {
+  DwFindPort(0,0,0);
+  if (CurrentPort >= 0) {
+    Assert(Ports[CurrentPort]->character >= 0);
+    Ws("Connected to ");
+    DescribePort(CurrentPort);
+  }
+}
 
 
 

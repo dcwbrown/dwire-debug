@@ -1,5 +1,11 @@
 // OpenFile.c
 
+// Current loaded file
+
+FileHandle CurrentFile          = 0;
+char       CurrentFilename[500] = "";
+
+
 
 #ifdef windows
 

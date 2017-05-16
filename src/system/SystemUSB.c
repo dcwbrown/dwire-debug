@@ -98,37 +98,3 @@
 
 
 
-#define VENDOR_ID   0x1781
-#define PRODUCT_ID  0x0c9f
-
-
-struct usb_device *LittleWireDevices[20];
-int                LittleWireDeviceCount = 0;
-
-void FindLittlewires() {
-
-  LittleWireDeviceCount = 0;
-
-  if (UsbInit()) {
-    usb_find_busses();
-    usb_find_devices();
-
-    struct usb_bus *bus = usb_get_busses();
-    while (bus) {
-
-      struct usb_device *device = bus->devices;
-      while (device) {
-
-        if (device->descriptor.idVendor  == VENDOR_ID  &&  device->descriptor.idProduct == PRODUCT_ID) {
-          Assert(LittleWireDeviceCount < countof(LittleWireDevices));
-          LittleWireDevices[LittleWireDeviceCount++] = device;
-        }
-
-        device = device->next;
-      }
-
-      bus = bus->next;
-    }
-  }
-}
-

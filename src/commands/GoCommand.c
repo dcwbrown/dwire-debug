@@ -20,7 +20,7 @@ void KeyboardBreak() {
 
   void GoWaitLoop(FileHandle fd) {
     while (1) {
-      if (DigiSparkPort  &&  DigiSparkReachedBreakpoint()) {DeviceBreak(); break;}
+      if (DigisparkPort  &&  DigisparkReachedBreakpoint()) {DeviceBreak(); break;}
 
       if (SerialPort) { // See if there's anything ready at the serial port
         u8 ch;
@@ -57,7 +57,7 @@ void KeyboardBreak() {
     fd_set excpfds;
     struct timeval timeout;
     while (1) {
-      if (DigiSparkPort  &&  DigiSparkReachedBreakpoint()) {DeviceBreak(); break;}
+      if (DigisparkPort  &&  DigisparkReachedBreakpoint()) {DeviceBreak(); break;}
       FD_ZERO(&readfds);
       FD_ZERO(&excpfds);
       FD_SET(fd, &readfds);  // either stdin or GDB command socket
