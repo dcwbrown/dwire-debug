@@ -1,6 +1,21 @@
-char UsbSerialPortName[32];  // Currently selected port.
-int  SerialBaud;
-int BreakLength;
+struct SPort {  // Serial port
+  struct Port port;
+  char        portname[32];
+  FileHandle  handle;
+};
+
+
+// Debugging
+
+void WriteSPort(struct SPort *sp) {
+  Ws("SPort: kind "); Wc(sp->port.kind);
+  Ws(", index ");     Wd(sp->port.index,1);
+  Ws(", character "); Wd(sp->port.character,1);
+  Ws(", baud ");      Wd(sp->port.baud,1);
+  Ws(", handle $");   Wx((int)sp->handle,1);
+  Ws(", portname ");  Ws(sp->portname); Wsl(".");
+}
+
 
 
 #ifdef windows
@@ -25,17 +40,21 @@ int BreakLength;
   void FindSerials() {
     char *DosDevices = LoadDosDevices();
     char *CurrentDevice = DosDevices;
+    struct SPort *p;
 
     while (*CurrentDevice) {
       if (strncmp("COM", CurrentDevice, 3) == 0) {
         Assert(PortCount < countof(Ports));
-        Ports[PortCount] = malloc(sizeof(struct SPort));
-        Assert(Ports[PortCount]);
-        Ports[PortCount]->kind      = 's';
-        Ports[PortCount]->index     = strtol(CurrentDevice+3, 0, 10);
-        Ports[PortCount]->character = -1;              // Currently undetermined
-        Ports[PortCount]->baud      = 0;               // Currently undetermined
-        ((struct SPort*)Ports[PortCount])->handle = 0; // Currently unconnected
+        Assert((p = malloc(sizeof(*p))));
+
+        p->port.kind      = 's';
+        p->port.index     = strtol(CurrentDevice+3, 0, 10);
+        p->port.character = -1;              // Currently undetermined
+        p->port.baud      = 0;               // Currently undetermined
+        p->handle = 0; // Currently unconnected
+        snprintf(p->portname, sizeof(p->portname), "COM%d", p->port.index);
+
+        Ports[PortCount] = (struct Port *)p;
         PortCount++;
       }
       while (*CurrentDevice) {CurrentDevice++;}  // Skip over device string
@@ -54,14 +73,16 @@ int BreakLength;
     struct dirent *entry = 0;
     while ((entry = readdir(DeviceDir)))) {
       if (!strncmp("ttyUSB", entry->d_name, 6)) {
-        Assert(PortCount < countof(Ports));
-        Ports[PortCount] = malloc(sizeof(struct SPort));
-        Assert(Ports[PortCount]);
-        Ports[PortCount]->kind = 's';
-        Ports[PortCount]->index = strtol(entry->d_name+6, 0, 10);
-        Ports[PortCount]->character = -1;              // Currently undetermined
-        Ports[PortCount]->baud      = 0;               // Currently undetermined
-        ((struct SPort*)Ports[PortCount])->handle = 0; // Currently unconnected
+        Assert((p = malloc(sizeof(struct p))));
+
+        p->port.kind      = 's';
+        p->port.index     = strtol(entry->d_name+6, 0, 10);
+        p->port.character = -1;   // Currently undetermined
+        p->port.baud      = 0;    // Currently undetermined
+        p->handle         = 0;    // Currently unconnected
+        snprintf(p->portname, sizeof(p->portname), "/dev/ttyUSB%d", p->port.index);
+
+        Ports[PortCount] = (struct Port *)p;
         PortCount++;
       }
     }
@@ -71,13 +92,13 @@ int BreakLength;
 #endif
 
 
-void SerialSendBytes(const u8 *out, int outlen) {
-  Write(SerialPort, out, outlen);
+void SerialSendBytes(struct SPort *port, const u8 *out, int outlen) {
+  Write(port->handle, out, outlen);
   // Since txd and rxd share the same line, everything we transmit will turn
   // up in the receive buffer (unless there is a collision). Drain this
   // echoed input and check that it has not been changed.
   u8 actual[outlen];
-  SerialRead(SerialPort, actual, outlen);
+  SerialRead(port->handle, actual, outlen);
   for (int i=0; i<outlen; i++) {
     if (actual[i] != out[i]) {
       Ws("WriteDebug, byte "); Wd(i+1,1); Ws(" of "); Wd(outlen,1);
@@ -92,21 +113,24 @@ void SerialSendBytes(const u8 *out, int outlen) {
 u8   SerialOutBufBytes[256];
 int  SerialOutBufLength = 0;
 
-void SerialFlush() {
+void SerialFlush(struct SPort *port) {
   if (SerialOutBufLength > 0) {
-    SerialSendBytes(SerialOutBufBytes, SerialOutBufLength);
+    SerialSendBytes(port, SerialOutBufBytes, SerialOutBufLength);
     SerialOutBufLength = 0;
   }
 }
 
 void SerialSend(const u8 *out, int outlen) {
+  Assert(CurrentPort >= 0);
+  Assert(Ports[CurrentPort]->kind = 's');
+  struct SPort *sp = (void*)Ports[CurrentPort];
   while (SerialOutBufLength + outlen >= sizeof(SerialOutBufBytes)) {
     // Total (buffered and passed here) meets or exceeds SerialOutBuf size.
     // Send buffered and new data until there remains between 0 and 127
     // bytes still to send in the buffer.
     int lenToCopy = sizeof(SerialOutBufBytes)-SerialOutBufLength;
     memcpy(SerialOutBufBytes+SerialOutBufLength, out, lenToCopy);
-    SerialSendBytes(SerialOutBufBytes, sizeof(SerialOutBufBytes));
+    SerialSendBytes(sp, SerialOutBufBytes, sizeof(SerialOutBufBytes));
     SerialOutBufLength = 0;
     out += lenToCopy;
     outlen -= lenToCopy;
@@ -121,34 +145,43 @@ void SerialSend(const u8 *out, int outlen) {
 
 
 int SerialReceive(u8 *in, int inlen) {
-  SerialFlush();
-  SerialRead(SerialPort, in, inlen);
+  Assert(CurrentPort >= 0);
+  Assert(Ports[CurrentPort]->kind = 's');
+  struct SPort *sp = (void*)Ports[CurrentPort];
+  SerialFlush(sp);
+  SerialRead(sp->handle, in, inlen);
   return inlen;
 }
 
 
 
 
-int MaybeReadByte() {
+int MaybeReadByte(struct SPort *port) {
   u8 byte = 0;
   int bytesRead;
 
-  bytesRead = Read(SerialPort, &byte, 1);
+  bytesRead = Read(port->handle, &byte, 1);
   if (bytesRead == 1) return byte; else return -1;
 }
 
-int GetSyncByte(int verbose) {
+
+int GetSyncByte(struct SPort *sp, int verbose) {
   int byte  = 0;
 
-  byte = MaybeReadByte();
-  if (byte < 0) {Fail("Expecting break byte 0x00, but no bytes read.");}
+  byte = MaybeReadByte(sp);
+  if (byte < 0) {
+    Close(sp->handle);
+    sp->handle = 0;
+    sp->port.baud = -1;
+    Fail("Expecting break byte 0x00, but no bytes read.");
+  }
   else if (byte != 0) {Ws("Warning, expected to read zero byte after break, but got $"); Wx((u8)byte,2); Fail(".");}
 
   if (verbose) Ws(", skipping [");
-  if    (byte == 0)    {if (verbose) Wc('0'); byte = MaybeReadByte();} // Skip zero bytes generated by break.
-  if    (byte == 0)    {if (verbose) Wc('0'); byte = MaybeReadByte();} // Skip zero bytes generated by break.
-  if    (byte == 0)    {if (verbose) Wc(']'); return 0;}               // This many zeroes means we're very much faster than the chip
-  while (byte == 0xFF) {if (verbose) Wc('F'); byte = MaybeReadByte();} // Skip 0xFF bytes generated by line going high following break.
+  if    (byte == 0)    {if (verbose) Wc('0'); byte = MaybeReadByte(sp);} // Skip zero bytes generated by break.
+  if    (byte == 0)    {if (verbose) Wc('0'); byte = MaybeReadByte(sp);} // Skip zero bytes generated by break.
+  if    (byte == 0)    {if (verbose) Wc(']'); return 0;}                   // This many zeroes means we're very much faster than the chip
+  while (byte == 0xFF) {if (verbose) Wc('F'); byte = MaybeReadByte(sp);} // Skip 0xFF bytes generated by line going high following break.
   if (verbose) Ws("]");
 
   return byte;
@@ -229,30 +262,30 @@ int scaleby(int byte) {
 
 
 
-int TryBaudRate(int baudrate) {
+int TryBaudRate(struct SPort *port, int baudrate, int breaklength) {
   // Returns: > 100 - approx factor by which rate is too high (as multiple of 10)
   //          = 100 - rate generates correct 0x55 response
   //          = 0   - port does not support this baud rate
 
   if (Verbose) {
-    Ws("Trying ");          Ws(UsbSerialPortName);
+    Ws("Trying ");          Ws(port->portname);
     Ws(", baud rate ");     Wd(baudrate, 6);
-    Ws(", break length ");  Wd(BreakLength, 4);
+    Ws(", break length ");  Wd(breaklength, 4);
   } else {
     Wc('.');
   }
   Wflush();
-  MakeSerialPort(UsbSerialPortName, baudrate, &SerialPort);
-  if (!SerialPort) {
+  MakeSerialPort(port->portname, baudrate, &port->handle);
+  if (!port->handle) {
     Vsl(". Cannot set this baud rate, probably not an FT232.");
     return 0;
   }
 
-  SerialBreak(SerialPort, BreakLength);
-  int byte = GetSyncByte(Verbose);
+  SerialBreak(port->handle, breaklength);
+  int byte = GetSyncByte(port, Verbose);
 
-  Close(SerialPort);
-  SerialPort = 0;
+  Close(port->handle);
+  port->handle = 0;
 
   if (byte < 0) {
     Wsl(", No response, giving up."); return 0;
@@ -268,24 +301,24 @@ int TryBaudRate(int baudrate) {
 
 
 
-int FindBaudRate() {
+int FindBaudRate(struct SPort *port) {
 
   int baudrate = 150000; // Start well above the fastest dwire baud rate based
                          // on the max specified ATtiny clock of 20MHz.
-  BreakLength  = 50;     // 50ms allows for clocks down to 320KHz.
+  int breaklength = 50;  // 50ms allows for clocks down to 320KHz.
                          // For 8 MHz break len can be as low as 2ms.
 
   // First try lower and lower clock rates until we get a good result.
   // The baud rate for each attempt is based on a rough measurement of
   // the relative size of pulses seen in the byte returned after break.
 
-  int scale = TryBaudRate(baudrate);
+  int scale = TryBaudRate(port, baudrate, breaklength);
   if (scale == 0) {return 0;}
 
   while (scale != 100) {
     Vs(", scale "); Vd(scale,1); Vsl("%");
     baudrate = (baudrate * scale) / 100;
-    scale = TryBaudRate(baudrate);
+    scale = TryBaudRate(port, baudrate, breaklength);
   }
 
   if (scale == 0) return 0;
@@ -294,14 +327,14 @@ int FindBaudRate() {
   // Now find a lower and upper bound of working rates in order to
   // finally choose the middle rate.
 
-  BreakLength = 100000 / baudrate; // Now we have the approx byte len we can use a shorter break.
-  if (BreakLength < 2) BreakLength = 2;
+  breaklength = 100000 / baudrate; // Now we have the approx byte len we can use a shorter break.
+  if (breaklength < 2) breaklength = 2;
 
   Vsl("Finding upper bound.");
   int upperbound = baudrate;
   do {
     int trial = (upperbound * 102) / 100;
-    scale = TryBaudRate(trial);
+    scale = TryBaudRate(port, trial, breaklength);
     if (scale == 100) upperbound = trial;
   } while (scale == 100);
   Vl();
@@ -310,13 +343,12 @@ int FindBaudRate() {
   int lowerbound = baudrate;
   do {
     int trial = (lowerbound * 98) / 100;
-    scale = TryBaudRate(trial);
+    scale = TryBaudRate(port, trial, breaklength);
     if (scale == 100) lowerbound = trial;
   } while (scale == 100);
   Vl();
 
-  // Finally open the port with the middle of the working range and check
-  // it actually works.
+  // Return baud rate in the middle of the working range.
 
   return (lowerbound + upperbound) / 2;
 }
@@ -324,61 +356,71 @@ int FindBaudRate() {
 
 
 
-void TryConnectSerialPort(int baud) {
+void TryConnectSerialPort(struct SPort *sp) {
   jmp_buf oldFailPoint;
   memcpy(oldFailPoint, FailPoint, sizeof(FailPoint));
-  SerialPort = 0;
-  SerialBaud = 0;
+  if (sp->handle) {Close(sp->handle);}
+  sp->handle = 0;
 
   if (setjmp(FailPoint)) {
-    SerialPort = 0;
-    SerialBaud = 0;
+    sp->handle = 0;
+    sp->port.baud   = (sp->port.baud > 0) ? 0 : -1;
   } else {
-    if (baud <= 0) {SerialBaud = FindBaudRate();}
-    if (SerialBaud) {
-      BreakLength = 100000 / SerialBaud;
-      MakeSerialPort(UsbSerialPortName, SerialBaud, &SerialPort);
-      SerialBreak(SerialPort, BreakLength);
-      int byte = GetSyncByte(0);
-      if (byte != 0x55) {Close(SerialPort); SerialPort = 0;}
+    if (sp->port.baud <= 0) {sp->port.baud = FindBaudRate(sp);}
+    int byte;
+    if (sp->port.baud <= 0) {
+      byte = 0;
+    } else {
+      MakeSerialPort(sp->portname, sp->port.baud, &sp->handle);
+      int breaklength = 100000 / sp->port.baud; if (breaklength < 2) breaklength = 2;
+      SerialBreak(sp->handle, breaklength);
+      byte = GetSyncByte(sp, 0);
+    }
+    if (byte != 0x55) {
+      Close(sp->handle);
+      sp->handle = 0;
+      sp->port.baud   = (sp->port.baud > 0) ? 0 : -1;
     }
   }
 
   memcpy(FailPoint, oldFailPoint, sizeof(FailPoint));
+  // Ws(" -- TryConnectSerialPort complete. "); WriteSPort(sp);
 }
 
 
-int SerialReadByte() {
+int SerialReadByte(struct SPort *sp) {
   u8 byte = 0;
   int result;
-  while ((result = Read(SerialPort, &byte, 1)) == 0) {Wc('n'); Wflush();}
-  if (result<0) {Ws("SerialReadByte received error "); Wd(result,1); Fail(" from Read() on SerialPort.");}
+  while ((result = Read(sp->handle, &byte, 1)) == 0) {Wc('n'); Wflush();}
+  if (result<0) {Ws("SerialReadByte received error "); Wd(result,1); Fail(" from Read() on sp->handle.");}
   return byte;
 }
 
-void SerialSync() {
+
+void SerialSync(struct SPort *sp) {
   u8 byte = 0;
 
-  SerialFlush();
-  while ((byte = SerialReadByte()) == 0x00) {}    // Eat 0x00 bytes generated by line at break (0v)
-  while (byte == 0xFF) {byte = SerialReadByte();} // Eat 0xFF bytes generated by line going high following break.
+  SerialFlush(sp);
+  while ((byte = SerialReadByte(sp)) == 0x00) {}    // Eat 0x00 bytes generated by line at break (0v)
+  while (byte == 0xFF) {byte = SerialReadByte(sp);} // Eat 0xFF bytes generated by line going high following break.
   if (byte != 0x55) {
     Ws("Didn't receive 0x55 on reconnection, got "); Wx(byte,2); Wsl(".");
     Wsl("Clock speed may have changed, trying to re-sync.");
-    CloseHandle(SerialPort);
-    TryConnectSerialPort(0);
-    if (!SerialPort) {Ws("Couldn't reconnect to DebugWIRE device on "); Fail(UsbSerialPortName);}
+    CloseHandle(sp->handle);
+    sp->port.baud = 0;
+    TryConnectSerialPort(sp);
+    if (!sp->handle) {Ws("Couldn't reconnect to DebugWIRE device on "); Fail(sp->portname);}
   }
 }
 
-void SerialBreakAndSync() {
+void SerialBreakAndSync(struct SPort *sp) {
   Assert(SerialOutBufLength == 0);
-  BreakLength = 100000 / SerialBaud;
-  SerialBreak(SerialPort, BreakLength);
-  SerialSync();
+  int breaklength = 100000 / sp->port.baud; if (breaklength < 2) breaklength = 2;
+  SerialBreak(sp->handle, breaklength);
+  SerialSync(sp);
 }
 
-void SerialWait() {SerialFlush();}
+void SerialWait(struct SPort *sp) {SerialFlush(sp);}
 
 
 void SelectSerialHandlers() {
@@ -391,38 +433,26 @@ void SelectSerialHandlers() {
 }
 
 
-void ConnectSerialPort(struct SPort *p, int baud) {
-  Assert(p->port.kind == 's');
+void ConnectSerialPort(struct SPort *sp, int baud) {
+  Assert(sp->port.kind == 's');
   SelectSerialHandlers();
 
-  #if windows
-    snprintf(UsbSerialPortName, sizeof(UsbSerialPortName), "COM%d", p->port.index);
-  #else
-    snprintf(UsbSerialPortName, sizeof(UsbSerialPortName), "/dev/ttyUSB%d", p->port.index);
-  #endif
+  // Ws(" -- ConnectSerialPort entry. "); WriteSPort(sp);
 
-  Ws(UsbSerialPortName); Ws(" ");
+  Ws(sp->portname); Ws(" ");
 
-  if (p->handle  &&  baud  &&  p->port.baud != baud) { // Change of baud
-    Close(p->handle);
-    p->handle  = 0;
-    SerialPort = 0;
-    SerialBaud = 0;
+  if (baud  &&  sp->port.baud != baud) { // Change of baud
+    if (sp->handle) Close(sp->handle);
+    sp->handle    = 0;
+    sp->port.baud = baud;
   }
 
-  if (p->handle) {
-    SerialPort = p->handle;
-    SerialBaud = p->port.baud;
-    SerialBreakAndSync();
+  if (sp->handle) {
+    SerialBreakAndSync(sp);
   } else {
-    if (baud) {
-      SerialBaud = baud;
-      p->port.baud = baud;
-    }
-    TryConnectSerialPort(p->port.baud);
-    p->handle    = SerialPort;
-    p->port.baud = SerialBaud;
+    TryConnectSerialPort(sp);
   }
   Ws("\r                                        \r");
-  if (!SerialPort) p->port.kind = 0; // Couldn't use this port
+
+  // Ws(" -- ConnectSerialPort complete. "); WriteSPort(sp);
 }

@@ -8,16 +8,15 @@ struct Port {
   int  baud;
 };
 
-struct SPort {  // Serial port
-  struct Port port;
-  FileHandle  handle;
-};
+// Port states:
+//
+// baud  before connect  at entry to connect            after connect
+// ====  ==============  =============================  ================================================
+//  -1       n/a             n/a                        Could not find a working baud rate (serial only)
+//  0    port untried    find a working baud rate       n/a
+//  >0       n/a         try to connect with this rate  this rate found to work
 
-struct UPort {
-  struct Port        port;
-  struct usb_device *device;
-  usb_dev_handle    *handle;
-};
+
 
 struct Port *Ports[32];
 int    PortCount   = 0;

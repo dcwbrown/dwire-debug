@@ -194,14 +194,13 @@ void DescribePort(int i) {
 
 
 void ConnectPort(int i, int baud) {
-  if (Ports[i]->kind == 0) return; // Connection has already been attempted and there's no device on this port.
-
   if (Ports[i]->kind == 's') {
     ConnectSerialPort((struct SPort*)Ports[i], baud);
   } else {
     ConnectUsbtinyPort((struct UPort*)Ports[i]);
   }
-  if (Ports[i]->kind  &&  (Ports[i]->character < 0)) {
+  if (Ports[i]->baud > 0) {
+    CurrentPort = i;
     Ports[i]->character = GetDeviceType();
   }
 }
@@ -214,12 +213,12 @@ void DwFindPort(char kind, int index, int baud) {
       if (    ((kind == 0)  || (kind  == Ports[i]->kind))
           &&  ((index == 0) || (index == Ports[i]->index))) {
         ConnectPort(i, baud);
-        if (Ports[i]->kind) break;
+        if (Ports[i]->baud > 0) break;
       }
     }
     i++;
   }
-  if (i < PortCount  &&  Ports[i]->kind) {
+  if (i < PortCount  &&  Ports[i]->baud > 0) {
     CurrentPort = i;
     ResetDumpStates();
     DwReconnect();
@@ -232,10 +231,10 @@ void DwFindPort(char kind, int index, int baud) {
 void DwListDevices() {
   int i;
   for (i=0; i<PortCount; i++) {
-    ConnectPort(i, 0);
+    if (Ports[i]->baud >= 0) {ConnectPort(i, 0);}
   }
   for (i=0; i<PortCount; i++) {
-    if (Ports[i]->kind) {DescribePort(i);}
+    if (Ports[i]->baud > 0) {DescribePort(i);}
   }
   CurrentPort = -1;
 }

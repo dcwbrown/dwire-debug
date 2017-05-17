@@ -31,7 +31,7 @@ void QuitUnconnectedCommand() {
     Wl ();
     Wsl("  qr - Quit leaving device running. Executes a go command before exiting.");
     Wsl("  qs - Quit leaving the device stopped.");
-    Wsl("  qi - Quit in In-System-Programming mode. Use this if you have SCK, MISO and MOSI connected");
+    Wsl("  qi - Quit in In-System Programming mode. Use this if you have SCK, MISO and MOSI connected");
     Wsl("       and want to use SPI programming software such as AVRDUDE.");
     Fail("");
   }
