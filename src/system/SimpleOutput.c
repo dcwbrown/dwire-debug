@@ -13,7 +13,7 @@ char OutputBuffer[100]  = {0};
 int  OutputPosition     = 0;
 int  HorizontalPosition = 0;
 
-void Wflush() {
+void Wflush(void) {
   if (OutputPosition) {
     Write(Output, OutputBuffer, OutputPosition);
     OutputPosition = 0;
@@ -46,7 +46,7 @@ void Ws(const char *s) {
   while (*s) {Wc(*s); s++;}
 }
 
-void Wl() {
+void Wl(void) {
   #ifdef windows
     Ws("\r\n");
   #else
@@ -54,7 +54,7 @@ void Wl() {
   #endif
 }
 
-void Wr() {
+void Wr(void) {
   Wc('\r');
 }
 
@@ -92,7 +92,7 @@ void Whexbuf(const u8 *buf, int len) {
 
 // Verbose mode only versions
 
-void Vl ()              {if (Verbose) Wl();}
+void Vl (void)          {if (Verbose) Wl();}
 void Vc (char c)        {if (Verbose) Wc(c);}
 void Vs (const char* s) {if (Verbose) Ws(s);}
 void Vsl(const char* s) {if (Verbose) Wsl(s);}

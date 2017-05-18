@@ -62,16 +62,16 @@ int max(int a, int b) {return a>b ? a : b;}
 
 /// Simple text writing interface headers.
 
-void Wflush();
+void Wflush(void);
 void Wc(char c);
 void Ws(const char *s);
-void Wl();
+void Wl(void);
 void Wsl(const char *s);
 void Wd(s64 i, int w);
 void Wx(u64 i, int w);
 void Fail(const char *message);
-void DrainInput();
-void DumpInputState();
+void DrainInput(void);
+void DumpInputState(void);
 
 /// Simple text writing interface headers end.
 
@@ -173,10 +173,10 @@ void Free(void *ptr) {
 /// Stack backtrace report on Linux
 
 #ifdef windows
-void StackTrace() {}
+void StackTrace(void) {}
 #else
 #include <execinfo.h>
-void StackTrace() {
+void StackTrace(void) {
   Wsl("Backtrace:");
   char  *p = 0;
   void  *functions[32];
@@ -228,7 +228,7 @@ char **ArgVector;
 int    ArgCount;
 
 #ifdef windows
-  char *GetCommandParameters() {
+  char *GetCommandParameters(void) {
     char *command = GetCommandLine();
     while (*command  &&  *command <= ' ') {command++;}     // Skip leading spaces
     while (*command > ' ') {                               // Skip to blank after command filename
@@ -245,7 +245,7 @@ int    ArgCount;
   // On Linux, piece the command line together from the arguments. We don't
   // bother to put quotes around arguments with spaces ...
   char CommandParameters[256];
-  char *GetCommandParameters() {
+  char *GetCommandParameters(void) {
     int arg = 1;
     int p   = 0;
     while (arg < ArgCount) {

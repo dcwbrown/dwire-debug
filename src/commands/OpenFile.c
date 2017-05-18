@@ -14,7 +14,7 @@ char       CurrentFilename[500] = "";
 
   OPENFILENAME OpenFileName = {sizeof(OpenFileName), 0};
 
-  void OpenFileDialog()
+  void OpenFileDialog(void)
   {
     OpenFileName.lpstrFile   = CurrentFilename;
     OpenFileName.nMaxFile    = countof(CurrentFilename);
@@ -69,7 +69,7 @@ char       CurrentFilename[500] = "";
   int             GtkPresent = -1;  // -1 = haven't tried yet, 0 = tried but not available, 1 = tried and is available
   GtkApplication *App        = NULL;
 
-  int HaveGtk() {
+  int HaveGtk(void) {
     if (GtkPresent < 0) {
       void *gtk;
       GtkPresent = (    (gtk = dlopen("libgtk-3.so", RTLD_NOW))
@@ -107,7 +107,7 @@ char       CurrentFilename[500] = "";
     GtkWidgetDestroy(window);
   }
 
-  void OpenFileDialog() {
+  void OpenFileDialog(void) {
     CurrentFilename[0] = 0;
     if (HaveGtk()) {
       GSignalConnectData(App, "activate", ((GCallback)Activate), NULL, NULL, 0);

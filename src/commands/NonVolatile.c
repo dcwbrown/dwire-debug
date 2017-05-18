@@ -4,7 +4,7 @@
 enum {SPMEN=1, PGERS=3, PGWRT=5, RWWSRE=0x11, BLBSET = 0x09, SIGRD = 0x21};
 
 
-u8 ReadSPMCSR() {
+u8 ReadSPMCSR(void) {
   u8 spmcsr;
   DwSend(Bytes(0x64));        // Set up for single step mode
   DwIn(30, SPMCSR());         // in r30,SPMCSR
@@ -14,7 +14,7 @@ u8 ReadSPMCSR() {
 }
 
 
-void RenableRWW() {
+void RenableRWW(void) {
   if (BootSect()) {
     DwSetPC(BootSect());  // Set PC that allows access to all of flash
     DwSetReg(29, RWWSRE); // r29 := RWWSRE
@@ -52,7 +52,7 @@ void ReadConfigBits(u8 index, u8 *dest) {
 }
 
 
-void DumpConfig() {
+void DumpConfig(void) {
   u8 cb;
   u8 hfuse;
   u8 efuse;
@@ -265,7 +265,7 @@ void WriteFlash(u16 addr, const u8 *buf, int length) {
 
 
 
-void DumpFlashBytesCommand() {
+void DumpFlashBytesCommand(void) {
   int length = 128; // Default byte count to display
   ParseDumpParameters("dump flash bytes", FlashSize(), &FBaddr, &length);
 
@@ -279,7 +279,7 @@ void DumpFlashBytesCommand() {
 
 
 
-void DumpFlashWordsCommand() {
+void DumpFlashWordsCommand(void) {
   int length = 128; // Default byte count to display
   ParseDumpParameters("dump flash words", FlashSize(), &FWaddr, &length);
 
@@ -293,7 +293,7 @@ void DumpFlashWordsCommand() {
 
 
 
-void WriteFlashBytesCommand() {
+void WriteFlashBytesCommand(void) {
   u8 buf[16];
   int addr;
   int len;
@@ -379,7 +379,7 @@ void DwWriteEEPROM(int addr, int len, u8 *buf)
 
 
 
-void DumpEEPROMBytesCommand() {
+void DumpEEPROMBytesCommand(void) {
   int length = 32; // Default byte count to display
   ParseDumpParameters("dump EEPROM bytes", EepromSize(), &EBaddr, &length);
 
@@ -393,7 +393,7 @@ void DumpEEPROMBytesCommand() {
 
 
 
-void DumpEEPROMWordsCommand() {
+void DumpEEPROMWordsCommand(void) {
   int length = 32; // Default byte count to display
   ParseDumpParameters("dump EEPROM words", EepromSize(), &EWaddr, &length);
 
@@ -407,7 +407,7 @@ void DumpEEPROMWordsCommand() {
 
 
 
-void WriteEEPROMBytesCommand() {
+void WriteEEPROMBytesCommand(void) {
   u8 buf[16];
   int addr;
   int len;

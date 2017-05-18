@@ -2,13 +2,13 @@
 
 
 
-void DeviceBreak() {
+void DeviceBreak(void) {
   Wsl("\rDevice reached breakpoint.                                        ");
-  if (SerialPort) DwSync();
+  if (CurrentPortKind() == 's') DwSync();
   DwReconnect();
 }
 
-void KeyboardBreak() {
+void KeyboardBreak(void) {
   Wsl("Keyboard requested break. "); SkipEoln();
   DwBreakAndSync();
   DwReconnect();
@@ -20,11 +20,11 @@ void KeyboardBreak() {
 
   void GoWaitLoop(FileHandle fd) {
     while (1) {
-      if (DigisparkPort  &&  DigisparkReachedBreakpoint()) {DeviceBreak(); break;}
+      if ((CurrentPortKind() == 'u')  &&  DwReachedBreakpoint()) {DeviceBreak(); break;}
 
-      if (SerialPort) { // See if there's anything ready at the serial port
+      if (CurrentPortKind() == 's') { // See if there's anything ready at the serial port
         u8 ch;
-        int lengthRead = Read(SerialPort, &ch, 1);  // Note - waits for the comm timeout
+        int lengthRead = Read(((struct SPort*)Ports[CurrentPort])->handle, &ch, 1);  // Note - waits for the comm timeout
         if (lengthRead) {
           // Device has hit a breakpoint
           Assert(ch == 0);
@@ -80,7 +80,7 @@ void KeyboardBreak() {
 
 
 
-void GoCommand() {
+void GoCommand(void) {
   DwGo();
 
   // Wait for input from either the serial port or the keyboard.

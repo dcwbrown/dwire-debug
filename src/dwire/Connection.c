@@ -23,21 +23,6 @@ int    PortCount   = 0;
 int    CurrentPort = -1;
 
 
-usb_dev_handle *DigisparkPort = 0;
-FileHandle      SerialPort    = 0;
-
-
-void unconnected() {Fail("Unexpected error, device port not connected.");}
-
-void (*DwBreakAndSync)()                  = (void*)unconnected;
-int  (*DwReachedBreakpoint)()             = (void*)unconnected;
-void (*DwSend)(const u8 *out, int outlen) = (void*)unconnected;
-void (*DwFlush)()                         = (void*)unconnected;
-int  (*DwReceive)(u8 *in, int inlen)      = (void*)unconnected;
-void (*DwSync)()                          = (void*)unconnected;
-void (*DwWait)()                          = (void*)unconnected;
-
-
 
 
 // Device specific characteristics
@@ -91,21 +76,21 @@ struct Characteristic *CurrentCharacteristics() {
   return Characteristics + Ports[CurrentPort]->character;
 }
 
-int  IoregSize()   {return CurrentCharacteristics()->ioregSize;}
-int  SramSize()    {return CurrentCharacteristics()->sramSize;}
-int  EepromSize()  {return CurrentCharacteristics()->eepromSize;}
-int  FlashSize()   {return CurrentCharacteristics()->flashSize;}   // In bytes
-int  PageSize()    {return CurrentCharacteristics()->pageSize;}    // In bytes
-int  DWDRreg()     {return CurrentCharacteristics()->DWDR;}
-int  DWDRaddr()    {return CurrentCharacteristics()->DWDR + 0x20;} // IO regs come after the 32 regs r0-r31
-int  DataLimit()   {return 32 + IoregSize() + SramSize();}
-int  BootSect()    {return CurrentCharacteristics()->boot;}
-int  BootFlags()   {return CurrentCharacteristics()->bootflags;} // 1 = in ext fuse, 2 = in high fuse
-int  EECR()        {return CurrentCharacteristics()->EECR;}
-int  EEDR()        {return EECR()+1;}
-int  EEARL()       {return EECR()+2;}
-int  EEARH()       {return CurrentCharacteristics()->EEARH;}
-char *Name()       {return CurrentCharacteristics()->name;}
-int  SPMCSR()      {return 0x37;} // SPMCSR is at the same address on all devices
+int  IoregSize(void)   {return CurrentCharacteristics()->ioregSize;}
+int  SramSize(void)    {return CurrentCharacteristics()->sramSize;}
+int  EepromSize(void)  {return CurrentCharacteristics()->eepromSize;}
+int  FlashSize(void)   {return CurrentCharacteristics()->flashSize;}   // In bytes
+int  PageSize(void)    {return CurrentCharacteristics()->pageSize;}    // In bytes
+int  DWDRreg(void)     {return CurrentCharacteristics()->DWDR;}
+int  DWDRaddr(void)    {return CurrentCharacteristics()->DWDR + 0x20;} // IO regs come after the 32 regs r0-r31
+int  DataLimit(void)   {return 32 + IoregSize() + SramSize();}
+int  BootSect(void)    {return CurrentCharacteristics()->boot;}
+int  BootFlags(void)   {return CurrentCharacteristics()->bootflags;} // 1 = in ext fuse, 2 = in high fuse
+int  EECR(void)        {return CurrentCharacteristics()->EECR;}
+int  EEDR(void)        {return EECR()+1;}
+int  EEARL(void)       {return EECR()+2;}
+int  EEARH(void)       {return CurrentCharacteristics()->EEARH;}
+char *Name(void)       {return CurrentCharacteristics()->name;}
+int  SPMCSR(void)      {return 0x37;} // SPMCSR is at the same address on all devices
 
 enum {MaxFlashPageSize = 128, MaxFlashSize = 32768, MaxSRamSize = 2048};

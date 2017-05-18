@@ -3,7 +3,7 @@
 
 
 
-void UnassembleCommand() {
+void UnassembleCommand(void) {
   int count = 8; // Default instruction count to display
   Sb(); if (IsDwDebugNumeric(NextCh())) {Uaddr = ReadInstructionAddress("U"); Wl();}
   Sb(); if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}

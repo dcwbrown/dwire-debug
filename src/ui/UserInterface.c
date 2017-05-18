@@ -9,22 +9,22 @@
 
 
 
-void HelpCommand();
+void HelpCommand(void);
 
-void PCommand()            {PC = ReadInstructionAddress("PC");}
-void BPCommand()           {BP = ReadInstructionAddress("BP");}
-void BCCommand()           {BP = -1;}
-void QuitRunningCommand()  {if (CurrentPort >= 0) DwGo();      Exit(0);}
-void DisableCommand()      {if (CurrentPort >= 0) DwDisable(); Exit(0);}
-void QuitStoppedCommand()  {Exit(0);}
-void FailCommand()         {Fail("FailCommand ...");}
-void EmptyCommand()        {Sb(); if (!DwEoln()) {HelpCommand();}}
-void VerboseCommand()      {Verbose = 1;}
-void TimerEnableCommand()  {TimerEnable = 1;}
-void TimerDisableCommand() {TimerEnable = 0;}
+void PCommand(void)            {PC = ReadInstructionAddress("PC");}
+void BPCommand(void)           {BP = ReadInstructionAddress("BP");}
+void BCCommand(void)           {BP = -1;}
+void QuitRunningCommand(void)  {if (CurrentPort >= 0) DwGo();      Exit(0);}
+void DisableCommand(void)      {if (CurrentPort >= 0) DwDisable(); Exit(0);}
+void QuitStoppedCommand(void)  {Exit(0);}
+void FailCommand(void)         {Fail("FailCommand ...");}
+void EmptyCommand(void)        {Sb(); if (!DwEoln()) {HelpCommand();}}
+void VerboseCommand(void)      {Verbose = 1;}
+void TimerEnableCommand(void)  {TimerEnable = 1;}
+void TimerDisableCommand(void) {TimerEnable = 0;}
 
 
-void QuitUnconnectedCommand() {
+void QuitUnconnectedCommand(void) {
   if (CurrentPort >= 0) {
     Wl ();
     Wsl("A device is connected. Please use one of these quit commands:");
@@ -38,7 +38,7 @@ void QuitUnconnectedCommand() {
   Exit(0);
 }
 
-void DisassemblyPrompt() {
+void DisassemblyPrompt(void) {
   u8 buf[4];  // Enough for a 2 word instruction
   DwReadFlash(PC, 4, buf);
   Uaddr = PC + DisassembleInstruction(PC, buf);
@@ -46,7 +46,7 @@ void DisassemblyPrompt() {
 }
 
 
-void TraceCommand() {
+void TraceCommand(void) {
   int count = 1;
   Sb(); if (IsDwDebugNumeric(NextCh())) {count = ReadNumber(0);}
   if (count < 1) Fail("Trace count should be at least 1");
@@ -95,7 +95,7 @@ struct {char *name; char *help; int requiresConnection; void (*handler)();} Comm
 int IsInteractive = 0;
 
 
-void HelpCommand() {
+void HelpCommand(void) {
   for (int i=0; Commands[i].help; i++) {
     Ws("  "); Ws(Commands[i].name); Wt(12); Ws("- "); Ws(Commands[i].help); Wsl(".");
   }
@@ -116,7 +116,7 @@ void HandleCommand(const char *cmd) {
 }
 
 
-void ParseAndHandleCommand() {
+void ParseAndHandleCommand(void) {
   char command[20];
 
   Sb(); if (IsCommandSeparator(NextCh())) {SkipCh(); Sb();}
@@ -128,7 +128,7 @@ void ParseAndHandleCommand() {
 }
 
 
-void Prompt() {
+void Prompt(void) {
   if (BufferTotalContent() == 0  &&  IsInteractive) {
     if (OutputPosition == 0) {
       if (CurrentPort >= 0) {DisassemblyPrompt();} else {Ws("Unconnected.");}
@@ -141,7 +141,7 @@ void Prompt() {
 }
 
 
-void UI() {
+void UI(void) {
   PreloadInput(GetCommandParameters());
   FindUsbtinys();
   FindSerials();

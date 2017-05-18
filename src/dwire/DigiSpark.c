@@ -50,7 +50,7 @@ void WriteUPort(struct UPort *up) {
 
 
 
-void FindUsbtinys() {
+void FindUsbtinys(void) {
 
   int usbtinyindex = 1;
 
@@ -167,12 +167,7 @@ void DigisparkBreakAndSync(struct UPort *up) {
 
 
 
-
-int DigisparkReachedBreakpoint() {
-  Assert(CurrentPort >= 0);
-  Assert(Ports[CurrentPort]->kind = 'u');
-  struct UPort *up = (void*)Ports[CurrentPort];
-
+int DigisparkReachedBreakpoint(struct UPort *up) {
   char dwBuf[10];
   int status = usb_control_msg(up->handle, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
   return status >= 0  &&  dwBuf[0] != 0;
@@ -218,11 +213,7 @@ void digisparkBufferFlush(struct UPort *up, u8 state) {
 
 
 
-void DigisparkSend(const u8 *out, int outlen) {
-  Assert(CurrentPort >= 0);
-  Assert(Ports[CurrentPort]->kind = 'u');
-  struct UPort *up = (void*)Ports[CurrentPort];
-
+void DigisparkSend(struct UPort *up, const u8 *out, int outlen) {
   while (DigisparkOutBufLength + outlen > sizeof(DigisparkOutBufBytes)) {
     // Total (buffered and passed here) exceeds maximum transfer length (128
     // bytes = DigisparkOutBuf size). Send buffered and new data until there remains
@@ -247,11 +238,7 @@ void DigisparkFlush(struct UPort *up) {
 }
 
 
-int DigisparkReceive(u8 *in, int inlen) {
-  Assert(CurrentPort >= 0);
-  Assert(Ports[CurrentPort]->kind = 'u');
-  struct UPort *up = (void*)Ports[CurrentPort];
-
+int DigisparkReceive(struct UPort *up, u8 *in, int inlen) {
   Assert(inlen <= 128);
   int tries  = 0;
   int status = 0;
@@ -277,20 +264,10 @@ void DigisparkWait(struct UPort *up) {
   digisparkBufferFlush(up, 0x0C);  // Send bytes and wait for dWIRE line state change
 }
 
-void SelectUsbtinyHandlers() {
-  DwBreakAndSync      = DigisparkBreakAndSync;
-  DwReachedBreakpoint = DigisparkReachedBreakpoint;
-  DwSend              = DigisparkSend;
-  DwFlush             = DigisparkFlush;
-  DwReceive           = DigisparkReceive;
-  DwSync              = DigisparkSync;
-  DwWait              = DigisparkWait;
-}
 
 
 void ConnectUsbtinyPort(struct UPort *up) {
   Assert(up->port.kind == 'u');
-  SelectUsbtinyHandlers();
 
   // Ws(" -- ConnectUsbtinyPort entry. "); WriteUPort(up);
 

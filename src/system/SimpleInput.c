@@ -42,13 +42,13 @@ enum {ILimit = sizeof(InputBuffer)};
 // in and out always wrap - they are never left at sizeof(InputBuffer).
 // When all input removed, in and out are reset to 0.
 
-int BufferContiguousFree() {
+int BufferContiguousFree(void) {
   if      (IIn < IOut) {return IOut   - IIn - 1;}
   else if (IOut > 0)   {return ILimit - IIn;}
   else                 {return ILimit - IIn - 1;}
 }
 
-void ContiguousFill() {
+void ContiguousFill(void) {
   int lengthRead = Read(Input, &InputBuffer[IIn], BufferContiguousFree());
   if (lengthRead < 0) {Fail("Couldn't read stdin!");}
   IEof  = (lengthRead == 0);
@@ -56,9 +56,9 @@ void ContiguousFill() {
   IIn   = (IIn + lengthRead) % ILimit;
 }
 
-int BufferTotalContent() {return (IIn + ILimit - IOut) % ILimit;}
+int BufferTotalContent(void) {return (IIn + ILimit - IOut) % ILimit;}
 
-void Fill() {
+void Fill(void) {
   // Note - if the last read ended in a newline, we don't read any more data
   // until this buffer is completely empty. This enables clients to display
   // a prompt before we read the next line.
@@ -67,14 +67,14 @@ void Fill() {
   }
 }
 
-int Available() {Fill(); return BufferTotalContent();}
+int Available(void) {Fill(); return BufferTotalContent();}
 
-char NextCh() {return InputBuffer[IOut];}
-void SkipCh() {IOut = (IOut + 1) % ILimit;}
+char NextCh(void) {return InputBuffer[IOut];}
+void SkipCh(void) {IOut = (IOut + 1) % ILimit;}
 
-void DrainInput() {IIn = 0;  IOut = 0;  IEof = 0;  IEoln = 1;}
+void DrainInput(void) {IIn = 0;  IOut = 0;  IEof = 0;  IEoln = 1;}
 
-void DumpInputState() {
+void DumpInputState(void) {
   Ws("InputState: BufferTotalContent "); Wd(BufferTotalContent(),1);
   Ws(", BufferContiguousFree "); Wd(BufferContiguousFree(),1);
   Ws(", IIn ");   Wd(IIn,1);
@@ -126,11 +126,11 @@ void SkipWhile(int (test)(char ch)) {
   Fill();
   while (IIn != IOut  &&  test(NextCh())) {SkipCh();}
 }
-void SkipEoln() {if (NextCh() == 13) {SkipCh();} if (NextCh() == 10) {SkipCh();}}
+void SkipEoln(void) {if (NextCh() == 13) {SkipCh();} if (NextCh() == 10) {SkipCh();}}
 
-void Sa() {SkipWhile(IsAlpha);}
-void Sb() {SkipWhile(IsBlank);}
-void Sl() {SkipWhile(NotEoln); SkipEoln();}
+void Sa(void) {SkipWhile(IsAlpha);}
+void Sb(void) {SkipWhile(IsBlank);}
+void Sl(void) {SkipWhile(NotEoln); SkipEoln();}
 
 void Ra (char *buf, int buflen) {ReadWhile(IsAlpha,        buf, buflen);}
 void Rn (char *buf, int buflen) {ReadWhile(IsNumeric,      buf, buflen);}

@@ -89,7 +89,7 @@ char SourceFilename[300] = {0};
 u8 *ElfProgramHeaders = 0;
 
 
-int IsLoadableElf() {
+int IsLoadableElf(void) {
 
   int length = Read(CurrentFile, &ElfHeader, sizeof(ElfHeader));
   Seek(CurrentFile, 0);
@@ -325,7 +325,7 @@ int IsLoadableElf() {
 u8 FlashBuffer[MaxFlashSize] = {0};
 
 
-void LoadElfSegments() {
+void LoadElfSegments(void) {
   for (int i=0; i<ElfHeader.phnum; i++) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
     if (header->type == 1  &&  header->paddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
@@ -361,7 +361,7 @@ void LoadElfSegments() {
 
 
 
-void LoadBinary() {
+void LoadBinary(void) {
   Seek(CurrentFile, 0);
   int length = Read(CurrentFile, FlashBuffer, sizeof(FlashBuffer));
   if (length <= 0) {Fail("File is empty.");}
@@ -376,7 +376,7 @@ void LoadBinary() {
 
 
 
-void LoadFileCommand() {
+void LoadFileCommand(void) {
   if (CurrentFile) {Close(CurrentFile);}
   CurrentFilename[0] = 0;
 

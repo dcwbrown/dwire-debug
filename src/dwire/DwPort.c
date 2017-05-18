@@ -7,11 +7,61 @@
 //   DwFlush - Flush buffer to device
 
 
+char CurrentPortKind() {Assert(CurrentPort >= 0); return Ports[CurrentPort]->kind;}
+
+void DwBreakAndSync(void) {
+  if (CurrentPortKind() == 's')
+    SerialBreakAndSync((struct SPort*)Ports[CurrentPort]);
+  else
+    DigisparkBreakAndSync((struct UPort*)Ports[CurrentPort]);
+}
+
+int  DwReachedBreakpoint(void) {
+  Assert(CurrentPortKind() == 'u');
+  return DigisparkReachedBreakpoint((struct UPort*)Ports[CurrentPort]);
+}
+
+void DwSend(const u8 *out, int outlen) {
+  if (CurrentPortKind() == 's')
+    SerialSend((struct SPort*)Ports[CurrentPort], out, outlen);
+  else
+    DigisparkSend((struct UPort*)Ports[CurrentPort], out, outlen);
+}
+
+void DwFlush(void) {
+  if (CurrentPortKind() == 's')
+    SerialFlush((struct SPort*)Ports[CurrentPort]);
+  else
+    DigisparkFlush((struct UPort*)Ports[CurrentPort]);
+}
+
+int  DwReceive(u8 *in, int inlen) {
+  if (CurrentPortKind() == 's')
+    return SerialReceive((struct SPort*)Ports[CurrentPort], in, inlen);
+  else
+    return DigisparkReceive((struct UPort*)Ports[CurrentPort], in, inlen);
+}
+
+void DwSync(void) {
+  if (CurrentPortKind() == 's')
+    SerialSync((struct SPort*)Ports[CurrentPort]);
+  else
+    DigisparkSync((struct UPort*)Ports[CurrentPort]);
+}
+
+void DwWait(void) {
+  if (CurrentPortKind() == 's')
+    SerialWait((struct SPort*)Ports[CurrentPort]);
+  else
+    DigisparkWait((struct UPort*)Ports[CurrentPort]);
+}
 
 
 
-int DwReadByte() {u8 byte = 0; DwReceive(&byte, 1); return byte;}
-int DwReadWord() {u8 buf[2] = {0}; DwReceive(buf, 2); return (buf[0] << 8) | buf[1];}
+
+
+int DwReadByte(void) {u8 byte = 0; DwReceive(&byte, 1); return byte;}
+int DwReadWord(void) {u8 buf[2] = {0}; DwReceive(buf, 2); return (buf[0] << 8) | buf[1];}
 
 
 u8 hi(int w) {return (w>>8)&0xff;}
@@ -120,25 +170,25 @@ void DwWriteAddr(int addr, int len, const u8 *buf) {
 //
 
 
-void DwReconnect() {
+void DwReconnect(void) {
   DwSend(Bytes(0xF0));  // Request current PC
   PC = (2 * (DwReadWord() - 1) % FlashSize());
   DwGetRegs(28, R+28, 4); // Cache r28 through r31
 }
 
-void DwReset() {
+void DwReset(void) {
   DwSend(Bytes(0x07));  // dWIRE reset
   DwSync();
   DwReconnect();
 }
 
-void DwDisable() {
+void DwDisable(void) {
   DwSend(Bytes(0x06));
   DwFlush();
 }
 
 
-void DwTrace() { // Execute one instruction
+void DwTrace(void) { // Execute one instruction
   DwSetRegs(28, R, 4);       // Restore cached registers
   DwSetPC(PC/2);             // Trace start address
   DwSend(Bytes(0x60, 0x31)); // Single step
@@ -147,7 +197,7 @@ void DwTrace() { // Execute one instruction
 }
 
 
-void DwGo() { // Begin executing.
+void DwGo(void) { // Begin executing.
   DwSetRegs(28, R, 4);  // Restore cached registers
   DwSetPC(PC/2);        // Execution start address
   if (BP < 0) {         // Prepare to start execution with no breakpoint set
@@ -161,7 +211,7 @@ void DwGo() { // Begin executing.
 }
 
 
-int GetDeviceType() {
+int GetDeviceType(void) {
   DwSend(Bytes(0xF3));  // Request signature
   int signature = DwReadWord();
   int i=0; while (    Characteristics[i].signature
@@ -185,7 +235,7 @@ void DescribePort(int i) {
       Ws("/dev/ttyUSB");
     #endif
   } else {
-    Ws("usbtiny");
+    Ws("UsbTiny");
   }
   Wd(Ports[i]->index,1); Ws(" at ");
   Wd(Ports[i]->baud,1);
@@ -228,7 +278,7 @@ void DwFindPort(char kind, int index, int baud) {
 }
 
 
-void DwListDevices() {
+void DwListDevices(void) {
   int i;
   for (i=0; i<PortCount; i++) {
     if (Ports[i]->baud >= 0) {ConnectPort(i, 0);}
@@ -240,7 +290,7 @@ void DwListDevices() {
 }
 
 
-void ConnectFirstPort() {
+void ConnectFirstPort(void) {
   DwFindPort(0,0,0);
   if (CurrentPort >= 0) {
     Assert(Ports[CurrentPort]->character >= 0);

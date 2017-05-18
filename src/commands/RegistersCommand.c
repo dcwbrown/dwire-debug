@@ -3,7 +3,7 @@
 
 
 
-void DisplayAllRegisters() {
+void DisplayAllRegisters(void) {
 
   // Read first 28 registers (r28 - r31 are already cached)
   DwGetRegs(0, R, 28);
@@ -36,7 +36,7 @@ void DisplayAllRegisters() {
 
 
 
-void RegistersCommand() {
+void RegistersCommand(void) {
   Sb();
   if (IsDwDebugNumeric(NextCh())) {
 

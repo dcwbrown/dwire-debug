@@ -18,7 +18,7 @@ void ParseDumpParameters(char *context, int limit, int *addr, int *len) {
 
 
 
-void DumpDataBytesCommand() {
+void DumpDataBytesCommand(void) {
   int length = 128; // Default data byte count to display
   ParseDumpParameters("dump data bytes", DataLimit(), &DBaddr, &length);
 
@@ -32,7 +32,7 @@ void DumpDataBytesCommand() {
 
 
 
-void DumpDataWordsCommand() {
+void DumpDataWordsCommand(void) {
   int length = 128; // Default data byte count to display
   ParseDumpParameters("dump data words", DataLimit(), &DWaddr, &length);
 
@@ -68,7 +68,7 @@ void ParseWriteParameters(char *context, int *addr, int limit, u8 *buf, int *len
 
 
 
-void WriteDataBytesCommand() {
+void WriteDataBytesCommand(void) {
   u8 buf[16];
   int addr;
   int len;

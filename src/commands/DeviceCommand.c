@@ -17,7 +17,7 @@ void DeviceFail(char *msg) {
 }
 
 
-void DeviceCommand() {
+void DeviceCommand(void) {
 
   Sb();
 

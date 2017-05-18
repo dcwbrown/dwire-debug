@@ -5,22 +5,22 @@ struct SPort {  // Serial port
 };
 
 
-// Debugging
-
-void WriteSPort(struct SPort *sp) {
-  Ws("SPort: kind "); Wc(sp->port.kind);
-  Ws(", index ");     Wd(sp->port.index,1);
-  Ws(", character "); Wd(sp->port.character,1);
-  Ws(", baud ");      Wd(sp->port.baud,1);
-  Ws(", handle $");   Wx((int)sp->handle,1);
-  Ws(", portname ");  Ws(sp->portname); Wsl(".");
-}
+//  // Debugging
+//
+//  void WriteSPort(struct SPort *sp) {
+//    Ws("SPort: kind "); Wc(sp->port.kind);
+//    Ws(", index ");     Wd(sp->port.index,1);
+//    Ws(", character "); Wd(sp->port.character,1);
+//    Ws(", baud ");      Wd(sp->port.baud,1);
+//    Ws(", handle $");   Wx((int)sp->handle,1);
+//    Ws(", portname ");  Ws(sp->portname); Wsl(".");
+//  }
 
 
 
 #ifdef windows
 
-  char *LoadDosDevices() {
+  char *LoadDosDevices(void) {
     char *DosDevices = 0;
     int   size       = 24576;
     int   used       = 0;
@@ -37,7 +37,7 @@ void WriteSPort(struct SPort *sp) {
     return DosDevices;
   }
 
-  void FindSerials() {
+  void FindSerials(void) {
     char *DosDevices = LoadDosDevices();
     char *CurrentDevice = DosDevices;
     struct SPort *p;
@@ -66,7 +66,7 @@ void WriteSPort(struct SPort *sp) {
 
 #else
 
-  void FindSerials() {
+  void FindSerials(void) {
     DIR *DeviceDir = opendir("/dev");
     if (!DeviceDir) {return;}}
 
@@ -120,10 +120,7 @@ void SerialFlush(struct SPort *port) {
   }
 }
 
-void SerialSend(const u8 *out, int outlen) {
-  Assert(CurrentPort >= 0);
-  Assert(Ports[CurrentPort]->kind = 's');
-  struct SPort *sp = (void*)Ports[CurrentPort];
+void SerialSend(struct SPort *sp, const u8 *out, int outlen) {
   while (SerialOutBufLength + outlen >= sizeof(SerialOutBufBytes)) {
     // Total (buffered and passed here) meets or exceeds SerialOutBuf size.
     // Send buffered and new data until there remains between 0 and 127
@@ -144,10 +141,7 @@ void SerialSend(const u8 *out, int outlen) {
 
 
 
-int SerialReceive(u8 *in, int inlen) {
-  Assert(CurrentPort >= 0);
-  Assert(Ports[CurrentPort]->kind = 's');
-  struct SPort *sp = (void*)Ports[CurrentPort];
+int SerialReceive(struct SPort *sp, u8 *in, int inlen) {
   SerialFlush(sp);
   SerialRead(sp->handle, in, inlen);
   return inlen;
@@ -359,6 +353,7 @@ int FindBaudRate(struct SPort *port) {
 void TryConnectSerialPort(struct SPort *sp) {
   jmp_buf oldFailPoint;
   memcpy(oldFailPoint, FailPoint, sizeof(FailPoint));
+
   if (sp->handle) {Close(sp->handle);}
   sp->handle = 0;
 
@@ -420,22 +415,15 @@ void SerialBreakAndSync(struct SPort *sp) {
   SerialSync(sp);
 }
 
-void SerialWait(struct SPort *sp) {SerialFlush(sp);}
-
-
-void SelectSerialHandlers() {
-  DwBreakAndSync = SerialBreakAndSync;
-  DwSend         = SerialSend;
-  DwFlush        = SerialFlush;
-  DwReceive      = SerialReceive;
-  DwSync         = SerialSync;
-  DwWait         = SerialWait;
+void SerialWait(struct SPort *sp) {
+  SerialFlush(sp);
 }
+
+
 
 
 void ConnectSerialPort(struct SPort *sp, int baud) {
   Assert(sp->port.kind == 's');
-  SelectSerialHandlers();
 
   // Ws(" -- ConnectSerialPort entry. "); WriteSPort(sp);
 
