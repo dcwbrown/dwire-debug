@@ -3,16 +3,24 @@
 
 void DeviceFail(char *msg) {
   Wsl(msg);
+  Wl();
   Wsl("device command format:");
+  Wl();
   Wsl("  device deviceid [baud]");
+  Wl();
   Wsl("where deviceid is a device name and number such as:");
+  Wl();
   Wsl("  com5");
   Wsl("  usbtiny1");
   Wsl("  ttyUSB3");
-  Wsl("Device ids can be viewed with the dwdebug 'ls' command.");
-  Wsl("The device name may be abbreviated to as little as its first letter.");
-  Wsl("Thus the examples above could be specified instead as c5, u1 and t3.");
+  Wl();
+  Wsl("The device name may be abbreviated to as little as its first letter, thus");
+  Wsl("the examples above could be specified instead as c5, u1 and t3.");
+  Wl();
   Wsl("The optional baud is ignored on usbtiny ports.");
+  Wl();
+  Wsl("Use the ls command to list available devices.");
+  Wl();
   Fail("");
 }
 

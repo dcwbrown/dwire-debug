@@ -4,9 +4,6 @@
           SystemServices.c.
 */
 
-int Verbose = 0;  // Set the verbose flag to flush all outputs, and to enable
-                  // the Vc, Vs, Vl etc. versions of the output functions.
-
 /// Simple standard output text writing and buffering.
 
 char OutputBuffer[100]  = {0};

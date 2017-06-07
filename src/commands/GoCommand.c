@@ -57,19 +57,25 @@ void KeyboardBreak(void) {
     fd_set excpfds;
     struct timeval timeout;
     while (1) {
-      if (DigisparkPort  &&  DigisparkReachedBreakpoint()) {DeviceBreak(); break;}
+      if ((CurrentPortKind() == 'u')  &&  DwReachedBreakpoint()) {DeviceBreak(); break;}
       FD_ZERO(&readfds);
       FD_ZERO(&excpfds);
       FD_SET(fd, &readfds);  // either stdin or GDB command socket
-      FD_SET(SerialPort, &readfds);
+      int maxport    = fd;
+      int serialport = 0;
+      if (CurrentPortKind() == 's') {
+        serialport = ((struct SPort*)Ports[CurrentPort])->handle;
+        FD_SET(serialport, &readfds);
+        if (serialport > maxport) maxport = serialport;
+      }
       timeout = (struct timeval){10,0}; // 10 seconds
-      if (select(max(fd, SerialPort)+1, &readfds, 0, &excpfds, &timeout) > 0) {
+      if (select(maxport+1, &readfds, 0, &excpfds, &timeout) > 0) {
         // Something became available
-        if (FD_ISSET(SerialPort, &readfds)) {DeviceBreak();   break;}
-        if (FD_ISSET(fd,         &readfds)) {KeyboardBreak(); break;}
-        if (FD_ISSET(fd,         &excpfds)) {KeyboardBreak(); break;}
-      } else {
-        Ws("."); Flush();
+        if ((CurrentPortKind() == 's')  &&  FD_ISSET(serialport, &readfds)) {
+          DeviceBreak(); break;
+        }
+        if (FD_ISSET(fd, &readfds)) {KeyboardBreak(); break;}
+        if (FD_ISSET(fd, &excpfds)) {KeyboardBreak(); break;}
       }
     }
   }

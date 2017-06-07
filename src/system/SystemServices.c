@@ -62,6 +62,9 @@ int max(int a, int b) {return a>b ? a : b;}
 
 /// Simple text writing interface headers.
 
+int Verbose = 0;  // Set the verbose flag to flush all outputs, and to enable
+                  // the Vc, Vs, Vl etc. versions of the output functions.
+
 void Wflush(void);
 void Wc(char c);
 void Ws(const char *s);
@@ -205,7 +208,7 @@ static jmp_buf FailPoint;
 
 void Fail(const char *message) {
   Wsl(message);
-  StackTrace();
+  if (Verbose) StackTrace();
   longjmp(FailPoint,1);
 }
 

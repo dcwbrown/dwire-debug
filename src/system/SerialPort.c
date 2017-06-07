@@ -42,9 +42,9 @@
   }
 #else
   void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
-    char fullname[256] = "/dev/";
-    strncat(fullname, portname, 250); fullname[255] = 0;
-    if ((*SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
+    if ((*SerialPort = open(portname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {
+      Ws("Couldn't open serial port "); Ws(portname); Fail(".");
+    }
     struct termios2 config = {0};
     if (ioctl(*SerialPort, TCGETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     config.c_cflag     = CS8 | BOTHER | CLOCAL;

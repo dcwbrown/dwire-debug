@@ -68,12 +68,13 @@ struct SPort {  // Serial port
 
   void FindSerials(void) {
     DIR *DeviceDir = opendir("/dev");
-    if (!DeviceDir) {return;}}
+    if (!DeviceDir) return;
 
     struct dirent *entry = 0;
-    while ((entry = readdir(DeviceDir)))) {
+    struct SPort *p;
+    while ((entry = readdir(DeviceDir))) {
       if (!strncmp("ttyUSB", entry->d_name, 6)) {
-        Assert((p = malloc(sizeof(struct p))));
+        Assert((p = malloc(sizeof(struct SPort))));
 
         p->port.kind      = 's';
         p->port.index     = strtol(entry->d_name+6, 0, 10);
@@ -401,7 +402,7 @@ void SerialSync(struct SPort *sp) {
   if (byte != 0x55) {
     Ws("Didn't receive 0x55 on reconnection, got "); Wx(byte,2); Wsl(".");
     Wsl("Clock speed may have changed, trying to re-sync.");
-    CloseHandle(sp->handle);
+    Close(sp->handle);
     sp->port.baud = 0;
     TryConnectSerialPort(sp);
     if (!sp->handle) {Ws("Couldn't reconnect to DebugWIRE device on "); Fail(sp->portname);}

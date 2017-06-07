@@ -279,12 +279,16 @@ void DwFindPort(char kind, int index, int baud) {
 
 
 void DwListDevices(void) {
-  int i;
-  for (i=0; i<PortCount; i++) {
-    if (Ports[i]->baud >= 0) {ConnectPort(i, 0);}
-  }
-  for (i=0; i<PortCount; i++) {
-    if (Ports[i]->baud > 0) {DescribePort(i);}
+  if (PortCount <= 0) {
+    Fail("No devices available.");
+  } else {
+    int i;
+    for (i=0; i<PortCount; i++) {
+      if (Ports[i]->baud >= 0) {ConnectPort(i, 0);}
+    }
+    for (i=0; i<PortCount; i++) {
+      if (Ports[i]->baud > 0) {DescribePort(i);}
+    }
   }
   CurrentPort = -1;
 }

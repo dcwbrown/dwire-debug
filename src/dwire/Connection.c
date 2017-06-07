@@ -8,16 +8,6 @@ struct Port {
   int  baud;
 };
 
-// Port states:
-//
-// baud  before connect  at entry to connect            after connect
-// ====  ==============  =============================  ================================================
-//  -1       n/a             n/a                        Could not find a working baud rate (serial only)
-//  0    port untried    find a working baud rate       n/a
-//  >0       n/a         try to connect with this rate  this rate found to work
-
-
-
 struct Port *Ports[32];
 int    PortCount   = 0;
 int    CurrentPort = -1;
@@ -72,7 +62,7 @@ struct Characteristic {
 };
 
 struct Characteristic *CurrentCharacteristics() {
-  Assert(CurrentPort >= 0);
+  if (CurrentPort < 0) Fail("No device connected");
   return Characteristics + Ports[CurrentPort]->character;
 }
 
