@@ -71,7 +71,7 @@ u8 lo(int w) {return (w   )&0xff;}
 void DwSetPC(u16 pc) {DwSend(Bytes(0xD0, hi(pc)|0x10, lo(pc)));}
 void DwSetBP(u16 bp) {DwSend(Bytes(0xD1, hi(bp)|0x10, lo(bp)));}
 
-void DwInst(u16 inst) {DwSend(Bytes(0xD2, hi(inst), lo(inst), 0x23));}
+void DwInst(u16 inst) {DwSend(Bytes(0x64, 0xD2, hi(inst), lo(inst), 0x23));}
 
 void DwIn(u8 reg, u16 ioreg)  {DwInst(0xB000 | ((ioreg << 5) & 0x600) | ((reg << 4) & 0x01F0) | (ioreg & 0x000F));}
 void DwOut(u16 ioreg, u8 reg) {DwInst(0xB800 | ((ioreg << 5) & 0x600) | ((reg << 4) & 0x01F0) | (ioreg & 0x000F));}
@@ -97,6 +97,7 @@ void DwSetReg(int reg, u8 val) {DwIn(reg, DWDRreg()); DwSend(Bytes(val));}
 
 void DwSetRegs(int first, const u8 *regs, int count) {
   if (count <= 3) {
+    DwSend(Bytes(0x64)); // Set single step loaded instruction mode
     while (count > 0) {DwSetReg(first, *regs); first++; regs++; count--;}
   } else {
     DwSetPC(first);

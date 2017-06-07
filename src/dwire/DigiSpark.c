@@ -234,7 +234,7 @@ void DigisparkSend(struct UPort *up, const u8 *out, int outlen) {
 
 
 void DigisparkFlush(struct UPort *up) {
-  digisparkBufferFlush(up, 0x14);
+  digisparkBufferFlush(up, 0x04);
 }
 
 
@@ -242,6 +242,8 @@ int DigisparkReceive(struct UPort *up, u8 *in, int inlen) {
   Assert(inlen <= 128);
   int tries  = 0;
   int status = 0;
+
+  if (OutputPosition > 0) Wl();
 
   digisparkBufferFlush(up, 0x14);
 

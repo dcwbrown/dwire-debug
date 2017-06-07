@@ -13,6 +13,8 @@ char *FileName[MaxFlashSize]   = {0};
 char *CodeSymbol[MaxFlashSize] = {0};
 char *SramSymbol[MaxSRamSize]  = {0};
 
+void LoadFail(char *msg) {CurrentFile = 0; Fail(msg);}
+
 
 // ELF format decoding
 
@@ -100,27 +102,27 @@ int IsLoadableElf(void) {
   // The file has a 4 byte standard ELF header. From now on explain why when
   // we choose not to load it as an ELF.
 
-  if (ElfHeader.architecture != 1)  {Fail("Cannot load ELF that is not for 32-bit architecture.");}
-  if (ElfHeader.encoding     != 1)  {Fail("Cannot load ELF that is not for two's complement little ending data encoding.");}
+  if (ElfHeader.architecture != 1)  {LoadFail("Cannot load ELF that is not for 32-bit architecture.");}
+  if (ElfHeader.encoding     != 1)  {LoadFail("Cannot load ELF that is not for two's complement little ending data encoding.");}
   if (ElfHeader.elfversion   != 1)  {Wsl("Warning: ELF EI_VERSION is not current version.");}
   if (ElfHeader.version      != 1)  {Wsl("Warning: ELF version is not current version.");}
   if (ElfHeader.type         != 2)  {Wsl("Warning: ELF type is not executable.");}
   if (ElfHeader.machine      != 83) {Wsl("Warning: ELF machine architecture is not AVR.");}
   if (    ElfHeader.phoff     == 0
       ||  ElfHeader.phentsize == 0
-      ||  ElfHeader.phnum     == 0)  {Fail("Cannot load ELF with no program header table.");}
+      ||  ElfHeader.phnum     == 0)  {LoadFail("Cannot load ELF with no program header table.");}
 
   // Program header table
 
   int elfProgramHeaderSize = ElfHeader.phnum * ElfHeader.phentsize;
 
-  if (elfProgramHeaderSize < sizeof(struct ElfProgramHeader))       {Fail("Cannot load ELF with incomplete program header table.");}
-  if (elfProgramHeaderSize > sizeof(struct ElfProgramHeader) * 100) {Fail("Cannot load ELF with unreasonable long program header table.");}
+  if (elfProgramHeaderSize < sizeof(struct ElfProgramHeader))       {LoadFail("Cannot load ELF with incomplete program header table.");}
+  if (elfProgramHeaderSize > sizeof(struct ElfProgramHeader) * 100) {LoadFail("Cannot load ELF with unreasonable long program header table.");}
 
   ElfProgramHeaders = Allocate(elfProgramHeaderSize);
   Seek(CurrentFile, ElfHeader.phoff);
   int lengthRead = Read(CurrentFile, ElfProgramHeaders, elfProgramHeaderSize);
-  if (lengthRead != elfProgramHeaderSize) {Fail("Cannot load ELF - failed to load program header table.");}
+  if (lengthRead != elfProgramHeaderSize) {LoadFail("Cannot load ELF - failed to load program header table.");}
 
   //  for (int i=0; i<ElfHeader.phnum; i++) {
   //    struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
@@ -141,23 +143,23 @@ int IsLoadableElf(void) {
 
   int elfSectionHeaderSize = ElfHeader.shnum * ElfHeader.shentsize;
 
-  if (elfSectionHeaderSize < sizeof(struct ElfSectionHeader))       {Fail("Cannot load ELF with incomplete section header table.");}
-  if (elfSectionHeaderSize > sizeof(struct ElfSectionHeader) * 200) {Fail("Cannot load ELF with unreasonably long section header table.");}
+  if (elfSectionHeaderSize < sizeof(struct ElfSectionHeader))       {LoadFail("Cannot load ELF with incomplete section header table.");}
+  if (elfSectionHeaderSize > sizeof(struct ElfSectionHeader) * 200) {LoadFail("Cannot load ELF with unreasonably long section header table.");}
 
   u8 *sectionHeaders = Allocate(elfSectionHeaderSize);
   Seek(CurrentFile, ElfHeader.shoff);
   lengthRead = Read(CurrentFile, sectionHeaders, elfSectionHeaderSize);
-  if (lengthRead != elfSectionHeaderSize) {Fail("Cannot load ELF - failed to load section header table.");}
+  if (lengthRead != elfSectionHeaderSize) {LoadFail("Cannot load ELF - failed to load section header table.");}
 
   // Load section names
 
-  if (ElfHeader.shstrndx >= ElfHeader.shnum) {Fail("Cannot load ELF with section name table index out of range.");}
+  if (ElfHeader.shstrndx >= ElfHeader.shnum) {LoadFail("Cannot load ELF with section name table index out of range.");}
   struct ElfSectionHeader *sectionNamesHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * ElfHeader.shstrndx);
 
   char *sectionNames = Allocate(sectionNamesHeader->size);
   Seek(CurrentFile, sectionNamesHeader->offset);
   lengthRead = Read(CurrentFile, sectionNames, sectionNamesHeader->size);
-  if (lengthRead != sectionNamesHeader->size) {Fail("CannotLoad ELF with incomplete sectionnames table.");}
+  if (lengthRead != sectionNamesHeader->size) {LoadFail("CannotLoad ELF with incomplete sectionnames table.");}
 
   // Display section headers content
 
@@ -168,7 +170,7 @@ int IsLoadableElf(void) {
 
   for (int i=0; i<ElfHeader.shnum; i++) {
     struct ElfSectionHeader *header = (struct ElfSectionHeader *) (sectionHeaders + (i*ElfHeader.shentsize));
-    if (header->name >= sectionNamesHeader->size-1) {Fail("Cannot load ELF with section name string beyond end of section name table.");}
+    if (header->name >= sectionNamesHeader->size-1) {LoadFail("Cannot load ELF with section name string beyond end of section name table.");}
 
     //Ws("Section ");     Ws(sectionNames[header->name] ? sectionNames + header->name : "(unnamed)");
     //Ws(", type ");      if (header->type<4) {Ws((char*[]){"null","progbits","symtab","strtab"}[header->type]);} else {Wd(header->type,1);}
@@ -195,23 +197,23 @@ int IsLoadableElf(void) {
 
     // Load symbol table
 
-    if (symbolTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with symbol table index out of range.");}
+    if (symbolTableIndex >= ElfHeader.shnum) {LoadFail("Cannot load ELF with symbol table index out of range.");}
     struct ElfSectionHeader *symbolTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbolTableIndex);
 
     struct ElfSymbol *symbols = Allocate(symbolTableHeader->size);
     Seek(CurrentFile, symbolTableHeader->offset);
     lengthRead = Read(CurrentFile, symbols, symbolTableHeader->size);
-    if (lengthRead != symbolTableHeader->size) {Fail("CannotLoad ELF with incomplete symbol table.");}
+    if (lengthRead != symbolTableHeader->size) {LoadFail("CannotLoad ELF with incomplete symbol table.");}
 
     // Load symbol name table
 
-    if (symbolNameTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with symbol name table index out of range.");}
+    if (symbolNameTableIndex >= ElfHeader.shnum) {LoadFail("Cannot load ELF with symbol name table index out of range.");}
     struct ElfSectionHeader *symbolNamesHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * symbolNameTableIndex);
 
     char *symbolNames = Allocate(symbolNamesHeader->size);
     Seek(CurrentFile, symbolNamesHeader->offset);
     lengthRead = Read(CurrentFile, symbolNames, symbolNamesHeader->size);
-    if (lengthRead != symbolNamesHeader->size) {Fail("CannotLoad ELF with incomplete symbol names table.");}
+    if (lengthRead != symbolNamesHeader->size) {LoadFail("CannotLoad ELF with incomplete symbol names table.");}
 
     // Display symbols
 
@@ -256,23 +258,23 @@ int IsLoadableElf(void) {
 
     // Load stab
 
-    if (stabTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with stab table index out of range.");}
+    if (stabTableIndex >= ElfHeader.shnum) {LoadFail("Cannot load ELF with stab table index out of range.");}
     struct ElfSectionHeader *stabTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * stabTableIndex);
 
     struct stab *stabs = Allocate(stabTableHeader->size);
     Seek(CurrentFile, stabTableHeader->offset);
     lengthRead = Read(CurrentFile, stabs, stabTableHeader->size);
-    if (lengthRead != stabTableHeader->size) {Fail("CannotLoad ELF with incomplete stab table.");}
+    if (lengthRead != stabTableHeader->size) {LoadFail("CannotLoad ELF with incomplete stab table.");}
 
     // Load stab name table
 
-    if (stabstrTableIndex >= ElfHeader.shnum) {Fail("Cannot load ELF with stabstr table index out of range.");}
+    if (stabstrTableIndex >= ElfHeader.shnum) {LoadFail("Cannot load ELF with stabstr table index out of range.");}
     struct ElfSectionHeader *stabstrTableHeader = (struct ElfSectionHeader *) (sectionHeaders + ElfHeader.shentsize * stabstrTableIndex);
 
     char *stabNames = Allocate(stabstrTableHeader->size);
     Seek(CurrentFile, stabstrTableHeader->offset);
     lengthRead = Read(CurrentFile, stabNames, stabstrTableHeader->size);
-    if (lengthRead != stabstrTableHeader->size) {Fail("CannotLoad ELF with incomplete stab names table.");}
+    if (lengthRead != stabstrTableHeader->size) {LoadFail("CannotLoad ELF with incomplete stab names table.");}
 
     // Display stabs
 
@@ -330,13 +332,13 @@ void LoadElfSegments(void) {
     struct ElfProgramHeader *header = (struct ElfProgramHeader *) (ElfProgramHeaders + (i*ElfHeader.phentsize));
     if (header->type == 1  &&  header->paddr < 0x800000) { // >= 0x800000 is avr trick for non-flash areas
 
-      if (!header->offset)                               {Fail("Flash memory image missing in ELF file.");}
-      if (header->filesize > header->memsize)            {Fail("ELF file error: filesize>memsize.");}
-      if (header->paddr + header->memsize > FlashSize()) {Fail("Flash segment extends beyond available flash on this device.");}
+      if (!header->offset)                               {LoadFail("Flash memory image missing in ELF file.");}
+      if (header->filesize > header->memsize)            {LoadFail("ELF file error: filesize>memsize.");}
+      if (header->paddr + header->memsize > FlashSize()) {LoadFail("Flash segment extends beyond available flash on this device.");}
 
       Seek(CurrentFile, header->offset);
       int length = Read(CurrentFile, FlashBuffer, header->filesize);
-      if (length < header->filesize) {Fail("Failed to read memory image from ELF.");}
+      if (length < header->filesize) {LoadFail("Failed to read memory image from ELF.");}
 
       if (header->memsize > header->filesize) {
         memset(FlashBuffer+header->filesize, 0, header->memsize-header->filesize);
@@ -364,7 +366,7 @@ void LoadElfSegments(void) {
 void LoadBinary(void) {
   Seek(CurrentFile, 0);
   int length = Read(CurrentFile, FlashBuffer, sizeof(FlashBuffer));
-  if (length <= 0) {Fail("File is empty.");}
+  if (length <= 0) {LoadFail("File is empty.");}
 
   Ws("Loading "); Wd(length,1); Wsl(" flash bytes from binary image file.");
   WriteFlash(0, FlashBuffer, length);
@@ -387,11 +389,14 @@ void LoadFileCommand(void) {
     OpenFileDialog();
   }
 
-  if (!CurrentFilename[0]) {Fail("No filename provided.");}
+  if (!CurrentFilename[0]) {LoadFail("No filename provided.");}
 
   CurrentFile = Open(CurrentFilename);
 
-  if (!CurrentFile) {Fail("Could not open specified file.");}
+  if (!CurrentFile) {LoadFail("Could not open specified file.");}
 
   if (IsLoadableElf()) {LoadElfSegments();} else {LoadBinary();}
+
+  Close(CurrentFile);
+  CurrentFile = 0;
 }
