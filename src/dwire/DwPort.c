@@ -68,8 +68,8 @@ u8 hi(int w) {return (w>>8)&0xff;}
 u8 lo(int w) {return (w   )&0xff;}
 
 
-void DwSetPC(u16 pc) {DwSend(Bytes(0xD0, hi(pc)|0x10, lo(pc)));}
-void DwSetBP(u16 bp) {DwSend(Bytes(0xD1, hi(bp)|0x10, lo(bp)));}
+void DwSetPC(u16 pc) {DwSend(Bytes(0xD0, hi(pc)|AddrFlag(), lo(pc)));}
+void DwSetBP(u16 bp) {DwSend(Bytes(0xD1, hi(bp)|AddrFlag(), lo(bp)));}
 
 void DwInst(u16 inst) {DwSend(Bytes(0x64, 0xD2, hi(inst), lo(inst), 0x23));}
 

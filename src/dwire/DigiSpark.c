@@ -37,16 +37,16 @@ struct UPort {
 };
 
 
-// Debugging
-
-void WriteUPort(struct UPort *up) {
-  Ws("UPort: kind "); Wc(up->port.kind);
-  Ws(", index ");     Wd(up->port.index,1);
-  Ws(", character "); Wd(up->port.character,1);
-  Ws(", baud ");      Wd(up->port.baud,1);
-  Ws(", device $");   Wx((u64)up->device,1);
-  Ws(", handle $");   Wx((u64)up->handle,1); Wsl(".");
-}
+//  // Debugging
+//
+//  void WriteUPort(struct UPort *up) {
+//    Ws("UPort: kind "); Wc(up->port.kind);
+//    Ws(", index ");     Wd(up->port.index,1);
+//    Ws(", character "); Wd(up->port.character,1);
+//    Ws(", baud ");      Wd(up->port.baud,1);
+//    Ws(", device $");   Wx((u64)up->device,1);
+//    Ws(", handle $");   Wx((u64)up->handle,1); Wsl(".");
+//  }
 
 
 

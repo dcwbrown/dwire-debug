@@ -82,5 +82,6 @@ int  EEARL(void)       {return EECR()+2;}
 int  EEARH(void)       {return CurrentCharacteristics()->EEARH;}
 char *Name(void)       {return CurrentCharacteristics()->name;}
 int  SPMCSR(void)      {return 0x37;} // SPMCSR is at the same address on all devices
+int  AddrFlag(void)    {return (FlashSize() < 8192) ? 0x10 : 0;} // Flag to include when setting PC or BP high byte
 
 enum {MaxFlashPageSize = 128, MaxFlashSize = 32768, MaxSRamSize = 2048};
