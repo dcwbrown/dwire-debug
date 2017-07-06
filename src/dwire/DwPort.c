@@ -190,7 +190,7 @@ void DwDisable(void) {
 
 
 void DwTrace(void) { // Execute one instruction
-  DwSetRegs(28, R, 4);       // Restore cached registers
+  DwSetRegs(28, R+28, 4);       // Restore cached registers
   DwSetPC(PC/2);             // Trace start address
   DwSend(Bytes(0x60, 0x31)); // Single step
   DwSync();
@@ -199,7 +199,7 @@ void DwTrace(void) { // Execute one instruction
 
 
 void DwGo(void) { // Begin executing.
-  DwSetRegs(28, R, 4);  // Restore cached registers
+  DwSetRegs(28, R+28, 4);  // Restore cached registers
   DwSetPC(PC/2);        // Execution start address
   if (BP < 0) {         // Prepare to start execution with no breakpoint set
     DwSend(Bytes(TimerEnable ? 0x40 : 0x60)); // Set execution context
@@ -209,6 +209,10 @@ void DwGo(void) { // Begin executing.
   }
   DwSend(Bytes(0x30)); // Continue execution (go)
   DwWait();
+
+  // Note: We return to UI with the target processor running. The UI go command handles
+  // getting control back, either on the debice hitting the hardware breakpoint, or
+  // on the user pressing return to trigger a break.
 }
 
 

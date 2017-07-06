@@ -170,7 +170,9 @@ void DigisparkBreakAndSync(struct UPort *up) {
 int DigisparkReachedBreakpoint(struct UPort *up) {
   char dwBuf[10];
   int status = usb_control_msg(up->handle, IN_FROM_LW, 60, 0, 0, dwBuf, sizeof(dwBuf), USB_TIMEOUT);
-  return status >= 0  &&  dwBuf[0] != 0;
+  int reachedBreakpoint = status >= 0  &&  dwBuf[0] != 0;
+  if (reachedBreakpoint) DigisparkBreakAndSync(up);  // Re-establish baud rate in case code change clock speed
+  return reachedBreakpoint;
 }
 
 
