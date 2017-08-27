@@ -68,6 +68,9 @@ FT232R based UART from amazon.co.uk. This board has jumper selectable 3.3V/5V
 operation and provides power rails, making it easy to program and debug an
 ATtiny out of circuit.
 
+@a-v-s also reports that he has successfully used a CH340 based adapter on
+ArchLinux (kernel version 4.12.8-2-ARCH) using the default driver (ch341).
+
 (CP210x based UARTs don't support Windows/Linux APIs for selecting custom baud
 rates and I haven't had any success with them. Both the PL2303 based UARTS i
 have tried didn't work at all for any purpose - I don't know if a good PL2303
