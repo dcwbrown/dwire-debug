@@ -263,10 +263,11 @@ void ConnectPort(int i, int baud) {
 
 void DwFindPort(char kind, int index, int baud) {
   int i = 0;
+  //Ws("Debug. DwFindPort("); Wc(kind); Ws(", "); Wd(index,1); Ws(", "); Wd(baud,1); Wsl(")");
   while (i<PortCount) {
     if (Ports[i]->kind) {
       if (    ((kind == 0)  || (kind  == Ports[i]->kind))
-          &&  ((index == 0) || (index == Ports[i]->index))) {
+          &&  ((index == -1) || (index == Ports[i]->index))) {
         ConnectPort(i, baud);
         if (Ports[i]->baud > 0) break;
       }
@@ -300,7 +301,7 @@ void DwListDevices(void) {
 
 
 void ConnectFirstPort(void) {
-  DwFindPort(0,0,0);
+  DwFindPort(0,-1,0);
   if (CurrentPort >= 0) {
     Assert(Ports[CurrentPort]->character >= 0);
     Ws("Connected to ");

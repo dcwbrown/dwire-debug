@@ -38,6 +38,8 @@ void DeviceCommand(void) {
   Sb();
   if (IsNumeric(NextCh())) baud = ReadNumber(0);
 
+  //Ws("Debug: devicename '"); Ws(devicename); Ws("', n "); Wd(n,1); Wsl(".");
+
   int l = strlen(devicename);
   if (l <= 0) DeviceFail("Missing deviceid on device command.");
 
