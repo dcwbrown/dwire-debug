@@ -283,7 +283,7 @@ int TryBaudRate(struct SPort *port, int baudrate, int breaklength) {
   port->handle = 0;
 
   if (byte < 0) {
-    Wsl(", No response, giving up."); return 0;
+    Fail(" No response, no debugWire device detected."); return 0;
   } else if (Verbose) {
     Ws(", received "); Wbits(byte);
   }

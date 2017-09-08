@@ -53,8 +53,8 @@
     config.c_lflag     = 0;
     config.c_ispeed    = baudrate;
     config.c_ospeed    = baudrate;
-    config.c_cc[VMIN]  = 200;         // Nonblocking read of up to 255 bytes
-    config.c_cc[VTIME] = 5;           // 0.5 seconds timeout
+    config.c_cc[VMIN]  = 0;           // Return as soon as one byte is available
+    config.c_cc[VTIME] = 5;           // 0.5 seconds timeout per byte
     if (ioctl(*SerialPort, TCSETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     usleep(10000); // Allow 10ms for USB to settle.
     ioctl(*SerialPort, TCFLSH, TCIOFLUSH);
