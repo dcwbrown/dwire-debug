@@ -60,23 +60,22 @@ dwire-debug satisfies these goals.
 As well as reducing complexity (e.g. no special drivers), connecting directly
 to the DebugWIRE port is noticeably faster.
 
-##### FT232R hardware
+##### FT232R or CH340 hardware
 
-The debugger uses an FT232R USB serial adapter with RX connected directly to
-the DebugWIRE port, and TX connected through a diode. I used an £8.26 Foxnovo
-FT232R based UART from amazon.co.uk. This board has jumper selectable 3.3V/5V
-operation and provides power rails, making it easy to program and debug an
-ATtiny out of circuit.
+The debugger has been developed on an FT232R USB serial adapter with RX 
+connected directly to the DebugWIRE port, and TX connected through a diode. 
+I used an £8.26 Foxnovo FT232R based UART from amazon.co.uk. This board has 
+jumper selectable 3.3V/5V operation and provides power rails, making it easy 
+to program and debug an ATtiny out of circuit.
 
-@a-v-s also reports that he has successfully used a CH340 based adapter on
-ArchLinux (kernel version 4.12.8-2-ARCH) using the default driver (ch341).
+CH340 based adapters have also been tested successfully on Linux and Windows
+using tha standard OS drives. (Thanks to @a-v-s and @kadamski).
 
-(CP210x based UARTs don't support Windows/Linux APIs for selecting custom baud
-rates and I haven't had any success with them. Both the PL2303 based UARTS i
-have tried didn't work at all for any purpose - I don't know if a good PL2303
-would work.)
+However CP210x based UARTs don't support Windows/Linux APIs for selecting custom baud
+rates and I haven't had any success with them. Nor have the PL2303 based UARTS I
+have tried worked for any purpose - I don't know if a good PL2303 would work.
 
-##### Wiring the FT232R adapter
+##### Wiring the adapter
 
 Connect the diode's cathode (the end marked with a line around it) to the UART
 txd line, and connect the diode's anode to the rxd line and to the DebugeWire
@@ -90,6 +89,10 @@ For an in-circuit connection, the Vcc power line is not connected, and setting
 the adapter to 5v should work for any circuit: The diode protects the circuit
 from any damage - it can only pull the DebugWIRE pin low - it cannot feed
 overvoltage to the AVR.
+
+Note that we don't drive the debugWIRE line high, but instead rely on the AVR's 
+debugWIRE interface to pull the line high. Therefore it is important to keep
+the connections as short as possible, 2 or 3 inches seems best.
 
 ![Simple out of circuit hardware](https://github.com/dcwbrown/dwire-debug/blob/master/simple-hardware.jpg)
 
