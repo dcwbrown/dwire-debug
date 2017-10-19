@@ -29,7 +29,11 @@ else
 
   # set variable TOOLCHAIN_DIR to cross compile
   # example: https://github.com/raspberrypi/tools
-  # make TOOLCHAIN_DIR=<tools>/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64
+  # make TOOLCHAIN_DIR=<tools>/arm-bcm2708/arm-rpi-4.9.3-linux-gnueabihf
+  # this toolchain has package libusb-1.0-0-dev installed, but
+  # we need files from the pi package libusb-dev (previous version):
+  # /usr/include/usb.h => <toolchain_dir>/arm-linux-gnueabihf/sysroot/usr/include
+  # /usr/lib/arm-linux-gnueabihf/libusb.a => <toolchain_dir>/arm-linux-gnueabihf/sysroot/lib
   CC := $(wildcard $(TOOLCHAIN_DIR)/bin/*-gcc)
 
 endif
