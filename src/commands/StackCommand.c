@@ -3,7 +3,7 @@
 
 
 
-void StackCommand () {
+void StackCommand(void) {
   u8 sp[2];
   Sb();
   if (IsDwDebugNumeric(NextCh())) {

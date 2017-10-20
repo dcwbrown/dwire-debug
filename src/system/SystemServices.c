@@ -13,6 +13,7 @@
   #include <setjmp.h>
   #undef min
   #undef max
+  void delay(unsigned int ms) {Sleep(ms);}
 #else
   #include <sys/types.h>
   #include <sys/socket.h>
@@ -29,10 +30,9 @@
   #include <dirent.h>
   #include <stropts.h>
   #include <asm/termios.h>
-  #ifndef NOFILEDIALOG
-    #include <gtk/gtk.h>
-  #endif
   #include <setjmp.h>
+  #include <dlfcn.h>
+  void delay(unsigned int ms) {usleep(ms*1000);}
 #endif
 
 
@@ -50,7 +50,7 @@ typedef signed   long long s64;
 
 #define countof(array) (sizeof(array)/(sizeof(array)[0]))
 #define ArrayAddressAndLength(array) array, sizeof(array)
-#define ByteArrayLiteral(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
+#define Bytes(...) (u8[]){__VA_ARGS__}, sizeof((u8[]){__VA_ARGS__})
 
 int min(int a, int b) {return a<b ? a : b;}
 int max(int a, int b) {return a>b ? a : b;}
@@ -62,16 +62,19 @@ int max(int a, int b) {return a>b ? a : b;}
 
 /// Simple text writing interface headers.
 
-void Flush();
+int Verbose = 0;  // Set the verbose flag to flush all outputs, and to enable
+                  // the Vc, Vs, Vl etc. versions of the output functions.
+
+void Wflush(void);
 void Wc(char c);
 void Ws(const char *s);
-void Wl();
+void Wl(void);
 void Wsl(const char *s);
 void Wd(s64 i, int w);
 void Wx(u64 i, int w);
 void Fail(const char *message);
-void DrainInput();
-void DumpInputState();
+void DrainInput(void);
+void DumpInputState(void);
 
 /// Simple text writing interface headers end.
 
@@ -173,10 +176,10 @@ void Free(void *ptr) {
 /// Stack backtrace report on Linux
 
 #ifdef windows
-void StackTrace() {}
+void StackTrace(void) {}
 #else
 #include <execinfo.h>
-void StackTrace() {
+void StackTrace(void) {
   Wsl("Backtrace:");
   char  *p = 0;
   void  *functions[32];
@@ -205,7 +208,7 @@ static jmp_buf FailPoint;
 
 void Fail(const char *message) {
   Wsl(message);
-  StackTrace();
+  if (Verbose) StackTrace();
   longjmp(FailPoint,1);
 }
 
@@ -228,7 +231,7 @@ char **ArgVector;
 int    ArgCount;
 
 #ifdef windows
-  char *GetCommandParameters() {
+  char *GetCommandParameters(void) {
     char *command = GetCommandLine();
     while (*command  &&  *command <= ' ') {command++;}     // Skip leading spaces
     while (*command > ' ') {                               // Skip to blank after command filename
@@ -245,7 +248,7 @@ int    ArgCount;
   // On Linux, piece the command line together from the arguments. We don't
   // bother to put quotes around arguments with spaces ...
   char CommandParameters[256];
-  char *GetCommandParameters() {
+  char *GetCommandParameters(void) {
     int arg = 1;
     int p   = 0;
     while (arg < ArgCount) {
@@ -298,7 +301,7 @@ void WWinError(DWORD winError) {
     0,0
   );
   Ws(lastErrorMessage);
-  Flush();
+  Wflush();
   LocalFree(lastErrorMessage);
 }
 

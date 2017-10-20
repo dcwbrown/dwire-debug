@@ -4,16 +4,13 @@
           SystemServices.c.
 */
 
-int Verbose = 0;  // Set the verbose flag to flush all outputs, and to enable
-                  // the Vc, Vs, Vl etc. versions of the output functions.
-
 /// Simple standard output text writing and buffering.
 
 char OutputBuffer[100]  = {0};
 int  OutputPosition     = 0;
 int  HorizontalPosition = 0;
 
-void Flush() {
+void Wflush(void) {
   if (OutputPosition) {
     Write(Output, OutputBuffer, OutputPosition);
     OutputPosition = 0;
@@ -21,15 +18,15 @@ void Flush() {
 }
 
 void Wc(char c) {
-  if (OutputPosition >= sizeof OutputBuffer) {Flush();}
+  if (OutputPosition >= sizeof OutputBuffer) {Wflush();}
   OutputBuffer[OutputPosition++] = c;
   if (c == '\n'  ||  c == '\r') {
-    Flush();
+    Wflush();
     HorizontalPosition = 0;
   } else {
     HorizontalPosition++;
   }
-  if (Verbose) Flush();
+  if (Verbose) Wflush();
 }
 
 
@@ -39,14 +36,14 @@ void Wt(int tab) {
     OutputBuffer[OutputPosition++] = ' ';
     HorizontalPosition++;
   }
-  if (Verbose) Flush();
+  if (Verbose) Wflush();
 }
 
 void Ws(const char *s) {
   while (*s) {Wc(*s); s++;}
 }
 
-void Wl() {
+void Wl(void) {
   #ifdef windows
     Ws("\r\n");
   #else
@@ -54,7 +51,7 @@ void Wl() {
   #endif
 }
 
-void Wr() {
+void Wr(void) {
   Wc('\r');
 }
 
@@ -81,10 +78,18 @@ void Wx(u64 i, int w) {
   while (n) {Wc(r[--n]);}
 }
 
+void Whexbuf(const u8 *buf, int len) {
+  Wx(buf[0], 2);
+  for (int i=1; i<len; i++) {
+    Wc(' ');
+    Wx(buf[i], 2);
+  }
+}
+
 
 // Verbose mode only versions
 
-void Vl ()              {if (Verbose) Wl();}
+void Vl (void)          {if (Verbose) Wl();}
 void Vc (char c)        {if (Verbose) Wc(c);}
 void Vs (const char* s) {if (Verbose) Ws(s);}
 void Vsl(const char* s) {if (Verbose) Wsl(s);}

@@ -1,6 +1,6 @@
 #define LISTEN_PORT 4444
 
-void GdbserverCommand()
+void GdbserverCommand(void)
 {
     int connfd;
 

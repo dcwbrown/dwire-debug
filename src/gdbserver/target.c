@@ -3,19 +3,21 @@ typedef u8 Registers[39];
 
 int target_write_registers(Registers regs, int len)
 {
-    DwWriteRegisters(regs, 0, len <= 32 ? len : 32);
-    if (len > 33) DwWriteAddr(0x5E, 1, regs+34); // sreg
-    if (len > 34) DwWriteAddr(0x5D, 2, regs+32); // spl, sph
+    DwSetRegs(0, regs, len <= 28 ? len : 28);
+    if (len > 28) {
+        int l = len - 28; if (l>4) l=4;
+        memcpy(R+28, regs+28, l);
+    }
+    if (len > 32) DwWriteAddr(0x5E, 1, regs+32); // sreg
+    if (len > 34) DwWriteAddr(0x5D, 2, regs+33); // spl, sph
     if (len > 36) PC = regs[35] + 256*regs[36];
-
     return 0;
 }
 
 int target_read_registers(Registers regs) // retuns r0..r1, sreg, spl, sph, pcl, pc2l, pcum, pch
 {
-    DwReadRegisters(regs, 0, 30);
-    regs[30] = R31;
-    regs[31] = R31;
+    DwGetRegs(0, regs, 28);
+    memcpy(regs+28, R+28, 4);
     DwReadAddr(0x5E, 1, regs+32); // SREG
     DwReadAddr(0x5D, 2, regs+33); // SPL, SPH
     regs[35] = PC % 256;          // PC 0..7

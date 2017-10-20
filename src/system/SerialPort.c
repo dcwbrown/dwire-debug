@@ -42,9 +42,9 @@
   }
 #else
   void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
-    char fullname[256] = "/dev/";
-    strncat(fullname, portname, 250); fullname[255] = 0;
-    if ((*SerialPort = open(fullname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {Fail("Couldn't open serial port.");}
+    if ((*SerialPort = open(portname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {
+      Ws("Couldn't open serial port "); Ws(portname); Fail(".");
+    }
     struct termios2 config = {0};
     if (ioctl(*SerialPort, TCGETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     config.c_cflag     = CS8 | BOTHER | CLOCAL;
@@ -53,8 +53,8 @@
     config.c_lflag     = 0;
     config.c_ispeed    = baudrate;
     config.c_ospeed    = baudrate;
-    config.c_cc[VMIN]  = 200;         // Nonblocking read of up to 255 bytes
-    config.c_cc[VTIME] = 5;           // 0.5 seconds timeout
+    config.c_cc[VMIN]  = 0;           // Return as soon as one byte is available
+    config.c_cc[VTIME] = 5;           // 0.5 seconds timeout per byte
     if (ioctl(*SerialPort, TCSETS2, &config)) {Close(*SerialPort); *SerialPort = 0; return;}
     usleep(10000); // Allow 10ms for USB to settle.
     ioctl(*SerialPort, TCFLSH, TCIOFLUSH);
