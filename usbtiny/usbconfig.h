@@ -324,15 +324,18 @@ extern void usbEventResetReady(void);
    further interrupts from the debugWIRE pin changing.
 */
 
+// debugWIRE bit normally 5, but can be changed for debugging
+#define DW_BIT 2
+
 #ifdef __ASSEMBLER__
 macro nonUsbPinChange
     .global dwBuf
-    sbic  PINB,5
+    sbic  PINB,DW_BIT
     rjmp  dWirePinIdle
 
     ldi   YL,1
     sts   dwBuf,YL
-    cbi   PCMSK,5    ; Disable further interrupts on dwire pin change
+    cbi   PCMSK,DW_BIT   ; Disable further interrupts on dwire pin change
 
 dWirePinIdle:
     endm
