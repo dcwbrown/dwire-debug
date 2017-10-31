@@ -173,6 +173,7 @@ static uint8_t ws2812_mask;
 static uint8_t ws2812_ptr=0;
 // ----------------------------------------------------------------------
 // debugWIRE support
+#define DW_BIT 2               // debugWIRE bit normally 5, but can be changed for debugging
 volatile uint8_t dwBuf[128];
 volatile uint8_t dwLen;        // Length being received from host or avr device
 volatile uint8_t dwIn;         // Input pointer: where usbDwFunctionWrite writes into dwBuf
@@ -1561,7 +1562,52 @@ void dwReadBytes() {
   ::[bit]"I"(DW_BIT):"r21","r22","r23","r24","r25","r26","r27","r30","r31");
 }
 
+/*
+We hook the pin change interrupt to give priority to dw source interrupts. When
+dw interrupts are enabled, the usb interrupt vector is run with the dw interrupt
+enabled. This makes it so that we can respond to dw interrupts even in the middle
+of a usb frame causing that frame to be missed. Also, interrupts are disabled
+while servicing dw activities, leading to missed frames in those cases as well.
 
+Interrupts are disabled while executing all dw commands. But, only the wait for
+start bit command allows the usb interrupt to be pre-empted.
+*/
+
+__attribute__((naked, used)) void PCINT0_vect(void) {
+  asm("\n"
+"  sbis  %[pcmsk],%[dwbit]   ; not for us if dw interrupt disabled          \n"
+"  rjmp  DW_INTR_VECTOR      ; leave interrupts disabled                    \n"
+"  push  r16                                                                \n"
+"  in    r16,__SREG__                                                       \n"
+"  push  r16                                                                \n"
+"  sbic  %[pinb],%[dwbit]    ; not for us if dw line high                   \n"
+"  rjmp  dw_pass%=                                                          \n"
+"                                                                           \n"
+"  ldi   r16,1                                                              \n"
+"  sts   dwBuf,r16           ; set break detected flag                      \n"
+"  cbi   %[pcmsk],%[dwbit]   ; Disable further dw interrupts                \n"
+"                                                                           \n"
+"dw_pass%=:                                                                 \n"
+"  sbis  %[pcmsk],%[usbbit]  ; call usb interrupt when set                  \n"
+"  rjmp  dw_done%=           ; don't re-enter                               \n"
+"  cbi   %[pcmsk],%[usbbit]  ; clear to indicate in usb interrupt           \n"
+"  ldi   r16,0x80            ; enable interrupts to detect start bit and use\n"
+"  out   __SREG__,r16        ; this value for timeout hack in usb interrupt \n"
+"  rcall DW_INTR_VECTOR      ; call usb interrupt with interrupts enabled   \n"
+"  cli                       ; disable to prevent re-entry from here        \n"
+"  sbi   %[pcmsk],%[usbbit]  ; set to indicate not in usb interrupt         \n"
+"dw_done%=:                                                                 \n"
+"  pop   r16                                                                \n"
+"  out   __SREG__,r16                                                       \n"
+"  pop   r16                                                                \n"
+"  reti                                                                     \n"
+   :
+   : [pcmsk] "I" (_SFR_IO_ADDR(PCMSK))
+     ,[pinb] "I" (_SFR_IO_ADDR(PINB))
+     ,[dwbit] "I" (DW_BIT)
+     ,[usbbit] "I" (USB_INTR_CFG_BIT)
+   :"r16");
+}
 
 
 /* ------------------------------------------------------------------------- */
@@ -1922,7 +1968,7 @@ int main(void) {
         if (dwState & 0x01) {cbi(PORTB, DW_BIT); sbi(DDRB, DW_BIT); _delay_ms(100);}
         if (dwState & 0x02) {((char*)&dwBitTime)[0] = dwBuf[0]; ((char*)&dwBitTime)[1] = dwBuf[1];}
         if (dwState & 0x04) {dwSendBytes();}
-        if (dwState & 0x08) {dwBuf[0]=0; dwLen=1; cbi(DDRB,DW_BIT); sbi(PCMSK,DW_BIT); sei();} // Capture dWIRE pin change
+        if (dwState & 0x08) {dwBuf[0]=(dwState & ~0x0F); dwLen=1; cbi(DDRB,DW_BIT); sbi(PCMSK,DW_BIT); sei();} // Capture dWIRE pin change
         if (dwState & 0x10) {dwReadBytes();}
         if (dwState & 0x20) {dwCaptureWidths();}
 

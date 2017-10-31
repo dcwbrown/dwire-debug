@@ -324,26 +324,9 @@ extern void usbEventResetReady(void);
    further interrupts from the debugWIRE pin changing.
 */
 
-// debugWIRE bit normally 5, but can be changed for debugging
-#define DW_BIT 2
-
-#ifdef __ASSEMBLER__
-macro nonUsbPinChange
-    .global dwBuf
-    sbic  PINB,DW_BIT
-    rjmp  dWirePinIdle
-
-    ldi   YL,1
-    sts   dwBuf,YL
-    cbi   PCMSK,DW_BIT   ; Disable further interrupts on dwire pin change
-
-dWirePinIdle:
-    endm
-#endif
-
-#define USB_SOF_HOOK nonUsbPinChange
-
-
-
+// non-USB pin change now handled in main.c
+#undef  USB_INTR_VECTOR // nest the usb interrupt inside the debugWIRE interrupt
+#define USB_INTR_VECTOR DW_INTR_VECTOR
+#define USB_INTR_CFG_BIT USB_CFG_DPLUS_BIT
 
 #endif /* __usbconfig_h_included__ */
