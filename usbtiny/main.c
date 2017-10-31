@@ -1347,7 +1347,7 @@ void dwCaptureWidths() {
     "                                                                                    \n"
     ";       Measurement complete                                                        \n"
     "                                                                                    \n"
-    "dwc8:   sei                   ; Re-enable interrupts                                \n"
+    "dwc8:                         ; Caller will re-enable interrupts                    \n"
     "        add   r24,r24         ; Convert word count to byte count                    \n"
     "        sts   dwLen,r24                                                             \n"
   ::[bit]"I"(DW_BIT):"r24","r26","r27","r30","r31");
@@ -1556,7 +1556,7 @@ void dwReadBytes() {
     "                                                                    \n"
     ";       Read complete                                               \n"
     "                                                                    \n"
-    "dwr14:  sei                   ; Re-enable interrupts                \n"
+    "dwr14:                        ; Caller will re-enable interrupts    \n"
     "        sts   dwLen,r23                                             \n"
     "                                                                    \n"
   ::[bit]"I"(DW_BIT):"r21","r22","r23","r24","r25","r26","r27","r30","r31");
@@ -1576,37 +1576,76 @@ start bit command allows the usb interrupt to be pre-empted.
 __attribute__((naked, used)) void PCINT0_vect(void) {
   asm("\n"
 "  sbis  %[pcmsk],%[dwbit]   ; not for us if dw interrupt disabled          \n"
-"  rjmp  DW_INTR_VECTOR      ; leave interrupts disabled                    \n"
-"  push  r16                                                                \n"
-"  in    r16,__SREG__                                                       \n"
-"  push  r16                                                                \n"
+"  rjmp  DW_INTR_VECTOR      ; leave interrupts disabled for usb            \n"
+"                                                                           \n"
+"  push  r21                                                                \n"
+"  in    r21,__SREG__                                                       \n"
+"  push  r21                                                                \n"
 "  sbic  %[pinb],%[dwbit]    ; not for us if dw line high                   \n"
 "  rjmp  dw_pass%=                                                          \n"
 "                                                                           \n"
-"  ldi   r16,1                                                              \n"
-"  sts   dwBuf,r16           ; set break detected flag                      \n"
+"  lds   r21,dwBuf           ; get dwState right shifted by 4 bits          \n"
+"  tst   r21                                                                \n"
+"  breq  dw_det%=                                                           \n"
+"                                                                           \n"
+"  push  r22                 ; save registers for called functions          \n"
+"  push  r23                                                                \n"
+"  push  r24                                                                \n"
+"  push  r25                                                                \n"
+"  push  r26                                                                \n"
+"  push  r27                                                                \n"
+"  push  r30                                                                \n"
+"  push  r31                                                                \n"
+"                                                                           \n"
+"  asr   r21                                                                \n"
+"  brcs  dw_rb%=                                                            \n"
+"  asr   r21                                                                \n"
+"  brcs  dw_cw%=                                                            \n"
+"  rjmp  dw_res%=                                                           \n"
+"                                                                           \n"
+"dw_rb%=:                    ; dwState & 0x10                               \n"
+"  rcall dwReadBytes                                                        \n"
+"  rjmp  dw_res%=                                                           \n"
+"dw_cw%=:                    ; dwState & 0x20                               \n"
+"  rcall dwCaptureWidths                                                    \n"
+"; rjmp  dw_res%=                                                           \n"
+"                                                                           \n"
+"dw_res%=:                                                                  \n"
+"  pop   r31                                                                \n"
+"  pop   r30                                                                \n"
+"  pop   r27                                                                \n"
+"  pop   r26                                                                \n"
+"  pop   r25                                                                \n"
+"  pop   r24                                                                \n"
+"  pop   r23                                                                \n"
+"  pop   r22                 ; restore registers                            \n"
+"  rjmp  dw_pass%=                                                          \n"
+"                                                                           \n"
+"dw_det%=:                                                                  \n"
+"  ldi   r21,1               ; no further commands                          \n"
+"  sts   dwBuf,r21           ; set break detected flag                      \n"
 "  cbi   %[pcmsk],%[dwbit]   ; Disable further dw interrupts                \n"
 "                                                                           \n"
-"dw_pass%=:                                                                 \n"
+"dw_pass%=:                  ; pass interrupt to usb                        \n"
 "  sbis  %[pcmsk],%[usbbit]  ; call usb interrupt when set                  \n"
 "  rjmp  dw_done%=           ; don't re-enter                               \n"
 "  cbi   %[pcmsk],%[usbbit]  ; clear to indicate in usb interrupt           \n"
-"  ldi   r16,0x80            ; enable interrupts to detect start bit and use\n"
-"  out   __SREG__,r16        ; this value for timeout hack in usb interrupt \n"
+"  ldi   r21,0x80            ; enable interrupts to detect start bit and use\n"
+"  out   __SREG__,r21        ; this value for timeout hack in usb interrupt \n"
 "  rcall DW_INTR_VECTOR      ; call usb interrupt with interrupts enabled   \n"
 "  cli                       ; disable to prevent re-entry from here        \n"
 "  sbi   %[pcmsk],%[usbbit]  ; set to indicate not in usb interrupt         \n"
 "dw_done%=:                                                                 \n"
-"  pop   r16                                                                \n"
-"  out   __SREG__,r16                                                       \n"
-"  pop   r16                                                                \n"
+"  pop   r21                                                                \n"
+"  out   __SREG__,r21                                                       \n"
+"  pop   r21                                                                \n"
 "  reti                                                                     \n"
    :
    : [pcmsk] "I" (_SFR_IO_ADDR(PCMSK))
      ,[pinb] "I" (_SFR_IO_ADDR(PINB))
      ,[dwbit] "I" (DW_BIT)
      ,[usbbit] "I" (USB_INTR_CFG_BIT)
-   :"r16");
+   :);
 }
 
 
@@ -1968,7 +2007,8 @@ int main(void) {
         if (dwState & 0x01) {cbi(PORTB, DW_BIT); sbi(DDRB, DW_BIT); _delay_ms(100);}
         if (dwState & 0x02) {((char*)&dwBitTime)[0] = dwBuf[0]; ((char*)&dwBitTime)[1] = dwBuf[1];}
         if (dwState & 0x04) {dwSendBytes();}
-        if (dwState & 0x08) {dwBuf[0]=(dwState & ~0x0F); dwLen=1; cbi(DDRB,DW_BIT); sbi(PCMSK,DW_BIT); sei();} // Capture dWIRE pin change
+        if (dwState & 0x08) {dwBuf[0]=dwState>>4; dwLen=dwBuf[0]?0:1; dwState=0;
+          cbi(DDRB,DW_BIT); sbi(PCMSK,DW_BIT);} // Capture dWIRE pin change async
         if (dwState & 0x10) {dwReadBytes();}
         if (dwState & 0x20) {dwCaptureWidths();}
 
