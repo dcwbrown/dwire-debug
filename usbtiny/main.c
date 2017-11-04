@@ -1563,83 +1563,88 @@ void dwReadBytes() {
 }
 
 /*
+In the absense of the Wait for start bit command, interrupts are handled as
+compatibly with the usb interrupt as possible. That means that they are
+taken care of in less than the 52 cycle spec demanded by the usb interrupt.
+And, then the usb interrupt is executed with interrupts disabled as expected.
+This makes usb service as robust as possible for dwdebug.
+
 We hook the pin change interrupt to give priority to dw source interrupts. When
 dw interrupts are enabled, the usb interrupt vector is run with the dw interrupt
 enabled. This makes it so that we can respond to dw interrupts even in the middle
 of a usb frame causing that frame to be missed. Also, interrupts are disabled
 while servicing dw activities, leading to missed frames in those cases as well.
-
-Interrupts are disabled while executing all dw commands. But, only the wait for
-start bit command allows the usb interrupt to be pre-empted.
 */
 
 __attribute__((naked, used)) void PCINT0_vect(void) {
-  asm("\n"
-"  sbis  %[pcmsk],%[dwbit]   ; not for us if dw interrupt disabled          \n"
-"  rjmp  DW_INTR_VECTOR      ; leave interrupts disabled for usb            \n"
-"                                                                           \n"
-"  push  r21                                                                \n"
-"  in    r21,__SREG__                                                       \n"
-"  push  r21                                                                \n"
-"  sbic  %[pinb],%[dwbit]    ; not for us if dw line high                   \n"
-"  rjmp  dw_pass%=                                                          \n"
-"                                                                           \n"
-"  lds   r21,dwBuf           ; get dwState right shifted by 4 bits          \n"
-"  tst   r21                                                                \n"
-"  breq  dw_det%=                                                           \n"
-"                                                                           \n"
-"  push  r22                 ; save registers for called functions          \n"
-"  push  r23                                                                \n"
-"  push  r24                                                                \n"
-"  push  r25                                                                \n"
-"  push  r26                                                                \n"
-"  push  r27                                                                \n"
-"  push  r30                                                                \n"
-"  push  r31                                                                \n"
-"                                                                           \n"
-"  asr   r21                                                                \n"
-"  brcs  dw_rb%=                                                            \n"
-"  asr   r21                                                                \n"
-"  brcs  dw_cw%=                                                            \n"
-"  rjmp  dw_res%=                                                           \n"
-"                                                                           \n"
-"dw_rb%=:                    ; dwState & 0x10                               \n"
-"  rcall dwReadBytes                                                        \n"
-"  rjmp  dw_res%=                                                           \n"
-"dw_cw%=:                    ; dwState & 0x20                               \n"
-"  rcall dwCaptureWidths                                                    \n"
-"; rjmp  dw_res%=                                                           \n"
-"                                                                           \n"
-"dw_res%=:                                                                  \n"
-"  pop   r31                                                                \n"
-"  pop   r30                                                                \n"
-"  pop   r27                                                                \n"
-"  pop   r26                                                                \n"
-"  pop   r25                                                                \n"
-"  pop   r24                                                                \n"
-"  pop   r23                                                                \n"
-"  pop   r22                 ; restore registers                            \n"
-"  rjmp  dw_pass%=                                                          \n"
-"                                                                           \n"
-"dw_det%=:                                                                  \n"
-"  ldi   r21,1               ; no further commands                          \n"
-"  sts   dwBuf,r21           ; set break detected flag                      \n"
-"  cbi   %[pcmsk],%[dwbit]   ; Disable further dw interrupts                \n"
-"                                                                           \n"
-"dw_pass%=:                  ; pass interrupt to usb                        \n"
-"  sbis  %[pcmsk],%[usbbit]  ; call usb interrupt when set                  \n"
-"  rjmp  dw_done%=           ; don't re-enter                               \n"
-"  cbi   %[pcmsk],%[usbbit]  ; clear to indicate in usb interrupt           \n"
-"  ldi   r21,0x80            ; enable interrupts to detect start bit and use\n"
-"  out   __SREG__,r21        ; this value for timeout hack in usb interrupt \n"
-"  rcall DW_INTR_VECTOR      ; call usb interrupt with interrupts enabled   \n"
-"  cli                       ; disable to prevent re-entry from here        \n"
-"  sbi   %[pcmsk],%[usbbit]  ; set to indicate not in usb interrupt         \n"
-"dw_done%=:                                                                 \n"
-"  pop   r21                                                                \n"
-"  out   __SREG__,r21                                                       \n"
-"  pop   r21                                                                \n"
-"  reti                                                                     \n"
+  __asm__ __volatile__ (R"string-literal(
+  sbis  %[pcmsk],%[dwbit] ;?    not for us if dw interrupt disabled
+  rjmp  DW_INTR_VECTOR    ;2 03 leave interrupts disabled for usb
+  push  r21               ;2 04
+  in    r21,__SREG__      ;1 05
+  push  r21               ;2 07
+  sbis  %[pinb],%[dwbit]  ;?    break detected when dw line low
+  rjmp  dw_break%=        ;2
+                          ;     pass interrupt to usb
+  sbis  %[pcmsk],%[usbbit];?    call usb interrupt when set
+  rjmp  dw_done%=         ;2 13 don't re-enter
+  cbi   %[pcmsk],%[usbbit];2 15 clear to indicate in usb interrupt
+  ldi   r21,0x80          ;1 16 enable interrupts to detect start bit
+  out   __SREG__,r21      ;1 17 and timeout hack for usb interrupt
+  rcall DW_INTR_VECTOR    ;3 20 call usb interrupt with interrupts enabled
+  cli                     ;1 21 disable to prevent re-entry from here
+  sbi   %[pcmsk],%[usbbit];2 23 set to indicate not in usb interrupt
+  ldi   r21,0             ;1 24
+  sbis  %[pcmsk],%[dwbit] ;?    we preempted if dw interrupt now disabled
+  sts   usbRxLen,r21      ;2 27 throw out the frame since we trashed it
+dw_done%=:
+  pop   r21               ;2 29
+  out   __SREG__,r21      ;1 30
+  pop   r21               ;2 32
+  reti                    ;4 36
+
+dw_break%=:
+  cbi   %[pcmsk],%[dwbit]   ; Disable further dw interrupts
+  lds   r21,dwBuf           ; get dwState right shifted by 4 bits
+  tst   r21
+  brne  dw_comm%=
+  ldi   r21,1               ; no further commands
+  sts   dwBuf,r21           ; set break detected flag
+  rjmp  dw_done%=
+dw_comm%=:                  ; execute further commands
+  push  r22                 ; save registers for called functions
+  push  r23
+  push  r24
+  push  r25
+  push  r26
+  push  r27
+  push  r30
+  push  r31
+
+  asr   r21
+  brcs  dw_rb%=
+  asr   r21
+  brcs  dw_cw%=
+  rjmp  dw_res%=
+
+dw_rb%=:                    ; dwState & 0x10
+  rcall dwReadBytes
+  rjmp  dw_res%=
+dw_cw%=:                    ; dwState & 0x20
+  rcall dwCaptureWidths
+; rjmp  dw_res%=
+
+dw_res%=:
+  pop   r31
+  pop   r30
+  pop   r27
+  pop   r26
+  pop   r25
+  pop   r24
+  pop   r23
+  pop   r22                 ; restore registers
+  rjmp  dw_done%=           ; frame will be invalidated if preempted usb
+)string-literal"
    :
    : [pcmsk] "I" (_SFR_IO_ADDR(PCMSK))
      ,[pinb] "I" (_SFR_IO_ADDR(PINB))
