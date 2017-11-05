@@ -399,7 +399,6 @@ PB0>---zz--o---|\     --|||--
        5K  |     |
 GND----zz--o     o---->V+
 
-V+ off at boot when PB0 tristated.
-V+ on when PB0 set high to turn on Q.
-V+ off when PB0 set low to turn off Q.
+V+ on at boot when PB0 tristated.
+V+ off when PB0 set high to turn off Q.
 */
