@@ -1578,39 +1578,48 @@ while servicing dw activities, leading to missed frames in those cases as well.
 
 __attribute__((naked, used)) void PCINT0_vect(void) {
   __asm__ __volatile__ (R"string-literal(
-  sbis  %[pcmsk],%[dwbit] ;?    not for us if dw interrupt disabled
+                          ;  00
+  sbis  %[pcmsk],%[dwbit] ;?    not for dw if dw interrupt disabled
   rjmp  DW_INTR_VECTOR    ;2 03 leave interrupts disabled for usb
-  push  r21               ;2 04
-  in    r21,__SREG__      ;1 05
-  push  r21               ;2 07
   sbis  %[pinb],%[dwbit]  ;?    break detected when dw line low
   rjmp  dw_break%=        ;2
-                          ;     pass interrupt to usb
+                          ;  04
   sbis  %[pcmsk],%[usbbit];?    call usb interrupt when set
-  rjmp  dw_done%=         ;2 13 don't re-enter
-  cbi   %[pcmsk],%[usbbit];2 15 clear to indicate in usb interrupt
-  ldi   r21,0x80          ;1 16 enable interrupts to detect start bit
-  out   __SREG__,r21      ;1 17 and timeout hack for usb interrupt
-  rcall DW_INTR_VECTOR    ;3 20 call usb interrupt with interrupts enabled
-  cli                     ;1 21 disable to prevent re-entry from here
-  sbi   %[pcmsk],%[usbbit];2 23 set to indicate not in usb interrupt
-  ldi   r21,0             ;1 24
+  reti                    ;4 09
+                          ;  06
+  cbi   %[pcmsk],%[usbbit];2 08 clear to indicate in usb interrupt
+  rcall dw_nest%=         ;3 11 returns from usb interrupt
+
+  cli                     ;1 20 disable to prevent re-entry from here
+  sbi   %[pcmsk],%[usbbit];2 22 set to indicate not in usb interrupt
+  push  r28               ;2 24
+  ldi   r28,0             ;1 25
   sbis  %[pcmsk],%[dwbit] ;?    we preempted if dw interrupt now disabled
-  sts   usbRxLen,r21      ;2 27 throw out the frame since we trashed it
-dw_done%=:
-  pop   r21               ;2 29
-  out   __SREG__,r21      ;1 30
-  pop   r21               ;2 32
-  reti                    ;4 36
+  sts   usbRxLen,r28      ;2 28 throw out the frame since we trashed it
+  pop   r28               ;2 30
+  reti                    ;4 34
+dw_nest%=:
+  push  r28               ;2 13 match first 3 instructions in usb interrupt
+  in    r28,__SREG__      ;1 14
+  push  r28               ;2 16
+  sei                     ;1 17
+  rjmp  DW_INTR_VECTOR+6  ;2 19 call usb interrupt with interrupts enabled
 
 dw_break%=:
+  push  r21
+  in    r21,__SREG__
+  push  r21
   cbi   %[pcmsk],%[dwbit]   ; Disable further dw interrupts
   lds   r21,dwBuf           ; get dwState right shifted by 4 bits
   tst   r21
   brne  dw_comm%=
   ldi   r21,1               ; no further commands
   sts   dwBuf,r21           ; set break detected flag
-  rjmp  dw_done%=
+dw_done%=:
+  pop   r21
+  out   __SREG__,r21
+  pop   r21
+  reti
 dw_comm%=:                  ; execute further commands
   push  r22                 ; save registers for called functions
   push  r23
