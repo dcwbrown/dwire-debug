@@ -51,10 +51,16 @@ void monitor_dw() {
     return;
   }
 
-  luXact.Sink(SysConWrite);
   luXact.ReadDw();
-  while (!SysConAvail()) {
+  luXact.Sink(SysConWrite);
+  for (;;) {
     luXact.Recv();
+    if (SysConAvail()) {
+      int c = SysConRead();
+      if (c <= 0) continue;
+      luXact.Send(c);
+      continue;
+    }
     usleep(100 * 1000);
   }
 }
