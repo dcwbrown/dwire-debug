@@ -9,7 +9,7 @@
 
 void reset() {
   LuXactUsb luXactUsb(serialnumber);
-  if (!luXactUsb.Open(false)) {
+  if (!luXactUsb.Open()) {
     std::cerr << "error opening device" << std::endl;
     return;
   }
@@ -18,13 +18,13 @@ void reset() {
 }
 
 void power() {
-  LuXactDw luXactDw(serialnumber);
-  if (!luXactDw.Open()) {
+  LuXactLw luXactLw(serialnumber);
+  if (!luXactLw.Open()) {
     std::cerr << "error opening device" << std::endl;
     return;
   }
 
-  luXactDw.ResetPower();
+  luXactLw.ResetPower();
 }
 
 void monitor() {
@@ -45,13 +45,12 @@ void monitor() {
 }
 
 void monitor_dw() {
-  LuXactDw luXact(serialnumber);
+  LuXactLw luXact(serialnumber);
   if (!luXact.Open() || !luXact.ResetDw()) {
     std::cerr << "error opening device" << std::endl;
     return;
   }
 
-  luXact.ReadDw();
   luXact.Sink(SysConWrite);
   for (;;) {
     luXact.Recv();
@@ -66,14 +65,14 @@ void monitor_dw() {
 }
 
 void change_serialnumber(const char* new_serialnumber) {
-  LuXactDw luXactDw(serialnumber);
-  if (!luXactDw.Open()) {
+  LuXactLw luXactLw(serialnumber);
+  if (!luXactLw.Open()) {
     std::cerr << "error opening device" << std::endl;
     return;
   }
 
-  char16_t* serial = luXactDw.Serial(new_serialnumber);
-  if (luXactDw.Xfer
+  char16_t* serial = luXactLw.Serial(new_serialnumber);
+  if (luXactLw.Xfer
       (55/*Change serial number*/,
        ((uint32_t)serial[0]&0xFF)
        |(((uint32_t)serial[1]&0xFF)<<8)
@@ -84,16 +83,4 @@ void change_serialnumber(const char* new_serialnumber) {
 }
 
 void test() {
-  LuXactDw luXactDw(serialnumber);
-  if (!luXactDw.Open())
-    return;
-
-  if (!luXactDw.ResetDw())
-    return;
-
-  for (;;) {
-    while (!SysConAvail()) { }
-    SysConRead();
-    luXactDw.Send(0x55);
-  }
 }

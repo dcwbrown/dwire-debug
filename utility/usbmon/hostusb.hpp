@@ -15,7 +15,7 @@ public:
   void Label();
   inline bool IsOpen() const { return lu_dev != nullptr; };
 
-  bool Open(bool claim = true);
+  virtual bool Open();
   bool Close();
   inline void Sink(int (*_sink)(const char*)) { sink = _sink; }
   int Xfer(uint8_t req, uint32_t arg, char* data = nullptr, uint8_t size = 0, bool device_to_host = false);
@@ -30,6 +30,8 @@ protected:
 
   uint32_t id_int;
   char16_t* id_string;
+  char* id_more = nullptr;
+  bool claim = true;
   struct libusb_device_handle* lu_dev = nullptr;
   int (*sink)(const char*) = nullptr;
 };
@@ -49,23 +51,27 @@ protected:
   char16_t serial[2];
 };
 
-class LuXactDw : public LuXact {
+class LuXactLw : public LuXact {
 public:
 
-  LuXactDw(const char* serialnumber);
+  LuXactLw(const char* serialnumber);
   char16_t* Serial(const char* serialnumber);
+
+  bool Open();
 
   void Reset();
   void Send(char data);
   void Send(struct Rpc& rpc, uint8_t index);
   void Recv();
 
-  bool ReadDw();
   bool ResetDw();
   bool ResetPower();
 
 protected:
   char16_t serial[4];
+  char id[20];
+
+  bool listening;
 };
 
 #endif

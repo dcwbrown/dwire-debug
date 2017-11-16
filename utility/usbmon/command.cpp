@@ -69,6 +69,7 @@ int SysConRead()
 	return r <= 0 ? 0 : (unsigned int)c;
 }
 
+int opt_debug = false;
 char* serialnumber = nullptr;
 static termios ttystate;
 void reset_terminal_mode() { tcsetattr(STDIN_FILENO, TCSANOW, &ttystate); }
@@ -83,6 +84,7 @@ void args(int argc, char** argv) {
       lo_change_serialnumber,
     };
     static struct option options[] = {
+      {"debug", no_argument, &opt_debug, true},
       {"change-serialnumber", required_argument, 0, lo_change_serialnumber},
       {nullptr, 0, nullptr, 0}
     };
@@ -93,6 +95,10 @@ void args(int argc, char** argv) {
       switch (c) {
       default:
         throw usage();
+
+      case 0:
+        // set a flag
+        break;
 
       case 's':
         serialnumber = strdup(optarg);
@@ -141,6 +147,7 @@ void args(int argc, char** argv) {
   -d     dw monitor
   -u     usb monitor
 
+  --debug                   show libusb messages
   --change-serialnumber #   change to new serial number (requires dw)
 )00here-text00";
     exit(3);

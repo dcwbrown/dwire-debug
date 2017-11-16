@@ -996,6 +996,13 @@ uchar usbFunctionSetup(uchar data[8])
 
 
   if (req == 60) { // debugWIRE transfer
+    if (!(data[0] & 0x80) && !data[2]) {
+      // command 0 always cancels prior operation
+      cbi(PCMSK,DW_BIT);
+      dwState = 0;
+      return 0;
+    }
+
     if (dwState) {return 0;}   // Prior operation has not yet completed
 
     if (data[0] & 0x80) {
@@ -1007,6 +1014,7 @@ uchar usbFunctionSetup(uchar data[8])
     } else {
 
       // OUT transfer - host to device. rq->wValue specifies action to take.
+      cbi(PCMSK,DW_BIT);                // mask any dw sync interrupt
       dwState = data[2];                // action required, from low byte of rq->wValue
       dwLen   = *((uint16_t*)(data+6)); // rq->wLength
       if (dwLen == 0) {
@@ -2004,6 +2012,7 @@ int main(void) {
         //     00100000   0x20     Read pulse widths
         //
         // Supported combinations
+        //    $00 - Cancel any pending command
         //    $21 - Send break and read pulse widths
         //    $02 - Set timing parameters
         //    $04 - Send bytes

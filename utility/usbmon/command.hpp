@@ -7,6 +7,7 @@ int SysConWrite(const char* s);
 int SysConAvail();
 int SysConRead();
 
+extern int opt_debug;
 extern char* serialnumber;
 
 #define RunInit(module) struct _##module##_Init{_##module##_Init();}__##module##_Init;_##module##_Init::_##module##_Init()

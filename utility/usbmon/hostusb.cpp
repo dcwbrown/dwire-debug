@@ -32,7 +32,9 @@ LuXact::LuXact(uint32_t vidpid, const char16_t vendor[], const char16_t product[
 	std::char_traits<char16_t>::copy(id_string + vl + 1, pl ? product : blank, pl + 1);
 	std::char_traits<char16_t>::copy(id_string + vl + 1 + pl + 1, sl ? serial : blank, sl + 1);
 
-	Label();
+    if (opt_debug)
+      libusb_set_debug(lu_ctx, LIBUSB_LOG_LEVEL_INFO);
+    Label();
 }
 
 LuXact::~LuXact()
@@ -76,11 +78,13 @@ void LuXact::Label()
             std::cerr.setf(fmtfl, std::ios::basefield);
         }
 	}
+    if (id_more)
+      std::cerr << ' ' << id_more;
 	if (!lu_dev) std::cerr << ']';
 	std::cerr << '\a';
 }
 
-bool LuXact::Open(bool claim)
+bool LuXact::Open()
 {
 	libusb_device* *devs;
 	ssize_t cnt = libusb_get_device_list(lu_ctx, &devs);
@@ -181,7 +185,7 @@ bool LuXact::Close()
 }
 
 int LuXact::Xfer(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host) {
-  return libusb_control_transfer
+  int ret = libusb_control_transfer
     (/* libusb_device_handle* */lu_dev,
      /* bmRequestType */ LIBUSB_REQUEST_TYPE_CLASS
      | (device_to_host ? LIBUSB_ENDPOINT_IN : LIBUSB_ENDPOINT_OUT),
@@ -191,6 +195,18 @@ int LuXact::Xfer(uint8_t req, uint32_t arg, char* data, uint8_t size, bool devic
      /* data */ (unsigned char*)data,
      /* wLength */ size,
      timeout);
+  if (opt_debug) {
+    std::cerr << (device_to_host ? "xi: " : "xo: ") << (int)req;
+    std::ios::fmtflags fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
+    std::cerr << 'x' << (uint16_t)req;
+    std::cerr.setf(fmtfl, std::ios::basefield);
+    std::cerr << ' ' << arg;
+    fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
+    std::cerr << 'x' << arg;
+    std::cerr.setf(fmtfl, std::ios::basefield);
+    std::cerr << " -> " << ret << ' ' << libusb_error_name(ret) << std::endl;
+  }
+  return ret;
 }
 
 uint8_t LuXact::XferRetry(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host)
@@ -260,11 +276,13 @@ void LuXactUsb::Recv() {
   }
 }
 
-LuXactDw::LuXactDw(const char* serialnumber)
+LuXactLw::LuXactLw(const char* serialnumber)
   : LuXact(0x17810c9f, nullptr, nullptr, Serial(serialnumber)) {
+  id[0] = '\0';
+  id_more = id;
 }
 
-char16_t* LuXactDw::Serial(const char* serialnumber) {
+char16_t* LuXactLw::Serial(const char* serialnumber) {
   serial[0] = 0;
   if (!serialnumber) return nullptr;
   int sn = strtol(serialnumber, nullptr, 0);
@@ -280,59 +298,77 @@ char16_t* LuXactDw::Serial(const char* serialnumber) {
   return serial;
 }
 
-void LuXactDw::Reset() {
-}
+bool LuXactLw::Open() {
+  listening = false;
 
-void LuXactDw::Send(char data) {
-  // send bytes
-  Xfer(60/*dw*/, 0x04, &data, sizeof(data), false);
-}
+  if (!LuXact::Open())
+    return false;
 
-void LuXactDw::Send(struct Rpc& rpc, uint8_t index) {
-}
-
-void LuXactDw::Recv() {
-  // libusb calls taken from dwire/DigiSpark.c
-
-  // Read back dWIRE bytes
-  char data[129];
-  int status = Xfer(60/*dw*/, 0, data, sizeof(data)-1, true);
-  // 0 means no data, PIPE means garbled command
-  //static int last = 50000; if (status || last != status) std::cerr << "Recv status:" << status << '\n'; last = status;
-  if (status == 0 || status == LIBUSB_ERROR_TIMEOUT || status == LIBUSB_ERROR_PIPE)
-    return;
-  if (status == LIBUSB_ERROR_NO_DEVICE) {
-#if 1
-    XferRetry(0/*echo*/, 0);
-#else
-    libusb_device* dev = libusb_get_device(lu_dev);
-#endif
-    return;
-  }
-  if (status > 0 && sink) {
-    data[status] = '\0';
-#if 0
-    std::cerr << '[';
-    std::ios::fmtflags fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
-    for (int i = 0 ; i < status; ++i) std::cerr << ((int)data[i]&0xFF) << ' ';
-    std::cerr.setf(fmtfl, std::ios::basefield);
-    std::cerr << ']';
-#endif
-    sink(data);
-  }
-
-  if (status > 0)
-    ReadDw();
-}
-
-bool LuXactDw::ReadDw()
-{
-  // Wait for start bit and Read bytes
-  XferRetry(60/*dw*/, 0x18);
+  // Cancel any dw commands
+  if (Xfer(60/*dw*/, 0) < 0)
+    return false;
   return true;
 }
 
-bool LuXactDw::ResetDw() {
+void LuXactLw::Reset() {
+}
+
+void LuXactLw::Send(char data) {
+  // Cancel any dw commands
+  XferRetry(60/*dw*/, 0);
+
+  // send bytes
+  char buf[2] = ""; buf[1] = data;
+  Xfer(60/*dw*/, 0x04, buf, sizeof(buf), false);
+
+  // Xfer cancels dw interrupt, so restart it
+  if (listening) {
+    listening = false;
+    Recv();
+  }
+}
+
+void LuXactLw::Send(struct Rpc& rpc, uint8_t index) {
+}
+
+void LuXactLw::Recv() {
+  if (listening) {
+    // libusb calls taken from dwire/DigiSpark.c
+
+    // Read back dWIRE bytes
+    char data[129];
+    int status = Xfer(60/*dw*/, 0, data, sizeof(data)-1, true);
+    // 0 means no data, PIPE means garbled command
+    //static int last = 50000; if (status || last != status) std::cerr << "Recv status:" << status << '\n'; last = status;
+    if (status == 0 || status == LIBUSB_ERROR_TIMEOUT || status == LIBUSB_ERROR_PIPE)
+      return;
+    if (status == LIBUSB_ERROR_NO_DEVICE) {
+#if 1
+      XferRetry(0/*echo*/, 0);
+#else
+      libusb_device* dev = libusb_get_device(lu_dev);
+#endif
+      return;
+    }
+    if (status > 0 && sink) {
+      data[status] = '\0';
+#if 0
+      std::cerr << '[';
+      std::ios::fmtflags fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
+      for (int i = 0 ; i < status; ++i) std::cerr << ((int)data[i]&0xFF) << ' ';
+      std::cerr.setf(fmtfl, std::ios::basefield);
+      std::cerr << ']';
+#endif
+      sink(data);
+    }
+  }
+
+  // Wait for start bit and Read bytes
+  XferRetry(60/*dw*/, 0x18);
+  listening = true;
+}
+
+bool LuXactLw::ResetDw() {
   // libusb calls taken from dwire/DigiSpark.c
 
   // DigisparkBreakAndSync()
@@ -361,7 +397,7 @@ bool LuXactDw::ResetDw() {
 
     // Determine timing loop iteration counts for sending and receiving bytes
     times[0] = (cyclesperpulse-8)/4;  // dwBitTime
-    std::cerr << "baud: " << 16500000 / cyclesperpulse << std::endl;
+    strcpy(id, (std::to_string(16500000 / cyclesperpulse)+"Bd").c_str());
 
     // Set timing parameter
     if (Xfer(60/*dw*/, 0x02, (char*)times, sizeof(uint16_t), false) < 0)
@@ -375,10 +411,11 @@ bool LuXactDw::ResetDw() {
       return false;
   }
 
+  Label();
   return true;
 }
 
-bool LuXactDw::ResetPower() {
+bool LuXactLw::ResetPower() {
   const uint8_t pin = 0;
   if (Xfer(/*set high*/18, pin) < 0) return false;
   if (Xfer(/*set output*/14, pin) < 0) return false;
