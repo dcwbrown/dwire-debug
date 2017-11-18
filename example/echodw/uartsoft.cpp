@@ -143,8 +143,8 @@ void UARTSOFT_INT(UARTSOFT_ARGS)() {
 
   // working registers declared as early clobbers
   register uint8_t delay asm("r25");
-  register uint8_t ibit asm("r23");
-  register uint8_t idel asm("r22");
+  register uint8_t ibit asm("r29"); // also high part of idel
+  register uint8_t idel asm("r28");
   register uint8_t ibuf asm("r21");
   register uint8_t recv asm("r24");
   register uint16_t x asm("r26");
@@ -158,44 +158,38 @@ void UARTSOFT_INT(UARTSOFT_ARGS)() {
     push  r27                 ;2 07
     push  r26                 ;2 09
     push  r25                 ;2 11
-    push  r23                 ;2 13
-    push  r22                 ;2 15
+    push  r29                 ;2 13
+    push  r28                 ;2 15
     push  r21                 ;2 17
 
     lds   %A[x],%[next]       ;2 19 buffer
     lds   %B[x],%[next]+1     ;2 21
     ldi   %[ibuf],%[size]-1   ;1 22 max number of bytes
 
-          ; intra bit delay (divisor - 8) >> 2
+          ; inter bit delay (divisor - 8) >> 2
     lds   %[delay],%[divisor] ;2 24
     subi  %[delay],8          ;1 25 delay till next bit
     lsr   %[delay]            ;1 26
     lsr   %[delay]            ;1 27
 
-readbyte%=:
-    ldi   %[ibit],8           ;1    number of timeout bits
-waitstart%=:
-    mov   %[idel],%[delay]    ;1 4*idel timeout
-loopstart%=:                  ;
-    dec   %[idel]             ;1
-    sbic  %[pin],%[bit]       ;?
-    brne  loopstart%=         ;? 4*idel end
-
+readbyte%=:; timeout = 2 * 6 * bit time
+    lds   %[idel],%[divisor]  ;2 07 one bit time
+    ldi   %[ibit],0           ;1 08 high part of timeout
+    lsl   %[idel]             ;1 09 *2
+    adc   %[ibit],%[ibit]     ;1 10
+loopstart%=:                  ;  6*idel timeout
     sbis  %[pin],%[bit]       ;?
     rjmp  havestart%=         ;2
-    dec   %[ibit]             ;1
-    brne  waitstart%=         ;?
+    sbiw  %[idel],1           ;2
+    brne  loopstart%=         ;? 6*idel end
     rjmp  haveall%=           ;2    timeout for start bit
-
 havestart%=:
-    mov   %[idel],%[delay]    ;1    1.5 bits
+    mov   %[idel],%[delay]    ;1    0.5 bits
     lsr   %[idel]             ;1
 delays%=:                     ;     wait for 1st bit
     dec   %[idel]             ;1
-    nop                       ;1
-    brne  delays%=            ;?
-
     ldi   %[ibit],8           ;1    number of data bits
+    brne  delays%=            ;? 4*idel wait
 loop%=:   ; critical loop timing 4*delay + 8
     mov   %[idel],%[delay]    ;1
 delay%=:
@@ -210,16 +204,15 @@ delay%=:
     dec   %[ibit]             ;1 06
     brne  loop%=              ;? 08 more bits?
 
-    mov   %[idel],%[delay]    ;1    .5 bits
-    lsr   %[idel]             ;1
+    mov   %[idel],%[delay]    ;1    1 bit
 delayt%=:                     ;     wait past last bit
     dec   %[idel]             ;1 00
     nop                       ;1 01
     brne  delayt%=            ;? 4*delay
 
-    st    X+,%[recv]          ;2    store byte
-    dec   %[ibuf]             ;1 00
-    brne  readbyte%=          ;?
+    st    X+,%[recv]          ;2 00 store byte
+    dec   %[ibuf]             ;1 03
+    brne  readbyte%=          ;? 05
                               ;     buffer full
 haveall%=:
     ldi   %[recv],%[size]-1   ;1    max number of bytes
@@ -233,8 +226,8 @@ haveall%=:
     sts   %[next]+1,r25
 
     pop   r21                 ;2
-    pop   r22                 ;2
-    pop   r23                 ;2
+    pop   r28                 ;2
+    pop   r29                 ;2
     pop   r25                 ;2
     pop   r26                 ;2
     pop   r27                 ;2
