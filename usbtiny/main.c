@@ -996,14 +996,14 @@ uchar usbFunctionSetup(uchar data[8])
 
 
   if (req == 60) { // debugWIRE transfer
-    if (!(data[0] & 0x80) && !data[2]) {
-      // command 0 always cancels prior operation
-      cbi(PCMSK,DW_BIT);
-      dwState = 0;
-      return 0;
-    }
 
-    if (dwState) {return 0;}   // Prior operation has not yet completed
+    // It is possible for usbFunctionSetup to receive a valid setup packet, setting
+    // dwState below, followed by a lost data packet leading to usbFunctionDwWrite
+    // never setting jobState. This happens frequently when there is heavy traffic to
+    // other devices on a shared hub, and leads to jobState == 0 && dwState != 0 once
+    // we get to this point. This is an invalid state, not a pending operation, so
+    // we should alllow subsequent operations to proceed rather than hang.
+    if (jobState && dwState) {return 0;}   // Prior operation has not yet completed
 
     if (data[0] & 0x80) {
 
