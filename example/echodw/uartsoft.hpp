@@ -15,23 +15,28 @@
 #define UARTSOFT_PCIE(ARGS) MUAPK_CAT(PCIE,MUAPK_4_2 ARGS)
 #define UARTSOFT_INT(ARGS) MUAPK_4_3 ARGS
 
-#if defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) || defined(__AVR_ATtiny13__)
+#if defined(UARTSOFT_ARGS)
+// ok
+#elif defined(__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__) \
+  || defined(__AVR_ATtiny13__)
 #define UARTSOFT_ARGS (B,5,,PCINT0_vect)
+
 #elif defined(__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
 #define UARTSOFT_ARGS (B,3,1,PCINT1_vect)
-#else // defined(__AVR_*)
+
+#else // defined(UARTSOFT_ARGS)
 #error DW ports
-#endif // defined(__AVR_*)
+#endif // defined(UARTSOFT_ARGS)
 
 extern class UartSoft : public RpcSend {
 public:
 
-  void begin(uint8_t divisor = 128);
+  void begin(uint8_t divisor = 128, uint8_t break_timeout = 12);
 
 #ifdef core_hpp
-  static uint8_t write(const fstr_t* s, uint8_t n);
+  static uint8_t write(const fstr_t* s, uint8_t n, uint8_t break_bits = 8);
 #endif
-  static uint8_t write(const char* s, uint8_t n);
+  static uint8_t write(const char* s, uint8_t n, uint8_t break_bits = 8);
   static uint8_t read(char* d, uint8_t n);
   static uint8_t read(char** d);
   static bool eof();
@@ -40,6 +45,14 @@ public:
 
   // divisor >= 16 and multiple of 4
   static uint8_t divisor;
+  static uint8_t break_timeout;
+  static volatile enum Flag : uint8_t {
+    flNone = 0,
+    flBreakActive = 0x01,     // during break
+    flBreak = 0x02,           // after break
+    flError = 0x04,           // framing
+  } flag;
+  static bool clear(Flag f);
 
   // double buffer, next gets loaded
   // last byte has number of chars received

@@ -7,8 +7,19 @@ UartSoft uartSoft;
 
 // divisor >= 16 and multiple of 4
 uint8_t UartSoft::divisor;
+uint8_t UartSoft::break_timeout;
 volatile char UartSoft::buff[UARTSOFT_BUFF_SIZE*2];
 volatile char* UartSoft::next = UartSoft::buff;
+volatile UartSoft::Flag UartSoft::flag = flNone;
+
+bool UartSoft::clear(Flag f) {
+  bool ret;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    ret = (flag & f) != 0;
+    flag = (Flag)(flag & ~f);
+  }
+  return ret;
+}
 
 extern "C" __attribute__ ((naked))
 char* UartSoft_last() {
@@ -40,8 +51,8 @@ resetbuf%=:
   );
 }
 
-void UartSoft::begin(uint8_t _divisor) {
-  divisor = _divisor;
+void UartSoft::begin(uint8_t _divisor, uint8_t _break_timeout) {
+  divisor = _divisor; break_timeout = _break_timeout;
 
   // input, enable pullup
   UARTSOFT_REG(DDR,UARTSOFT_ARGS) &=~ (1<<UARTSOFT_BIT(UARTSOFT_ARGS));
@@ -51,6 +62,54 @@ void UartSoft::begin(uint8_t _divisor) {
   GIMSK |= (1<<UARTSOFT_PCIE(UARTSOFT_ARGS));
   UARTSOFT_PCMSK(UARTSOFT_ARGS) |= (1<<UARTSOFT_BIT(UARTSOFT_ARGS));
   sei();
+}
+
+extern "C" __attribute__ ((naked))
+void UartSoft_break(uint8_t bits) {
+
+  // bits is passed in r24
+  register uint8_t ibit asm("r24") = bits;
+  register uint8_t idel asm("r25");
+  __asm__ __volatile__ (R"assembly(
+
+    tst   %[ibit]             ;1    check for zero length
+    brne  start%=             ;?
+    ret
+start%=:
+    cbi   %[port],%[bit]      ;2    low
+    sbi   %[ddr],%[bit]       ;2    output
+loop%=:
+    lds   %[idel],%[divisor]  ;2    idel = (divisor - 8) >> 2
+    subi  %[idel],8           ;1
+    lsr   %[idel]             ;1
+    lsr   %[idel]             ;1
+delay%=:
+    nop                       ;1
+    dec   %[idel]             ;1
+    brne  delay%=             ;? 4*idel end
+    dec   %[ibit]             ;1
+    brne  loop%=              ;?
+
+    cbi   %[ddr],%[bit]       ;2    input
+    sbi   %[port],%[bit]      ;2    pullup
+
+    lds   %[idel],%[divisor]  ;2    idel = divisor >> 2
+    lsr   %[idel]             ;1
+    lsr   %[idel]             ;1
+delays%=:
+    nop                       ;1
+    dec   %[idel]             ;1
+    brne  delays%=            ;? 4*idel end
+
+    ret
+)assembly"
+    : [ibit] "=&r" (ibit)
+      ,[idel] "=&r" (idel)
+    : [divisor] "m" (UartSoft::divisor)
+      ,[ddr] "I" (_SFR_IO_ADDR(UARTSOFT_REG(DDR,UARTSOFT_ARGS)))
+      ,[port] "I" (_SFR_IO_ADDR(UARTSOFT_REG(PORT,UARTSOFT_ARGS)))
+      ,[bit] "I" (UARTSOFT_BIT(UARTSOFT_ARGS))
+    );
 }
 
 extern "C" __attribute__ ((naked))
@@ -119,9 +178,10 @@ all_done%=:
 }
 
 #ifdef core_hpp
-uint8_t UartSoft::write(const fstr_t* s, uint8_t n) {
+uint8_t UartSoft::write(const fstr_t* s, uint8_t n, uint8_t break_bits) {
   uint8_t r = n;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    UartSoft_break(break_bits);
     while (n--)
       UartSoft_write(pgm_read_byte(s++));
   }
@@ -129,15 +189,33 @@ uint8_t UartSoft::write(const fstr_t* s, uint8_t n) {
 }
 #endif
 
-uint8_t UartSoft::write(const char* s, uint8_t n) {
+uint8_t UartSoft::write(const char* s, uint8_t n, uint8_t break_bits) {
   uint8_t r = n;
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    UartSoft_break(break_bits);
     while (n--)
       UartSoft_write(*s++);
   }
   return r;
 }
 
+/* Interrupt
+
+Packets of up to UARTSOFT_BUFF_SIZE-1 are received into one of two buffers: UartSoft::buff or
+UartSoft::buff + UARTSOFT_BUFF_SIZE. The interrupt starts with UartSoft::next pointing to the
+buffer that will receive. Location UartSoft::buff + UARTSOFT_BUFF_SIZE-1 gets the number of
+chars received, and UartSoft::next is then switched to the other buffer.
+
+Packets must consist of a short break followed by up to UARTSOFT_BUFF_SIZE-1 chars. A break is
+considered short when it is shorter than UartSoft::break_timeout bits. A packet is considered
+complete once 12 high bits in a row have passed. The short break is required to allow for
+interrupt latency. A short break is still required after a long break for synchronization
+before data can be received.
+
+Once a break is longer than UartSoft::break_timeout bits, flag UartSoft::flBreakActive is set.
+Once the long break is over, flag UartSoft::flBreakActive is cleared and flag UartSoft::flBreak
+is set. The interrupt returns during the time that the long break is active.
+ */
 extern "C" __attribute__ ((naked, used))
 void UARTSOFT_INT(UARTSOFT_ARGS)() {
 
@@ -150,8 +228,6 @@ void UARTSOFT_INT(UARTSOFT_ARGS)() {
   register uint16_t x asm("r26");
   __asm__ __volatile__ (R"assembly(
                               ;  00
-    sbic  %[pin],%[bit]       ;?
-    reti                      ;2    give up if high
     push  r24                 ;2 02
     in    r24,__SREG__        ;1 03
     push  r24                 ;2 05
@@ -162,16 +238,57 @@ void UARTSOFT_INT(UARTSOFT_ARGS)() {
     push  r28                 ;2 15
     push  r21                 ;2 17
 
-    lds   %A[x],%[next]       ;2 19 buffer
-    lds   %B[x],%[next]+1     ;2 21
-    ldi   %[ibuf],%[size]-1   ;1 22 max number of bytes
+          ; handle break flags
+    lds   %[idel],%[flag]     ;2 19 is long break active?
+    andi  %[idel],%[brka]     ;1 20
+    breq  nolong%=            ;? 22
+    sbis  %[pin],%[bit]       ;     still low?
+    rjmp  done%=              ;     keep waiting
+          ; long break is over
+    lds   %[idel],%[flag]
+    andi  %[idel],~%[brka]    ;     clear active flag
+    ori   %[idel],%[brk]      ;     set break flag
+    sts   %[flag],%[idel]
+    rjmp  done%=              ;     long break detected
+nolong%=:
+    sbic  %[pin],%[bit]       ;? 23
+    rjmp  done%=              ;     skip uncleared interrupt
+          ; short break already in progress
+
+          ; initialize variables
+    lds   %A[x],%[next]       ;2 25 buffer
+    lds   %B[x],%[next]+1     ;2 27
+    ldi   %[ibuf],%[size]-1   ;1 28 max number of bytes
 
           ; inter bit delay (divisor - 8) >> 2
-    lds   %[delay],%[divisor] ;2 24
-    subi  %[delay],8          ;1 25 delay till next bit
-    lsr   %[delay]            ;1 26
-    lsr   %[delay]            ;1 27
+    lds   %[delay],%[divisor] ;2 30
+    subi  %[delay],8          ;1 31 delay till next bit
+    lsr   %[delay]            ;1 32
+    lsr   %[delay]            ;1 33
 
+          ; short break up to breakto low bits
+    lds   %[ibit],%[breakto]  ;2    max number of break bits
+loopbrto%=:                   ;  (4*idel + 8)*ibit
+    mov   %[idel],%[delay]    ;1    idel = (divisor - 8) >> 2
+loopbito%=:                   ;  4*idel
+    dec   %[idel]             ;1
+    sbis  %[pin],%[bit]       ;?    still low?
+    brne  loopbito%=          ;? 4*idel end
+    rjmp  .                   ;2 02
+    rjmp  .                   ;2 04
+    dec   %[ibit]             ;1 05
+    sbis  %[pin],%[bit]       ;? 06 still low?
+    brne  loopbrto%=          ;? (4*idel + 8)*ibit end
+    sbic  %[pin],%[bit]       ;?    still low?
+    rjmp  readbyte%=          ;2    shorter than breakto, so ignore
+          ; now we have over breakto low bits
+
+    lds   %[idel],%[flag]     ;     set break active flag
+    ori   %[idel],%[brka]
+    sts   %[flag],%[idel]
+    rjmp  done%=              ;     keep waiting
+
+          ; wait for start bit
 readbyte%=:; timeout = 2 * 6 * bit time
     lds   %[idel],%[divisor]  ;2 07 one bit time
     ldi   %[ibit],0           ;1 08 high part of timeout
@@ -198,7 +315,7 @@ delay%=:
     brne  delay%=             ;? 4*delay
 
     lsr   %[recv]             ;1 01 sample
-    sbic  %[pin],%[bit]       ;?    skip if high
+    sbic  %[pin],%[bit]       ;?
     ori   %[recv],0x80        ;1 03 set msb
     rjmp  .                   ;2 05 nop
     dec   %[ibit]             ;1 06
@@ -209,11 +326,15 @@ delayt%=:                     ;     wait past last bit
     dec   %[idel]             ;1 00
     nop                       ;1 01
     brne  delayt%=            ;? 4*delay
+          ; entire byte received
+
+    sbis  %[pin],%[bit]       ;?    check for low
+    rjmp  error%=
 
     st    X+,%[recv]          ;2 00 store byte
     dec   %[ibuf]             ;1 03
     brne  readbyte%=          ;? 05
-                              ;     buffer full
+          ; buffer full
 haveall%=:
     ldi   %[recv],%[size]-1   ;1    max number of bytes
     sub   %[recv],%[ibuf]     ;1    bytes received
@@ -224,7 +345,14 @@ haveall%=:
     rcall UartSoft_last       ;     swap buffers
     sts   %[next],r24
     sts   %[next]+1,r25
+    rjmp  done%=
 
+error%=:
+    lds   %[idel],%[flag]     ;     set error flag
+    ori   %[idel],%[err]
+    sts   %[flag],%[idel]
+
+done%=:
     pop   r21                 ;2
     pop   r28                 ;2
     pop   r29                 ;2
@@ -244,7 +372,12 @@ haveall%=:
       ,[ibuf] "=&r" (ibuf)
       ,[x] "=&r" (x)
     : [divisor] "m" (UartSoft::divisor)
+      ,[breakto] "m" (UartSoft::break_timeout)
       ,[next] "m" (UartSoft::next)
+      ,[flag] "m" (UartSoft::flag)
+      ,[brk] "I" (UartSoft::flBreak)
+      ,[brka] "I" (UartSoft::flBreakActive)
+      ,[err] "I" (UartSoft::flError)
       ,[size] "I" (UARTSOFT_BUFF_SIZE)
       ,[pin] "I" (_SFR_IO_ADDR(UARTSOFT_REG(PIN,UARTSOFT_ARGS)))
       ,[bit] "I" (UARTSOFT_BIT(UARTSOFT_ARGS))
