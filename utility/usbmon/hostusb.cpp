@@ -317,15 +317,9 @@ void LuXactLw::Send(char data) {
   // Cancel any dw commands
   XferRetry(60/*dw*/, 0);
 
-  // send bytes
+  // send bytes and read if listening
   char buf[2] = ""; buf[1] = data;
-  Xfer(60/*dw*/, 0x04, buf, sizeof(buf), false);
-
-  // Xfer cancels dw interrupt, so restart it
-  if (listening) {
-    listening = false;
-    Recv();
-  }
+  Xfer(60/*dw*/, (listening ? 0x1C : 0x04), buf, sizeof(buf), false);
 }
 
 void LuXactLw::Send(struct Rpc& rpc, uint8_t index) {
@@ -385,30 +379,44 @@ bool LuXactLw::ResetDw() {
     // Read back timings
     int status = Xfer(60/*dw*/, 0, (char*)times, sizeof(times), true);
     if (status <= 0 && tries < 5) continue;
-    if (status < 18) return false;
 
-    // Average measurements and determine baud rate as pulse time in device cycles.
-    uint32_t cyclesperpulse = 0;
-    int measurementCount = status / 2;
-    for (int i = measurementCount-9; i < measurementCount; i++) cyclesperpulse += times[i];
+    // 10 transitions for start, stop, and 8 data bits (20 bytes).
+    // Average over last 8 bits, first one is bad since it has no start,
+    // also thrown out second one to make number even since
+    // rise and fall times aren't symmetric. When dw has been disabled,
+    // the target will reply with 0x55, a one byte delay, then 0x00
+    // which will cause status to return 24 instead of 20.
+    if (status != 20 && status != 24) return false;
 
-    // Pulse cycle time for each measurement is 6*measurement + 8 cyclesperpulse.
-    cyclesperpulse = (6*cyclesperpulse) / 9  +  8;
+    // Average measurements and determine baud rate as bit time in device cycles.
+    const int n = 8;
+    uint32_t sum = 0;
+    for (int i = 10 - n; i < 10; i++)
+      sum += times[i];
 
-    // Determine timing loop iteration counts for sending and receiving bytes
-    times[0] = (cyclesperpulse-8)/4;  // dwBitTime
-    strcpy(id, (std::to_string(16500000 / cyclesperpulse)+"Bd").c_str());
+    // Bit time for each measurement is 6 * measurement + 8 cycles.
+    // Don't divide by n yet to preserve precision.
+    sum = 6 * sum  +  8 * n;
+
+    // Display the baud rate
+    strcpy(id, (std::to_string(16500000 * n / sum)+"Bd").c_str());
+
+    // Determine timing loop iteration counts for sending and receiving bytes,
+    // use rounding in the division.
+    uint16_t dwBitTime = (sum - 8 * n + (4 * n) / 2) / (4 * n);
 
     // Set timing parameter
-    if (Xfer(60/*dw*/, 0x02, (char*)times, sizeof(uint16_t), false) < 0)
+    if (Xfer(60/*dw*/, 0x02, (char*)&dwBitTime, sizeof(dwBitTime), false) < 0)
       return false;
+
+    if (status == 20) {
+      // Disable Dw if it was enabled
+      char data = 0x06;
+      if (Xfer(60/*dw*/, 0x3C, &data, sizeof(data), false) < 0)
+        return false;
+    }
+
     break;
-  }
-  {
-    // Disable Dw
-    char data = 0x06;
-    if (Xfer(60/*dw*/, 0x3C, &data, sizeof(data), false) < 0)
-      return false;
   }
 
   Label();

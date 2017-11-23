@@ -31,7 +31,7 @@
 extern class UartSoft : public RpcSend {
 public:
 
-  void begin(uint8_t divisor = 128, uint8_t break_timeout = 12);
+  static void begin(uint8_t divisor = 128, uint8_t break_timeout = 12);
 
 #ifdef core_hpp
   static uint8_t write(const fstr_t* s, uint8_t n, uint8_t break_bits = 8);

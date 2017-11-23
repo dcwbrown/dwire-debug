@@ -82,11 +82,12 @@ loop%=:
     lds   %[idel],%[divisor]  ;2    idel = (divisor - 8) >> 2
     subi  %[idel],8           ;1
     lsr   %[idel]             ;1
-    lsr   %[idel]             ;1
+    lsr   %[idel]             ;1 4*idel
 delay%=:
     nop                       ;1
     dec   %[idel]             ;1
     brne  delay%=             ;? 4*idel end
+    nop                       ;1
     dec   %[ibit]             ;1
     brne  loop%=              ;?
 
@@ -113,12 +114,40 @@ delays%=:
 }
 
 extern "C" __attribute__ ((naked))
+void UartSoft_delay(uint8_t bits) {
+
+  // bits is passed in r24
+  register uint8_t ibit asm("r24") = bits;
+  register uint8_t idel asm("r25");
+  __asm__ __volatile__ (R"assembly(
+
+loop%=:
+    lds   %[idel],%[divisor]  ;2    idel = (divisor - 8) >> 2
+    subi  %[idel],8           ;1
+    lsr   %[idel]             ;1
+    lsr   %[idel]             ;1 4*idel
+delay%=:
+    nop                       ;1
+    dec   %[idel]             ;1
+    brne  delay%=             ;? 4*idel end
+    nop                       ;1
+    dec   %[ibit]             ;1
+    brne  loop%=              ;?
+
+    ret
+)assembly"
+    : [ibit] "=&r" (ibit)
+      ,[idel] "=&r" (idel)
+    : [divisor] "m" (UartSoft::divisor)
+    );
+}
+
+extern "C" __attribute__ ((naked))
 void UartSoft_write(uint8_t _c) {
   register uint8_t divisor = UartSoft::divisor;
 
   // c is passed in r24, with r25 allows adiw instruction
   uint16_t c = _c;
-  uint8_t sreg;
   __asm__ __volatile__ (R"assembly(
 
     ; divisor >= 16 and multiple of 4
@@ -132,10 +161,6 @@ void UartSoft_write(uint8_t _c) {
     ldi   %B[c],0x06
     add   %A[c],%A[c]
     adc   %B[c],__zero_reg__
-
-    ; uint8_t sreg = SREG; cli();
-    in    %[sreg],__SREG__
-    cli
 
     ; shift right and output lsb
 loop%=:					;0. 00
@@ -163,18 +188,47 @@ delay%=:
     breq  loop%=              ;12
     rjmp  delay%=             ;.2
 
-    ; SREG = sreg;
 all_done%=:
-    out   __SREG__,%[sreg]
     ret
 )assembly"
-    : [sreg] "=&r" (sreg)
-      ,[c] "+w" (c)
+    : [c] "+w" (c)
     : [ddr] "I" (_SFR_IO_ADDR(UARTSOFT_REG(DDR,UARTSOFT_ARGS)))
       ,[port] "I" (_SFR_IO_ADDR(UARTSOFT_REG(PORT,UARTSOFT_ARGS)))
       ,[bit] "I" (UARTSOFT_BIT(UARTSOFT_ARGS))
       ,[count] "r" (divisor)
     );
+}
+
+extern "C" __attribute__ ((naked))
+void UartSoft_break_detected() {
+  register uint8_t t asm("r24");
+  __asm__ __volatile__ (R"assembly(
+
+    lds   %[t],%[flag]        ;     is long break detected?
+    andi  %[t],%[brk]
+    breq  nolong%=
+    lds   %[t],%[flag]        ;     clear break detected flag
+    andi  %[t],~%[brk]        ;     clear active flag
+    sts   %[flag],%[t]
+
+    ldi   r24,8               ;     delay
+    rcall UartSoft_delay
+    ldi   r24,0x55            ;     sync byte
+    rcall UartSoft_write
+    ldi   r24,8               ;     delay
+    rcall UartSoft_delay
+    ldi   r24,0               ;     short break
+    rcall UartSoft_write
+
+nolong%=:
+    ret
+
+)assembly"
+    : [t] "=&r" (t)
+    : [flag] "m" (UartSoft::flag)
+      ,[brk] "I" (UartSoft::flBreak)
+    :
+  );
 }
 
 #ifdef core_hpp
@@ -249,7 +303,9 @@ void UARTSOFT_INT(UARTSOFT_ARGS)() {
     andi  %[idel],~%[brka]    ;     clear active flag
     ori   %[idel],%[brk]      ;     set break flag
     sts   %[flag],%[idel]
-    rjmp  done%=              ;     long break detected
+    rcall UartSoft_break_detected
+    rjmp  done%=
+
 nolong%=:
     sbic  %[pin],%[bit]       ;? 23
     rjmp  done%=              ;     skip uncleared interrupt
