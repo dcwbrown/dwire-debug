@@ -1359,6 +1359,66 @@ void dwCaptureWidths() {
     "        add   r24,r24         ; Convert word count to byte count                    \n"
     "        sts   dwLen,r24                                                             \n"
   ::[bit]"I"(DW_BIT):"r24","r26","r27","r30","r31");
+
+  // calculate dwBitTime so that it can be immediately used
+  // do it in assembly to limit register usage so this can be
+  // called from an interrupt to immediately receive data
+  // following a sync byte
+  __asm__ __volatile__ (R"string-literal(
+; uint16_t* p = dwBuf + 2;
+    ldi   r30,lo8(dwBuf+4)    ; z register
+    ldi   r31,hi8(dwBuf+4)
+; uint24_t sum = 0;           ; sum r24,r25,r26
+    clr   r24
+    clr   r25
+    clr   r26
+    clr   r27                 ; temp r27
+; for (int i = 0; i < 8; i++)
+    ldi   r23,8               ; i r23
+; sum += *p++;
+sum%=:
+    ld    r22,z+
+    add   r24,r22
+    ld    r22,z+
+    adc   r25,r22
+    adc   r26,r27
+    dec   r23
+    brne  sum%=
+; dwBitTime = (3 * sum + 8) / 16;
+    mov   r30,r24             ; temp r30,r31,r27
+    mov   r31,r25             ; temp = sum
+    mov   r27,r26
+    add   r30,r24             ; temp += sum
+    adc   r31,r25
+    adc   r27,r26
+    add   r24,r30             ; sum += temp
+    adc   r25,r31
+    adc   r26,r27
+    adiw  r24,8               ; sum += 8 // for rounding
+    clr   r27                 ; temp r27
+    adc   r26,r27
+    lsr   r26                 ; sum /= 2
+    ror   r25
+    ror   r24
+    lsr   r26                 ; sum /= 2
+    ror   r25
+    ror   r24
+    lsr   r26                 ; sum /= 2
+    ror   r25
+    ror   r24
+    lsr   r26                 ; sum /= 2
+    ror   r25
+    ror   r24
+    ldi   r30,lo8(dwBitTime)  ; z register
+    ldi   r31,hi8(dwBitTime)
+    st    z+,24
+    st    z+,25
+    ldi   r30,lo8(dwBuf)      ; for host
+    ldi   r31,hi8(dwBuf)
+    st    z+,24
+    st    z+,25
+)string-literal"
+  :::"r22","r23","r24","r25","r26","r27","r30","r31");
 }
 
 // Sample pulse widths returned by attiny85 with internal clock as supplied
@@ -2045,8 +2105,8 @@ int main(void) {
         if (dwState & 0x04) {dwSendBytes();}
         if (dwState & 0x08) {dwBuf[0]=dwState>>4; dwLen=dwBuf[0]?0:1; dwState=0;
           cbi(DDRB,DW_BIT); sbi(PCMSK,DW_BIT);} // Capture dWIRE pin change async
-        if (dwState & 0x10) {dwReadBytes();}
-        if (dwState & 0x20) {dwCaptureWidths();}
+        if (dwState & 0x10) {dwLen=0;dwReadBytes();}
+        if (dwState & 0x20) {dwLen=0;dwCaptureWidths();}
 
         jobState = 0;
         dwState  = 0;
