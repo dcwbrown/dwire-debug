@@ -1,75 +1,83 @@
 #ifndef hostusb_hpp
 #define hostusb_hpp
 
-#include <stdexcept>
-
-class LuXact {
-public:
-
-  const uint32_t timeout = 10;
-
-  class Exception : public std::runtime_error { public: Exception(const char* what_arg) : std::runtime_error(what_arg) { } };
-
-  LuXact(uint32_t vidpid, const char16_t vendor[], const char16_t product[], const char16_t serial[]);
-  ~LuXact();
-  void Label();
-  inline bool IsOpen() const { return lu_dev != nullptr; };
-
-  virtual bool Open();
-  bool Close();
-  inline void Sink(int (*_sink)(const char*)) { sink = _sink; }
-  int Xfer(uint8_t req, uint32_t arg, char* data = nullptr, uint8_t size = 0, bool device_to_host = false);
-  uint8_t XferRetry(uint8_t req, uint32_t arg, char* data = nullptr, uint8_t size = 0, bool device_to_host = false);
-
-  virtual void Reset() = 0;
-  virtual void Send(char data) = 0;
-  virtual void Send(struct Rpc& rpc, uint8_t index) = 0;
-  virtual void Recv() = 0;
-
-protected:
-
-  uint32_t id_int;
-  char16_t* id_string;
-  char* id_more = nullptr;
-  bool claim = true;
-  struct libusb_device_handle* lu_dev = nullptr;
-  int (*sink)(const char*) = nullptr;
-};
+#include "hostio.hpp"
 
 class LuXactUsb : public LuXact {
 public:
 
-  LuXactUsb(const char* serialnumber);
+  const uint32_t timeout = 10;
+
+  LuXactUsb(uint32_t vidpid, const char* vendor, const char* product, const char* serial);
+  ~LuXactUsb();
+
+  bool Open();
+  bool IsOpen() const;
+  bool Close();
+  int Xfer(uint8_t req, uint32_t arg, char* data = nullptr, uint8_t size = 0, bool device_to_host = false);
+  uint8_t XferRetry(uint8_t req, uint32_t arg, char* data = nullptr, uint8_t size = 0, bool device_to_host = false);
+
+protected:
+
+  // check if we match vidpid, descriptors
+  virtual bool matchVidpid(uint32_t vidpid);
+  virtual bool matchVidpid(const char16_t* vendor, const char16_t* product);
+  virtual bool matchSerial(const char16_t* serial);
+  virtual void storeDescriptors(const char16_t* vendor, const char16_t* product, const char16_t* serial);
+  virtual void storeDescriptors(const char* vendor, const char* product, const char* serial);
+
+  // label segments that serve as device id
+  enum {
+    sgVendor,
+    sgProduct,
+    sgSerial,
+    sgNumber
+  };
+
+  uint32_t vidpid = 0;
+  bool claim = true;
+  struct libusb_device_handle* lu_dev = nullptr;
+};
+
+class LuXactUsbRpc : public LuXactUsb {
+public:
+
+  LuXactUsbRpc(const char* serialnumber);
   char16_t* Serial(const char* serialnumber);
 
-  void Reset();
   void Send(char data);
   void Send(struct Rpc& rpc, uint8_t index);
   void Recv();
 
+  bool Reset();
+
 protected:
-  char16_t serial[2];
+  bool matchSerial(const char16_t* serial);
+  void storeDescriptors(const char16_t* vendor, const char16_t* product, const char16_t* serial);
 };
 
-class LuXactLw : public LuXact {
+class LuXactLw : public LuXactUsb {
 public:
 
   LuXactLw(const char* serialnumber);
-  char16_t* Serial(const char* serialnumber);
 
   bool Open();
 
-  void Reset();
   void Send(char data);
   void Send(struct Rpc& rpc, uint8_t index);
   void Recv();
 
+  bool Reset();
   bool ResetDw();
   bool ResetPower();
 
+  bool SetSerial(const char* serial);
+
 protected:
-  char16_t serial[4];
-  char id[20];
+  enum {
+    sgBaudrate = LuXactUsb::sgNumber,
+    sgNumber
+  };
 
   bool listening;
 };

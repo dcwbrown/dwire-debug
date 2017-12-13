@@ -2,175 +2,141 @@
 #include "rpc.hpp"
 #include "hostusb.hpp"
 
-#if __GNUC__ > 4
-#include <codecvt>
-#endif
-#include <cstdio>
 #include <cstring>
-#include <ctime>
 #include <iostream>
 #include <libusb-1.0/libusb.h> // apt-get install libusb-1.0-0-dev
-#include <locale>
 #include <memory>
-#include <string>
+#include <sstream>
 #include <unistd.h>
 
 static struct libusb_context* lu_ctx = nullptr;
-RunInit(libusb) { if (libusb_init(&lu_ctx) < 0) SysAbort(__PRETTY_FUNCTION__); }
-RunExit(libusb) { libusb_exit(lu_ctx); }
+RunExit(libusb) { if (lu_ctx) libusb_exit(lu_ctx); }
 
-LuXact::LuXact(uint32_t vidpid, const char16_t vendor[], const char16_t product[], const char16_t serial[])
-  : id_int(vidpid)
+LuXactUsb::LuXactUsb(uint32_t _vidpid, const char* vendor, const char* product, const char* serial)
+  : vidpid(_vidpid)
 {
-	size_t vl = vendor ? std::char_traits<char16_t>::length(vendor) : 0;
-	size_t pl = product ? std::char_traits<char16_t>::length(product) : 0;
-	size_t sl = serial ? std::char_traits<char16_t>::length(serial) : 0;
+  if (!lu_ctx) {
+    if (libusb_init(&lu_ctx) < 0)
+      SysAbort(__PRETTY_FUNCTION__);
+  }
 
-	id_string = new char16_t[vl + 1 + pl + 1 + sl + 1];
-	char16_t blank[1] = { 0 };
-	std::char_traits<char16_t>::copy(id_string, vl ? vendor : blank, vl + 1);
-	std::char_traits<char16_t>::copy(id_string + vl + 1, pl ? product : blank, pl + 1);
-	std::char_traits<char16_t>::copy(id_string + vl + 1 + pl + 1, sl ? serial : blank, sl + 1);
+  label.AddSegment(sgNumber - 1);
+  storeDescriptors(vendor, product, serial);
 
-    if (opt_debug)
-      libusb_set_debug(lu_ctx, LIBUSB_LOG_LEVEL_INFO);
-    Label();
+  if (opt_debug)
+    libusb_set_debug(lu_ctx, LIBUSB_LOG_LEVEL_INFO);
+  Label();
 }
 
-LuXact::~LuXact()
+LuXactUsb::~LuXactUsb()
 {
-	Close();
-	delete id_string;
+  Close();
 }
 
-void LuXact::Label()
+bool LuXactUsb::Open()
 {
-	// only output label to tty
-	if (!isatty(fileno(stdout)) || !isatty(fileno(stderr))) return;
+  libusb_device* *devs;
+  ssize_t cnt = libusb_get_device_list(lu_ctx, &devs);
+  if (cnt < 0) SysAbort(__PRETTY_FUNCTION__);
+  for (ssize_t i = 0; i < cnt; i++) {
+    libusb_device* dev = devs[i];
 
-	std::cerr << "\e]0;";
-	if (!lu_dev) std::cerr << '[';
-#if __GNUC__ > 4
-    // convert utf16 to utf8
-	std::wstring_convert<std::codecvt_utf8_utf16<char16_t>,char16_t> convert;
-#else
-    // this only handles ASCII
-    struct { std::string (*to_bytes)(const char16_t* p); } convert;
-    convert.to_bytes = [&](const char16_t* p)->std::string {
-      std::string r;
-      for (; *p; ++p)
-        r += (char)(*p & 0xFF);
-      return r; };
-#endif
-	char16_t* p = id_string;
-	std::cerr << convert.to_bytes(p);
-	p += std::char_traits<char16_t>::length(p) + 1;
-	std::cerr << ' ' << convert.to_bytes(p);
-	p += std::char_traits<char16_t>::length(p) + 1;
-	if (p[0])
-	{
-		std::cerr << ' ';
-		if (p[1])
-			std::cerr << convert.to_bytes(p);
-		else {
-            std::ios::fmtflags fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
-            std::cerr << "0x" << (uint16_t)*p;
-            std::cerr.setf(fmtfl, std::ios::basefield);
-        }
-	}
-    if (id_more)
-      std::cerr << ' ' << id_more;
-	if (!lu_dev) std::cerr << ']';
-	std::cerr << '\a';
-}
+    libusb_device_descriptor desc;
+    if (libusb_get_device_descriptor(dev, &desc) < 0)
+      SysAbort(__PRETTY_FUNCTION__);
 
-bool LuXact::Open()
-{
-	libusb_device* *devs;
-	ssize_t cnt = libusb_get_device_list(lu_ctx, &devs);
-	if (cnt < 0) SysAbort(__PRETTY_FUNCTION__);
+    // require vidpid to match
+    if (!matchVidpid(((uint32_t)desc.idVendor << 16) | desc.idProduct))
+      continue;
 
-	for (ssize_t i = 0; i < cnt; i++)
-	{
-		libusb_device* dev = devs[i];
+    // open with automatic handle
+    struct Handle {
+      ~Handle() { if (handle) libusb_close(handle); }
+      operator libusb_device_handle*() { return handle; }
+      void release() { handle = nullptr; }
+      libusb_device_handle* handle;
+    } handle;
+    if (libusb_open(dev, &handle.handle) != 0) continue;
 
-		libusb_device_descriptor desc;
-		if (libusb_get_device_descriptor(dev, &desc) < 0)
-			SysAbort(__PRETTY_FUNCTION__);
+    // read Manufacturer Product SerialNumber
+    const size_t desc_size = 256;
+    auto desc_get = [&](char16_t* p, uint8_t index)->bool {
+      int r = libusb_get_string_descriptor(handle, index, 0x0409, (unsigned char*)p, desc_size);
+      if (r < 0 || r >= desc_size || (r & 1) || *p != (0x300 | r))
+        return false;
+      std::char_traits<char16_t>::move(p, p + 1, r - sizeof(char16_t));
+      p[r / sizeof(char16_t) - 1] = '\0';
+      return true;
+    };
+    char16_t vendor[desc_size];
+    char16_t product[desc_size];
+    char16_t serial[desc_size];
+    // require no errors
+    if (!desc_get(vendor, desc.iManufacturer) || !desc_get(product, desc.iProduct)
+        || !desc_get(serial, desc.iSerialNumber))
+      continue;
 
-		// require vidpid to match
-		if ((id_int >> 16) != desc.idVendor || (id_int & 0xFFFF) != desc.idProduct)
-			continue;
+    // require a match
+    if (!matchVidpid(vendor, product) || !matchSerial(serial))
+      continue;
 
-		// open with automatic handle
-		struct _handle { ~_handle() { if (h) libusb_close(h); }
-			operator libusb_device_handle*() { return h; }
-			libusb_device_handle* h = nullptr; } handle;
-		if (libusb_open(dev, &handle.h) != 0) continue;
-
-		const size_t buffer_size = 256;
-		std::unique_ptr<char16_t[]> buffer(new char16_t[3 * buffer_size]);
-		char16_t* p = buffer.get();
-{
-		// read Manufacturer Product SerialNumber
-		auto desc_get = [&](uint8_t index)->bool {
-			int r = libusb_get_string_descriptor(handle, index, 0x0409, (unsigned char*)p, buffer_size);
-			if (r < 0 || r >= buffer_size || (r & 1) || *p != (0x300 | r))
-				return false;
-			std::char_traits<char16_t>::move(p, p + 1, r - sizeof(char16_t));
-			p[r / sizeof(char16_t) - 1] = '\0';
-			p += r / sizeof(char16_t);
-			return true;
-		};
-		// require no errors
-		if (!desc_get(desc.iManufacturer) || !desc_get(desc.iProduct) || !desc_get(desc.iSerialNumber))
-			continue;
-}
-{
-		// check for a match where wild cards have l == 0
-		char16_t* s = id_string; p = buffer.get();
-		auto desc_eq = [&]()->bool {
-			size_t ls = std::char_traits<char16_t>::length(s);
-			size_t lp = std::char_traits<char16_t>::length(p);
-			bool r = ls == 0 || ls == lp && std::char_traits<char16_t>::compare(s, p, lp) == 0;
-			s += ls + 1; p += lp + 1;
-			return r;
-		};
-		// require a match
-		if (!desc_eq() || !desc_eq() || !desc_eq())
-			continue;
-
-		// don't copy on exact match
-		if (s == p)
-			p = nullptr;
-}
-if (claim) {
-		// claim interface must succeed in order to own device
-		if (libusb_kernel_driver_active(handle, 0) == 1
+    if (claim) {
+      // claim interface must succeed in order to own device
+      if (libusb_kernel_driver_active(handle, 0) == 1
 		  && libusb_detach_kernel_driver(handle, 0) != 0
 		  || libusb_claim_interface(handle, 0) != 0)
-			continue;
-}
-		// if there were wild cards, store the string read
-		if (p)
-		{
-			id_string = (char16_t*)realloc(id_string, (p - buffer.get()) * sizeof(char16_t));
-			if (!id_string) SysAbort(__PRETTY_FUNCTION__);
-			std::char_traits<char16_t>::copy(id_string, buffer.get(), p - buffer.get());
-		}
+        continue;
+    }
 
-		lu_dev = handle;
-		handle.h = nullptr;
-		break;
-	}
-	libusb_free_device_list(devs, 1);
+    // store the strings read in case there were wild cards
+    storeDescriptors(vendor, product, serial);
 
-	if (!lu_dev) return false;
-	Label();
-	return true;
+    lu_dev = handle;
+    handle.release();
+    break;
+  }
+  libusb_free_device_list(devs, 1);
+
+  if (!lu_dev) return false;
+  Label();
+  return true;
 }
 
-bool LuXact::Close()
+bool LuXactUsb::matchVidpid(uint32_t _vidpid) {
+  return vidpid == _vidpid;
+}
+
+bool LuXactUsb::matchVidpid(const char16_t* vendor, const char16_t* product) {
+  // wild cards have l == 0
+  std::string sVendor{label.Segment(sgVendor)};
+  std::string sProduct{label.Segment(sgProduct)};
+  return (sVendor.length() == 0 || sVendor == to_bytes(vendor))
+    && (sProduct.length() == 0 || sProduct == to_bytes(product));
+}
+
+bool LuXactUsb::matchSerial(const char16_t* serial) {
+  std::string sSerial{label.Segment(sgSerial)};
+  return sSerial.length() == 0 || sSerial == to_bytes(serial);
+}
+
+void LuXactUsb::storeDescriptors(const char16_t* vendor, const char16_t* product, const char16_t* serial) {
+  storeDescriptors(to_bytes(vendor).c_str(), to_bytes(product).c_str(), to_bytes(serial).c_str());
+}
+
+void LuXactUsb::storeDescriptors(const char* vendor, const char* product, const char* serial) {
+  if (label.Segment(sgVendor).length() == 0)
+    label.Segment(sgVendor, vendor ? vendor : "");
+  if (label.Segment(sgProduct).length() == 0)
+    label.Segment(sgProduct, product ? product : "");
+  if (label.Segment(sgSerial).length() == 0)
+    label.Segment(sgSerial, serial ? serial : "");
+}
+
+bool LuXactUsb::IsOpen() const {
+  return lu_dev != nullptr;
+}
+
+bool LuXactUsb::Close()
 {
 	if (!lu_dev) return false;
 	bool ret = true;
@@ -184,7 +150,7 @@ bool LuXact::Close()
 	return ret;
 }
 
-int LuXact::Xfer(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host) {
+int LuXactUsb::Xfer(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host) {
   int ret = libusb_control_transfer
     (/* libusb_device_handle* */lu_dev,
      /* bmRequestType */ LIBUSB_REQUEST_TYPE_CLASS
@@ -209,7 +175,7 @@ int LuXact::Xfer(uint8_t req, uint32_t arg, char* data, uint8_t size, bool devic
   return ret;
 }
 
-uint8_t LuXact::XferRetry(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host)
+uint8_t LuXactUsb::XferRetry(uint8_t req, uint32_t arg, char* data, uint8_t size, bool device_to_host)
 {
   for (;;) {
     if (!lu_dev) {
@@ -224,32 +190,39 @@ uint8_t LuXact::XferRetry(uint8_t req, uint32_t arg, char* data, uint8_t size, b
   }
 }
 
-LuXactUsb::LuXactUsb(const char* serialnumber)
-  : LuXact(0x16c005df, nullptr, nullptr, Serial(serialnumber)) {
+LuXactUsbRpc::LuXactUsbRpc(const char* serialnumber)
+  : LuXactUsb(0x16c005df, nullptr, "RpcUsb", serialnumber) {
 }
 
-char16_t* LuXactUsb::Serial(const char* serialnumber) {
-  serial[0] = serialnumber ? strtol(serialnumber, nullptr, 0) : 0;
-  serial[1] = 0;
-  return serial;
+bool LuXactUsbRpc::matchSerial(const char16_t* serial) {
+  std::string sSerial{label.Segment(sgSerial)};
+  if (sSerial.length() == 0) return true;
+  if (!serial || std::char_traits<char16_t>::length(serial) != 1)
+    return LuXactUsb::matchSerial(serial);
+  return (char16_t)strtol(sSerial.c_str(), nullptr, 0) == serial[0];
 }
 
-void LuXactUsb::Reset()
-{
-  if (!lu_dev)
+void LuXactUsbRpc::storeDescriptors(const char16_t* vendor, const char16_t* product, const char16_t* serial) {
+  if (!serial || std::char_traits<char16_t>::length(serial) != 1) {
+    LuXactUsb::storeDescriptors(vendor, product, serial);
     return;
-  Xfer(0xFF, 0);
-  Close();
+  }
+  // this will only set the strings if they are uninitialized
+  LuXactUsb::storeDescriptors(vendor, product, nullptr);
+
+  std::ostringstream sn;
+  sn << (uint16_t)*serial << "x" << std::hex << (uint16_t)*serial;
+  LuXactUsb::storeDescriptors(nullptr, nullptr, sn.str().c_str());
 }
 
-void LuXactUsb::Send(char data)
+void LuXactUsbRpc::Send(char data)
 {
   try {
     XferRetry(0, (uint8_t)data);
   } catch(...) { }
 }
 
-void LuXactUsb::Send(struct Rpc& rpc, uint8_t index) {
+void LuXactUsbRpc::Send(struct Rpc& rpc, uint8_t index) {
   uint8_t size = rpc.Size(index);
   uint32_t arg; memcpy(&arg, (char*)&rpc, sizeof(arg) < size ? sizeof(arg) : size);
   size = sizeof(arg) < size ? size - sizeof(arg) : 0;
@@ -258,14 +231,14 @@ void LuXactUsb::Send(struct Rpc& rpc, uint8_t index) {
     throw Exception(__PRETTY_FUNCTION__);
 }
 
-void LuXactUsb::Recv() {
+void LuXactUsbRpc::Recv() {
   for (;;) {
     char data[RpcPayloadMax+1];
     uint8_t xfer = XferRetry(1, 0, data, sizeof(data), true);
     if (xfer == 0)
       break;
     if (xfer == 1 || data[xfer-1] == 0) {
-      data[1] = '\0';
+      if (xfer == 1) data[1] = '\0';
       if (sink)
         sink(data);
       return;
@@ -276,41 +249,32 @@ void LuXactUsb::Recv() {
   }
 }
 
-LuXactLw::LuXactLw(const char* serialnumber)
-  : LuXact(0x17810c9f, nullptr, nullptr, Serial(serialnumber)) {
-  id[0] = '\0';
-  id_more = id;
+bool LuXactUsbRpc::Reset()
+{
+  if (!lu_dev)
+    return false;
+  Xfer(0xFF, 0);
+  Close();
+  return true;
 }
 
-char16_t* LuXactLw::Serial(const char* serialnumber) {
-  serial[0] = 0;
-  if (!serialnumber) return nullptr;
-  int sn = strtol(serialnumber, nullptr, 0);
-  if (sn < 0 || sn > 999) sn = 0;
-  std::string str = std::to_string(sn);
-  size_t len = str.length();
-  if (len < 3) str.insert(0, 3 - len, '0');
-  const char* p = str.c_str();
-  serial[0] = *p++;
-  serial[1] = *p++;
-  serial[2] = *p++;
-  serial[3] = 0;
-  return serial;
+LuXactLw::LuXactLw(const char* serialnumber)
+  : LuXactUsb(0x17810c9f, nullptr, nullptr, nullptr) {
+
+  if (serialnumber && *serialnumber) {
+    int sn = strtol(serialnumber, nullptr, 0);
+    if (sn < 0 || sn > 999) sn = 0;
+    std::string str = std::to_string(sn);
+    size_t len = str.length();
+    if (len < 3) str.insert(0, 3 - len, '0');
+    label.Segment(sgSerial, str);
+  }
+  label.AddSegment(sgNumber - LuXactUsb::sgNumber);
 }
 
 bool LuXactLw::Open() {
   listening = false;
-
-  if (!LuXact::Open())
-    return false;
-
-  // Cancel any dw commands
-  if (Xfer(60/*dw*/, 0) < 0)
-    return false;
-  return true;
-}
-
-void LuXactLw::Reset() {
+  return LuXactUsb::Open();
 }
 
 void LuXactLw::Send(char data) {
@@ -330,8 +294,8 @@ void LuXactLw::Recv() {
     // libusb calls taken from dwire/DigiSpark.c
 
     // Read back dWIRE bytes
-    char data[129];
-    int status = Xfer(60/*dw*/, 0, data, sizeof(data)-1, true);
+    char data[RpcPayloadMax+1];
+    int status = Xfer(60/*dw*/, 0, data, sizeof(data), true);
     // 0 means no data, PIPE means garbled command
     //static int last = 50000; if (status || last != status) std::cerr << "Recv status:" << status << '\n'; last = status;
     if (status == 0 || status == LIBUSB_ERROR_TIMEOUT || status == LIBUSB_ERROR_PIPE)
@@ -344,22 +308,27 @@ void LuXactLw::Recv() {
 #endif
       return;
     }
-    if (status > 0 && sink) {
-      data[status] = '\0';
-#if 0
-      std::cerr << '[';
-      std::ios::fmtflags fmtfl = std::cerr.setf(std::ios::hex, std::ios::basefield);
-      for (int i = 0 ; i < status; ++i) std::cerr << ((int)data[i]&0xFF) << ' ';
-      std::cerr.setf(fmtfl, std::ios::basefield);
-      std::cerr << ']';
-#endif
-      sink(data);
+    if (status > 0) {
+      uint8_t xfer = status;
+      if (xfer == 1 || data[xfer-1] == 0) {
+        if (xfer == 1) data[1] = '\0';
+        if (sink)
+          sink(data);
+      }
+      else {
+        if (data[xfer-1] >= RpcNumber)
+          throw Exception(__PRETTY_FUNCTION__);
+        ((Rpc*)data)->VtAct(data[xfer-1]);
+      }
     }
   }
 
   // Wait for start bit and Read bytes
   XferRetry(60/*dw*/, 0x18);
   listening = true;
+}
+
+bool LuXactLw::Reset() {
 }
 
 bool LuXactLw::ResetDw() {
@@ -399,15 +368,18 @@ bool LuXactLw::ResetDw() {
     sum = 6 * sum  +  8 * n;
 
     // Display the baud rate
-    strcpy(id, (std::to_string(16500000 * n / sum)+"Bd").c_str());
+    label.Segment(sgBaudrate, std::to_string(16500000 * n / sum) + " Bd");
 
+#if 0 // done on the little wire
     // Determine timing loop iteration counts for sending and receiving bytes,
     // use rounding in the division.
     uint16_t dwBitTime = (sum - 8 * n + (4 * n) / 2) / (4 * n);
+    std::cerr << "dwBitTime: " << dwBitTime << '\n';
 
     // Set timing parameter
     if (Xfer(60/*dw*/, 0x02, (char*)&dwBitTime, sizeof(dwBitTime), false) < 0)
       return false;
+#endif
 
     if (status == 20) {
       // Disable Dw if it was enabled
@@ -447,3 +419,16 @@ GND----zz--o     o---->V+
 V+ on at boot when PB0 tristated.
 V+ off when PB0 set high to turn off Q.
 */
+
+bool LuXactLw::SetSerial(const char* _serial) {
+  uint16_t serial = strtol(_serial, nullptr, 0);
+  if (serial > 999) serial = 0;
+  if (Xfer(55/*Change serial number*/,
+           (uint32_t)('0' + serial%10)
+           |((uint32_t)('0' + serial/10%10) << 8)
+           |((uint32_t)('0' + serial/100%10) << 16)) < 0) {
+    std::cerr << "error changing serial number" << std::endl;
+    return false;
+  }
+  return true;
+}

@@ -48,9 +48,9 @@ void SysAbort_unhandled()
 	abort();
 }
 
-int SysConWrite(const char* s)
+int SysConWrite(const void* s)
 {
-  size_t l = strlen(s);
+  size_t l = strlen((const char*)s);
   return write(STDOUT_FILENO, s, l) == l;
 }
 
@@ -69,8 +69,12 @@ int SysConRead()
 	return r <= 0 ? 0 : (unsigned int)c;
 }
 
+char* opt_device = nullptr;
+int opt_power = false;
+int opt_reset = false;
 int opt_debug = false;
-char* serialnumber = nullptr;
+int opt_nomon = false;
+char* opt_set_serial = nullptr;
 static termios ttystate;
 void reset_terminal_mode() { tcsetattr(STDIN_FILENO, TCSANOW, &ttystate); }
 
@@ -78,17 +82,35 @@ void args(int argc, char** argv) {
   // true to print optopt errors to stderr, getopt returns '?' in either case
   opterr = true;
   struct usage { };
+  static char usageText[]
+    = R"usageText(usage: usbmon [OPTION]...
+
+  -d, --device T#        serial number prefixed by device type character
+                         (Usb|usbTiny|Serial)
+  -p, --power            cycle (requires dw)
+  -r, --reset            (requires usb)
+  -l, --load FILE        hex (experimental)
+  -n, --no-monitor       don't launch monitor
+
+  --debug                show debug messages
+  --set-serial #         update serial number (requires dw)
+)usageText";
   try {
     enum {
       lo_flag,
-      lo_change_serialnumber,
+      lo_set_serial,
     };
     static struct option options[] = {
-      {"debug", no_argument, &opt_debug, true},
-      {"change-serialnumber", required_argument, 0, lo_change_serialnumber},
+      {"device",         required_argument, 0, 'd' },
+      {"power",          no_argument,       0, 'p' },
+      {"reset",          no_argument,       0, 'r' },
+      {"load",           required_argument, 0, 'l' },
+      {"no-monitor",     no_argument,       0, 'n' },
+      {"debug",          no_argument,       &opt_debug, true },
+      {"set-serial",     required_argument, 0, lo_set_serial },
       {nullptr, 0, nullptr, 0}
     };
-    for (int c, i; (c = getopt_long(argc, argv, "s:rpdut", options, &i)) != -1; ) {
+    for (int c, i; (c = getopt_long(argc, argv, "d:prl:nt", options, &i)) != -1; ) {
       // optopt gets option character for unknown option or missing required argument
       // optind gets index of the next element of argv to be processed
       // optarg points to value of option's argument
@@ -96,32 +118,31 @@ void args(int argc, char** argv) {
       default:
         throw usage();
 
-      case 0:
-        // set a flag
+      case 0: // set a flag
         break;
 
-      case 's':
-        serialnumber = strdup(optarg);
+      case 'd': // device
+        opt_device = optarg;
         break;
 
-      case lo_change_serialnumber:
-        change_serialnumber(optarg);
+      case 'p': // power
+        opt_power = true;
         break;
 
-      case 'r':
-        reset();
+      case 'r': // reset
+        opt_reset = true;
         break;
 
-      case 'p':
-        power();
+      case 'l': //load
+        load(optarg);
         break;
 
-      case 'd':
-        monitor_dw();
+      case 'n': // no-monitor
+        opt_nomon = true;
         break;
 
-      case 'u':
-        monitor();
+      case lo_set_serial:
+        opt_set_serial = optarg;
         break;
 
       case 't':
@@ -140,16 +161,11 @@ void args(int argc, char** argv) {
       exit(3);
     }
   } catch (usage) {
-    std::cerr << R"00here-text00(usage: rpcusbmon [OPTION]...
-  -s #   require serial number
-  -r     reset (requires usb)
-  -p     power cycle (requires dw)
-  -d     dw monitor
-  -u     usb monitor
-
-  --debug                   show libusb messages
-  --change-serialnumber #   change to new serial number (requires dw)
-)00here-text00";
+    std::cerr << usageText;
+    exit(3);
+  }
+  if (!opt_device || (*opt_device != 'u' && *opt_device != 't' && *opt_device != 's')) {
+    std::cerr << "invalid device\n\n" << usageText;
     exit(3);
   }
 }
@@ -175,6 +191,9 @@ int main(int argc, char *argv[]) {
 }
   // process arguments
   args(argc, argv);
+
+  // execute commands
+  monitor();
 
   return 0;
 }
