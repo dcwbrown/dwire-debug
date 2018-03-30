@@ -37,7 +37,7 @@ Build on linux with a conventional gcc/make setup. The binary produced is `dwdeb
 
 Build on Windows with MinGW-w64 under cygwin. I install 32 bit cygwin and use cygwin setup to add the mingw64-i686-binutils and mingw-i686-gcc-core packages. The binary produced is `dwdebug.exe`.
 
-There are no library or include file prerequisites.
+On Linux the build requires libusb-dev installed.
 
 File chooser: If the `load` command is used without a parameter, dwdebug will display the MS windows or GTK file chooser. (If running on a linux system with no GTK support installed the `load` command requires a filename parameter.)
 
