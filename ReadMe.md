@@ -1,3 +1,5 @@
+[![Build Status](https://semaphoreci.com/api/v1/dcwbrown/dwire-debug/branches/master/shields_badge.svg)](https://semaphoreci.com/dcwbrown/dwire-debug)
+
 # dwire-debug
 
 Simple stand-alone programmer and debugger for AVR processors that support DebugWIRE.
