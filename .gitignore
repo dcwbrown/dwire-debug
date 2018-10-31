@@ -8,3 +8,4 @@ dwdebug
 *.o
 ref/*
 avrdude.conf
+dwdebug.dSYM/Contents/Info.plist

@@ -40,6 +40,10 @@
 
     WinOK(SetCommTimeouts(*SerialPort, &(COMMTIMEOUTS){300,300,1,300,1}));
   }
+#elif defined(__APPLE__)  
+  void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
+    //todo:
+  }
 #else
   void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
     if ((*SerialPort = open(portname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {
@@ -87,6 +91,8 @@ if (period < 1) period = 1;
   WinOK(SetCommBreak(port));
   Sleep(period);
   WinOK(ClearCommBreak(port));
+#elif defined(__APPLE__)  
+  //todo:
 #else
   ioctl(port, TCFLSH, TCIOFLUSH);
   ioctl(port, TIOCSBRK);

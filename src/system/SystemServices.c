@@ -28,8 +28,12 @@
   #include <errno.h>
   #include <sys/select.h>
   #include <dirent.h>
+#ifdef __APPLE__
+  #include <termios.h>
+#else
   #include <stropts.h>
   #include <asm/termios.h>
+#endif
   #include <setjmp.h>
   #include <dlfcn.h>
   void delay(unsigned int ms) {usleep(ms*1000);}

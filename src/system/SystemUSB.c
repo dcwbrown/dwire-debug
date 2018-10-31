@@ -90,6 +90,9 @@
   // Linux - USB support is built in.
 
   #include <usb.h>
+  
+  // run the following command on mac to fix 'usb.h' file not found
+  // brew install libusb libusb-compat 
 
   int UsbInit() {usb_init(); return 1;}
 
