@@ -236,6 +236,8 @@ void DescribePort(int i) {
   if (Ports[i]->kind == 's') {
     #if windows
       Ws("COM");
+    #elif defined(__APPLE__)
+      Ws("/dev/tty.usbserial");
     #else
       Ws("/dev/ttyUSB");
     #endif

@@ -46,7 +46,9 @@
   }
 #elif defined(__APPLE__)
   void MakeSerialPort(char *portname, int baudrate, FileHandle *SerialPort) {
-    if ((*SerialPort = open(portname, O_RDWR/*|O_NONBLOCK|O_NDELAY*/)) < 0) {
+    char serialFullPath[64] = "/dev/";
+    strcat (serialFullPath, portname);
+    if ((*SerialPort = open(serialFullPath, O_RDWR|O_NONBLOCK|O_NDELAY)) < 0) {
       Ws("Couldn't open serial port "); Ws(portname); Fail(".");
     }
     struct termios config = {0};
