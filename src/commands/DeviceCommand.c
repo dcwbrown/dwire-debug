@@ -13,7 +13,7 @@ void DeviceFail(char *msg) {
   Wsl("  com5");
   Wsl("  usbtiny1");
   Wsl("  ttyUSB3");
-  Wsl("  usbserial-AD01SU081");
+  Wsl("  tty.usbserial-A700ONFG");
   Wl();
   Wsl("The device name may be abbreviated to as little as its first letter, thus");
   Wsl("the examples above could be specified instead as c5, u1 and t3.");
