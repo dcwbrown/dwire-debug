@@ -125,6 +125,10 @@ if (period < 1) period = 1;
   usleep(period*1000);
   ioctl(port, TIOCCBRK);
 #endif
+
+#if defined(__APPLE__)
+  usleep(50*1000); //let 1st byte arrive on mac
+#endif
 }
 
 void SerialDump(FileHandle port) {
