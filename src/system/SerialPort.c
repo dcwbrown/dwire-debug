@@ -57,16 +57,18 @@
     config.c_iflag     = IGNPAR | IGNBRK;
     config.c_oflag     = 0;
     config.c_lflag     = 0;
-    config.c_ispeed    = baudrate;
-    config.c_ospeed    = baudrate;
+    //config.c_ispeed    = baudrate;
+    //config.c_ospeed    = baudrate;
     config.c_cc[VMIN]  = 0;           // Return as soon as one byte is available
     config.c_cc[VTIME] = 5;           // 0.5 seconds timeout per byte
     speed_t speed = baudrate; // Set 14400 baud
+    
+    if (tcsetattr(*SerialPort, TCSANOW, &config) == -1) {Close(*SerialPort); *SerialPort = 0; return;}
     if (ioctl(*SerialPort, IOSSIOSPEED, &speed) == -1) {
         printf("Error calling ioctl(..., IOSSIOSPEED, ...) %s - %s(%d).\n",
                portname, strerror(errno), errno);
-    }   
-    if (tcsetattr(*SerialPort, TCSANOW, &config) == -1) {Close(*SerialPort); *SerialPort = 0; return;}
+    }
+    
     usleep(10000); // Allow 10ms for USB to settle.
     ioctl(*SerialPort, TCFLSH, TCIOFLUSH);
   }
