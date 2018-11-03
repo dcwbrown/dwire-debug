@@ -53,7 +53,7 @@
     }
     struct termios config = {0};
     if (tcgetattr(*SerialPort, &config) == -1) {Close(*SerialPort); *SerialPort = 0; return;}
-    config.c_cflag     = CS8 | BOTHER | CLOCAL;
+    config.c_cflag     = CS8 | CLOCAL;
     config.c_iflag     = IGNPAR | IGNBRK;
     config.c_oflag     = 0;
     config.c_lflag     = 0;

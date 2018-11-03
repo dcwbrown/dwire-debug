@@ -125,6 +125,9 @@ void SerialSendBytes(struct SPort *port, const u8 *out, int outlen) {
   // up in the receive buffer (unless there is a collision). Drain this
   // echoed input and check that it has not been changed.
   u8 actual[outlen];
+  #if defined(__APPLE__)
+  usleep(50*1000); //let byte arrive on mac
+  #endif
   SerialRead(port->handle, actual, outlen);
   for (int i=0; i<outlen; i++) {
     if (actual[i] != out[i]) {
