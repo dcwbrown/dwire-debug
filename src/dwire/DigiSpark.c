@@ -187,10 +187,10 @@ void digisparkUSBSendBytes(struct UPort *up, u8 state, char *out, int outlen) {
   int tries  = 0;
   int status = usb_control_msg(up->handle, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
 
-  while ((tries < 50) && (status <= 0)) {
+  while ((tries < 200) && (status <= 0)) {
     // Wait for previous operation to complete
     tries++;
-    delay(20);
+    delay(5);
     status = usb_control_msg(up->handle, OUT_TO_LW, 60, state, 0, out, outlen, USB_TIMEOUT);
   }
   if (status < outlen) {Ws("Failed to send bytes to AVR, status "); Wd(status,1); PortFail(up, "");}
@@ -249,9 +249,9 @@ int DigisparkReceive(struct UPort *up, u8 *in, int inlen) {
 
   digisparkBufferFlush(up, 0x14);
 
-  while ((tries < 50) && (status <= 0)) {
+  while ((tries < 200) && (status <= 0)) {
     tries++;
-    delay(20);
+    delay(5);
     // Read back dWIRE bytes
     status = usb_control_msg(up->handle, IN_FROM_LW, 60, 0, 0, (char*)in, inlen, USB_TIMEOUT);
   }
