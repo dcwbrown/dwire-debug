@@ -15,6 +15,7 @@ void GdbserverCommand(void)
     }
 
     Wsl("Target ready, waiting for GDB connection.");
+    fprintf(stderr, "%s", "\nInfo : avrchip: hardware has something\n");    //vscode check stderr for start, mimic a openocd process
     Ws("Use 'target remote :"); Wd(LISTEN_PORT,1); Wsl("'");
 
     connfd = listen_sock(LISTEN_PORT);
