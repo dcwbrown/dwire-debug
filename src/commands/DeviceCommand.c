@@ -13,6 +13,7 @@ void DeviceFail(char *msg) {
   Wsl("  com5");
   Wsl("  usbtiny1");
   Wsl("  ttyUSB3");
+  Wsl("  tty.usbserial-A700ONFG");
   Wl();
   Wsl("The device name may be abbreviated to as little as its first letter, thus");
   Wsl("the examples above could be specified instead as c5, u1 and t3.");
@@ -34,7 +35,19 @@ void DeviceCommand(void) {
 
   char devicename[32];
   Ra(devicename, sizeof(devicename));
+#if defined(__APPLE__)
+  char * pch1, * pch2;
+  pch1 = strstr (InputBuffer,"tty.usbserial-");
+  if (pch1){
+    n = strtol(pch1+14, 0, 16);
+    pch2 = strstr (pch1," ");
+    if (pch2) {
+      IOut = IOut + (int)(pch2-pch1)-2;
+    }
+  }
+#else
   if (IsNumeric(NextCh())) n = ReadNumber(0);
+#endif
   Sb();
   if (IsNumeric(NextCh())) baud = ReadNumber(0);
 
@@ -51,7 +64,8 @@ void DeviceCommand(void) {
       ||  (strncasecmp(devicename, "usbtinyspi", l) == 0)) {
     DwFindPort('u', n, 0);
   } else if (    (strncasecmp(devicename, "com",    l) == 0)
-             ||  (strncasecmp(devicename, "ttyusb", l) == 0)) {
+             ||  (strncasecmp(devicename, "ttyusb", l) == 0)
+             ||  (strncasecmp(devicename, "usbserial", l) == 0)) {
     DwFindPort('s', n, baud);
   } else {
     DeviceFail("Unrecognised device id.");

@@ -16,7 +16,7 @@ This program is free software: you can redistribute it and/or modify it under th
 
 ##### Cross-platform
 
-Built and tested on Windows 10.1 and Ubuntu 15.04. USB UART support requires only standard system libraries. Digispark support requires libusb-win32 installed (e.g. by zadig, see below). 
+Built and tested on Windows 10.1, Ubuntu 15.04 and macOS 10.13.6. USB UART support requires only standard system libraries. Digispark support requires libusb-win32 installed (e.g. by zadig, see below). 
 
 ##### Target device support
 
@@ -40,6 +40,8 @@ Build on linux with a conventional gcc/make setup. The binary produced is `dwdeb
 Build on Windows with MinGW-w64 under cygwin. I install 32 bit cygwin and use cygwin setup to add the mingw64-i686-binutils and mingw-i686-gcc-core packages. The binary produced is `dwdebug.exe`.
 
 On Linux the build requires libusb-dev installed.
+
+On MacOS the build requires `brew install libusb libusb-compat`
 
 File chooser: If the `load` command is used without a parameter, dwdebug will display the MS windows or GTK file chooser. (If running on a linux system with no GTK support installed the `load` command requires a filename parameter.)
 
@@ -77,7 +79,7 @@ For an in-circuit connection, the Vcc power line is not connected, and setting t
 
 ##### Digispark/Littlewire hardware with extended USBtinySPI firmware
 
-DWEN must be programmed on the t85 in the digispark/littlewire device. All the digisparks I have seen do not have this programmed, so you will need to use (borrow?) an ISP programmer to set this fuse.
+RSTDISBL must be programmed on the t85 in the digispark/littlewire device. All the digisparks I have seen do not have this programmed, so you will need to use (borrow?) an ISP programmer to set this fuse.
 
 Olimex's version of the digipark has pin 1/reset/dw open circuit - but this is easily fixed with a solder bridge on the pcb trace on the bottom side of the board.
 

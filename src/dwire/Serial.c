@@ -63,6 +63,32 @@ struct SPort {  // Serial port
 
     Free(DosDevices);
   }
+  
+#elif defined(__APPLE__)  
+
+  void FindSerials(void) {
+    DIR *DeviceDir = opendir("/dev");
+    if (!DeviceDir) return;
+
+    struct dirent *entry = 0;
+    struct SPort *p;
+    while ((entry = readdir(DeviceDir))) {
+      if (!strncmp("tty.usbserial", entry->d_name, 6)) {
+        Assert((p = malloc(sizeof(struct SPort))));
+
+        p->port.kind      = 's';
+        p->port.index     = strtol(entry->d_name+14, 0, 16);
+        p->port.character = -1;   // Currently undetermined
+        p->port.baud      = 0;    // Currently undetermined
+        p->handle         = 0;    // Currently unconnected
+        snprintf(p->portname, sizeof(p->portname), "%s", entry->d_name);
+
+        Ports[PortCount] = (struct Port *)p;
+        PortCount++;
+      }
+    }
+    closedir(DeviceDir);
+  }
 
 #else
 
@@ -99,6 +125,9 @@ void SerialSendBytes(struct SPort *port, const u8 *out, int outlen) {
   // up in the receive buffer (unless there is a collision). Drain this
   // echoed input and check that it has not been changed.
   u8 actual[outlen];
+  #if defined(__APPLE__)
+  usleep(50*1000); //let byte arrive on mac
+  #endif
   SerialRead(port->handle, actual, outlen);
   for (int i=0; i<outlen; i++) {
     if (actual[i] != out[i]) {

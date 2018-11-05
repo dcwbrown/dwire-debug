@@ -85,6 +85,13 @@ struct stab {
   u32 value;   // value of symbol.
 };
 
+//stab (debugging data table)
+
+void TrimFunctionDetails(char *fn) {
+  while(*fn  &&  *fn != ':') {fn++;}
+  if (fn[0] && fn[1] && fn[2]) {fn[0]='('; fn[1]=')'; fn[2]=0;}
+}
+
 
 char SourceFilename[300] = {0};
 
@@ -242,14 +249,6 @@ int IsLoadableElf(void) {
       }
       p += symbolTableHeader->entsize;
     }
-  }
-
-
-  //stab (debugging data table)
-
-  void TrimFunctionDetails(char *fn) {
-    while(*fn  &&  *fn != ':') {fn++;}
-    if (fn[0] && fn[1] && fn[2]) {fn[0]='('; fn[1]=')'; fn[2]=0;}
   }
 
   int FunctionOffset = 0;
