@@ -1935,7 +1935,7 @@ int main(void) {
           usbInterruptCountNow = usbInterruptCount; //usbInterruptCount got increased in every USB interrupt
           do {
             usbInterruptCountPrev=usbInterruptCountNow;
-            _delay_us(100);
+            _delay_us(200);
             usbInterruptCountNow = usbInterruptCount;
             } while( usbInterruptCountPrev!= usbInterruptCountNow);
           } // Allow USB transfer to complete before
