@@ -1930,7 +1930,15 @@ int main(void) {
         // bit flag, and is arranged so that sending a 33 (send break and read pulse widths)
         // will abort a pending wait.
 
-        if (dwState & 0x34) {_delay_ms(2);} // Allow USB transfer to complete before
+        if (dwState & 0x34) {
+          uchar usbInterruptCountPrev, usbInterruptCountNow; 
+          usbInterruptCountNow = usbInterruptCount; //usbInterruptCount got increased in every USB interrupt
+          do {
+            usbInterruptCountPrev=usbInterruptCountNow;
+            _delay_us(100);
+            usbInterruptCountNow = usbInterruptCount;
+            } while( usbInterruptCountPrev!= usbInterruptCountNow);
+          } // Allow USB transfer to complete before
                                             // any action that may disable interrupts
 
         if (dwState & 0x01) {cbi(PORTB, 5); sbi(DDRB, 5); _delay_ms(100);}
