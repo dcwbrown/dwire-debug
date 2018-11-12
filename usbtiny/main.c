@@ -1482,10 +1482,24 @@ void dwReadBytes() {
     ";         Interrupts already disabled                               \n"
     ";         DDRB pin5 is input                                        \n"
     "                                                                    \n"
-    ";       Wait up to 65536*6 cycles = 23.8ms for start bit            \n"
+    ";       Wait up to 65536*6 cycles = 23.8ms for start bit on 1st Byte\n"
+    ";       Wait up to 8*dwBitTime*6 cycles for start bit on other Bytes\n"
     "                                                                    \n"
     "dwr2:   clr   r30                                                   \n"
     "        clr   r31                                                   \n"
+    "        tst   r23             ; check total bytes received so far   \n"
+    "        breq  dwr4            ; if we already got data, wait less   \n"
+    "        ldi   r30,3           ; use r30 temporarily to load number  \n"
+    "        mov   r0,30           ; set value on r0                     \n"
+    "        movw  r30,r24         ; load bit time as iteration count    \n"
+    "dwr2_1: lsl   r30             ; left shift                          \n"
+    "        rol   r31             ;                                     \n"
+    "        brcc  dwr2_2          ; branch if there is no overflow      \n"
+    "        clr   r30                                                   \n"
+    "        clr   r31                                                   \n"    
+    "        rjmp  dwr4            ; using max value when overflow       \n"
+    "dwr2_2: dec   r0              ;                                     \n"
+    "        brne  dwr2_1          ; left shift more bits                \n"
     "                                                                    \n"
     "dwr4:   sbiw  r30,1           ; 2.   Check for timeout              \n"
     "        breq  dwr14           ; 1/2. If no start bit encountered    \n"
@@ -1916,7 +1930,15 @@ int main(void) {
         // bit flag, and is arranged so that sending a 33 (send break and read pulse widths)
         // will abort a pending wait.
 
-        if (dwState & 0x34) {_delay_ms(2);} // Allow USB transfer to complete before
+        if (dwState & 0x34) {
+          uchar usbInterruptCountPrev, usbInterruptCountNow; 
+          usbInterruptCountNow = usbInterruptCount; //usbInterruptCount got increased in every USB interrupt
+          do {
+            usbInterruptCountPrev=usbInterruptCountNow;
+            _delay_us(200);
+            usbInterruptCountNow = usbInterruptCount;
+            } while( usbInterruptCountPrev!= usbInterruptCountNow);
+          } // Allow USB transfer to complete before
                                             // any action that may disable interrupts
 
         if (dwState & 0x01) {cbi(PORTB, 5); sbi(DDRB, 5); _delay_ms(100);}

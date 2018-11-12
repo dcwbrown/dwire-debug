@@ -337,6 +337,9 @@ extern uchar    usbConfiguration;
  * You may want to reflect the "configured" status with a LED on the device or
  * switch on high power parts of the circuit only if the device is configured.
  */
+extern volatile uchar   usbInterruptCount;
+/* This variable is incremented on every USB interrupt.
+ */
 #if USB_COUNT_SOF
 extern volatile uchar   usbSofCount;
 /* This variable is incremented on every SOF packet. It is only available if

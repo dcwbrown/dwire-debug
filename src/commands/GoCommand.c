@@ -68,7 +68,7 @@ void KeyboardBreak(void) {
         FD_SET(serialport, &readfds);
         if (serialport > maxport) maxport = serialport;
       }
-      timeout = (struct timeval){10,0}; // 10 seconds
+      timeout = (struct timeval){0,200000ul}; // 0.2 seconds
       if (select(maxport+1, &readfds, 0, &excpfds, &timeout) > 0) {
         // Something became available
         if ((CurrentPortKind() == 's')  &&  FD_ISSET(serialport, &readfds)) {

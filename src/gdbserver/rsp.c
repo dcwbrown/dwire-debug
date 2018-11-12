@@ -192,15 +192,15 @@ void handle_command(int fd, const char *cmd)
 {
     switch (cmd[0]) {
         case '?':
-            write_resp(fd, "S00");
+            write_resp(fd, "S05");
             break;
         case 'c':
             target_continue(fd);
-            write_resp(fd, "S00");
+            write_resp(fd, "S05");
             break;
         case 's':
             target_step();
-            write_resp(fd, "S00");
+            write_resp(fd, "S05");
             break;
         case 'g':
             cmd_read_registers(fd);

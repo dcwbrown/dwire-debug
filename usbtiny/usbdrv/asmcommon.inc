@@ -99,6 +99,9 @@ doReturn:
     sbrc    YL, USB_INTR_PENDING_BIT;[50] check whether data is already arriving
     rjmp    waitForJ            ;[51] save the pops and pushes -- a new interrupt is already pending
 sofError:
+    lds     YL, usbInterruptCount   ;POP_RETI restore YL & SREG
+    inc     YL
+    sts     usbInterruptCount, YL
     POP_RETI                    ;macro call
     reti
 
