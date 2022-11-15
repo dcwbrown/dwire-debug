@@ -31,8 +31,10 @@
 #ifdef __APPLE__
   #include <termios.h>
 #else
+#ifndef __linux__
   #include <stropts.h>
-  #include <asm/termios.h>
+#endif
+#include <asm/termios.h>
 #endif
   #include <setjmp.h>
   #include <dlfcn.h>
