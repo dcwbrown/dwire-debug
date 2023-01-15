@@ -52,7 +52,7 @@ struct UPort {
 
 void FindUsbtinys(void) {
 
-  int usbtinyindex = 1;
+  int PortCount0 = PortCount;
 
   if (UsbInit()) {
     usb_find_busses();
@@ -66,11 +66,23 @@ void FindUsbtinys(void) {
 
         if (    device->descriptor.idVendor  == VENDOR_ID
             &&  device->descriptor.idProduct == PRODUCT_ID) {
+
+          int usbtinyindex = 0;
+          usb_dev_handle* h = usb_open(device);
+          if (h) {
+            char serialnumber[] = { 0,0,0,0 };
+            if (usb_get_string_simple(h, device->descriptor.iSerialNumber,
+                                      serialnumber, sizeof(serialnumber)) >= 0) {
+              usbtinyindex = atoi(serialnumber);
+            }
+            usb_close(h);
+          }
+
           Assert(PortCount < countof(Ports));
           Ports[PortCount] = malloc(sizeof(struct UPort));
           Assert(Ports[PortCount]);
           Ports[PortCount]->kind      = 'u';
-          Ports[PortCount]->index     = usbtinyindex++;
+          Ports[PortCount]->index     = usbtinyindex;
           Ports[PortCount]->character = -1;              // Currently undetermined
           Ports[PortCount]->baud      = 0;               // Currently undetermined
           ((struct UPort*)Ports[PortCount])->handle = 0; // Currently unconnected
@@ -84,9 +96,29 @@ void FindUsbtinys(void) {
       bus = bus->next;
     }
   }
+
+  // 0 or 1 port is always ok
+  if (PortCount - PortCount0 <= 1) return;
+
+  // if they're all the same, number them sequentially
+  char same = 1;
+  for (int i = PortCount0 + 1; i < PortCount; ++i)
+    same = same && Ports[PortCount0]->index == Ports[i]->index;
+  if (same) {
+    for (int i = PortCount0; i < PortCount; ++i)
+      Ports[i]->index = i - PortCount0 + 1;
+    return;
+  }
+
+  // for any duplicates, increment subsequent ones by 1000
+  for (int i = PortCount0; i < PortCount; ++i) {
+    int index = Ports[i]->index;
+    int increment = 0;
+    for (int j = i + 1; j < PortCount; ++j)
+      if (Ports[j]->index == index)
+        Ports[j]->index += (increment += 1000);
+  }
 }
-
-
 
 void PortFail(struct UPort *up, char *msg) {
   usb_close(up->handle);
